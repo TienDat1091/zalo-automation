@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Zalo Messenger</title>
+  <link rel="stylesheet" href="assets/style_dashboard.css" />
+  <style>
+    /* Search box enhancements */
+    .search-box {
+      position: relative;
+    }
+
+    .search-mode-indicator {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: #999;
+      background: #f0f0f0;
+      padding: 4px 8px;
+      border-radius: 12px;
+      pointer-events: none;
+      transition: all 0.3s;
+    }
+
+    .search-mode-indicator.phone-mode {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .search-box input {
+      padding-right: 90px !important;
+    }
+
+    /* Search results dropdown */
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      max-height: 400px;
+      overflow-y: auto;
+      z-index: 1000;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .search-results.show {
+      display: block;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .search-result-item {
+      padding: 15px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-result-item:hover {
+      background: #f8f9fa;
+    }
+
+    .search-result-item img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .search-result-info {
+      flex: 1;
+    }
+
+    .search-result-name {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .search-result-name .highlight {
+      background: #fff59d;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+
+    .search-result-detail {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .search-result-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .search-loading {
+      padding: 30px;
+      text-align: center;
+      color: #666;
+    }
+
+    .search-loading .spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .search-empty {
+      padding: 30px;
+      text-align: center;
+      color: #999;
+    }
+
+    .search-empty .icon {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    .search-hint {
+      padding: 12px 15px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .search-hint strong {
+      color: #667eea;
+    }
+
+    /* Overlay khi search results mở */
+    .search-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 999;
+      display: none;
+    }
+
+    .search-overlay.show {
+      display: block;
+    }
+
+    /* Message preview styling */
+    .friend-item .preview {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .friend-item .preview.has-message {
+      color: #333;
+      font-weight: 500;
+    }
+
+    .friend-item .message-time {
+      font-size: 11px;
+      color: #999;
+      margin-left: 8px;
+    }
+
+    .friend-item.has-messages {
+      background: #f8f9ff;
+    }
+
+    .friend-item.has-messages:hover {
+      background: #f0f2ff;
+    }
+
+    .friend-item .name {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>Zalo Messenger</h1>
+        <div class="user-info" id="userInfo" style="display:none;">
+          <img id="userAvatar" src="" alt="Avatar">
+          <div id="userName">Đang tải...</div>
+          <div id="userUid" style="font-size:12px;color:#666;"></div>
+          <button class="logout-btn" onclick="logout()">
+            <span>🚪</span><span>Đăng xuất</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search Box -->
+      <div class="search-box">
+        <input 
+          type="text" 
+          placeholder="🔍 Tìm bạn bè hoặc nhập SĐT..." 
+          id="searchInput"
+          autocomplete="off"
+        >
+        <span class="search-mode-indicator" id="searchMode">Lọc danh sách</span>
+        
+        <!-- Search Results Dropdown -->
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <!-- Refresh notice - DISABLED FOR TESTING -->
+      <!-- <div id="refreshNotice" style="display:none;background:#667eea;color:white;padding:8px 15px;text-align:center;cursor:pointer;font-size:13px;" onclick="refreshFriendsList()">
+        📬 Có tin nhắn mới - Nhấn để cập nhật danh sách
+      </div> -->
+
+      <!-- Friends List -->
+      <div class="friends-list" id="friendsList">
+        <div class="loading-friends">
+          <div class="spinner"></div>
+          <div>Đang tải danh sách...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT AREA -->
+    <div class="chat-area">
+      <div class="chat-header" id="chatHeader" style="display:none;">
+        <img id="chatAvatar" src="" alt="Avatar">
+        <div class="info">
+          <div class="name" id="chatName">Chọn bạn bè</div>
+          <div class="uid" id="chatUid"></div>
+          <div class="status">Đang hoạt động</div>
+        </div>
+      </div>
+
+      <div class="messages-container" id="messagesContainer">
+        <div class="empty-chat">
+          <div class="icon">💬</div>
+          <div>Chọn một cuộc trò chuyện để bắt đầu</div>
+        </div>
+      </div>
+
+      <div class="input-area" id="inputArea" style="display:none;">
+        <textarea id="messageInput" placeholder="Nhập tin nhắn..." rows="1"></textarea>
+        <button type="button" id="sendBtn" onclick="sendMessage()">Gửi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay -->
+  <div class="search-overlay" id="searchOverlay" onclick="closeSearchResults()"></div>
+
+  <script>
+    const ws = new WebSocket('ws://' + location.hostname + ':8080');
+    let friends = [], filteredFriends = [], currentMessages = [];
+    let selectedFriend = null, currentUserId = null;
+    let searchTimeout = null;
+    let isSearchingPhone = false;
+    let messageStore = new Map(); // Lưu tin nhắn local
+    let hasNewMessages = false; // Cờ để biết có tin nhắn mới
+    let isFirstLoad = true; // Cờ để biết lần đầu load
+    let connectionCount = 0; // Đếm số lần connect
+  
+    const ITEM_HEIGHT = 74;
+    const BUFFER_SIZE = 20;
+    let scrollTop = 0, containerHeight = 0;
+  
+    ws.onopen = () => {
+      connectionCount++;
+      console.log('🔵 WebSocket connected - Lần:', connectionCount);
+      
+      // Chỉ load friends nếu chưa có data
+      if (friends.length === 0) {
+        console.log('📥 Load friends lần đầu');
+        loadFriends();
+      } else {
+        console.log('⚠️ WebSocket RECONNECT - Đã có', friends.length, 'bạn bè - SKIP load');
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('❌ WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('🔴 WebSocket closed');
+    };
+  
+    ws.onmessage = e => {
+      const data = JSON.parse(e.data);
+  
+      if (data.type === 'current_user') {
+        currentUserId = data.user.uid;
+        document.getElementById('userName').textContent = data.user.name || data.user.displayName || "Tên";
+        document.getElementById('userAvatar').src = data.user.avatar || "https://via.placeholder.com/50";
+        document.getElementById('userUid').textContent = 'UID: ' + data.user.uid;
+        document.getElementById('userInfo').style.display = 'flex';
+      }
+  
+      if (data.type === 'logged_out') {
+        showNotification('Đã đăng xuất thành công!', 'success');
+        ws.close();
+        setTimeout(() => window.location.href = '/', 1200);
+      }
+  
+      if (data.type === 'friends_list') {
+        console.log('👥 Nhận friends_list từ server:', data.friends?.length, 'người');
+        friends = data.friends || [];
+        filteredFriends = [...friends];
+        console.log('Đã load', friends.length, 'bạn bè');
+        
+        // Load message history để có preview
+        console.log('📋 Request get_all_conversations');
+        ws.send(JSON.stringify({ type: 'get_all_conversations' }));
+      }
+  
+      if (data.type === 'friends_progress') {
+        document.getElementById('friendsList').innerHTML = `
+          <div class="loading-friends">
+            <div class="spinner"></div>
+            <div>Đang tải bạn bè... (${data.totalSoFar || 0} người)</div>
+          </div>`;
+      }
+
+      // Nhận danh sách conversations để hiển thị preview
+      if (data.type === 'all_conversations') {
+        const conversations = data.conversations || [];
+        conversations.forEach(conv => {
+          messageStore.set(conv.uid, {
+            lastMessage: conv.lastMessage,
+            timestamp: conv.timestamp,
+            messageCount: conv.messageCount
+          });
+        });
+        
+        // Chỉ render lần đầu tiên, các lần sau KHÔNG render
+        if (isFirstLoad) {
+          renderFriendsVirtual();
+          isFirstLoad = false;
+        }
+      }
+  
+      if (data.type === 'messages_history' && selectedFriend && data.uid === selectedFriend.userId) {
+        currentMessages = (data.messages || []).sort((a, b) => a.timestamp - b.timestamp);
+        renderMessages();
+      }
+  
+      if (data.type === 'sent_ok') {
+        console.log('✅ Nhận sent_ok từ server');
+        // Thêm tin nhắn vào UI
+        currentMessages.push(data.message);
+        renderMessages();
+        document.getElementById('messageInput').value = '';
+        scrollToBottom();
+
+        // Cập nhật messageStore
+        updateMessageStore(selectedFriend.userId, data.message.content, data.message.timestamp);
+        
+        // Hiển thị thông báo có tin nhắn mới - DISABLED
+        // showRefreshNotice();
+        console.log('✅ Xử lý sent_ok xong - KHÔNG GỌI showRefreshNotice');
+      }
+  
+      if (data.type === 'new_message') {
+        console.log('📨 Nhận new_message từ server, uid:', data.uid);
+        // Cập nhật messageStore
+        updateMessageStore(data.uid, data.message.content, data.message.timestamp);
+        
+        // Hiển thị tin nhắn nếu đang chat với người đó
+        if (selectedFriend && data.uid === selectedFriend.userId) {
+          console.log('💬 Đang chat với người này, hiển thị tin nhắn');
+          currentMessages.push({ ...data.message, isSelf: false });
+          renderMessages();
+          scrollToBottom();
+        } else {
+          // Thông báo nếu không đang chat
+          const sender = friends.find(f => f.userId === data.uid);
+          const name = sender ? sender.displayName : 'Người dùng';
+          showNotification(`${name}: ${data.message.content.substring(0, 30)}...`, 'success');
+          console.log('🔔 Hiển thị thông báo cho tin nhắn từ:', name);
+        }
+
+        // Hiển thị thông báo có tin nhắn mới - DISABLED
+        // showRefreshNotice();
+        console.log('✅ Xử lý new_message xong - KHÔNG GỌI showRefreshNotice');
+      }
+
+      // XỬ LÝ KẾT QUẢ TÌM KIẾM QUA SĐT
+      if (data.type === 'user_found') {
+        displayPhoneSearchResult(data.user);
+        isSearchingPhone = false;
+      }
+
+      if (data.type === 'user_not_found') {
+        showSearchEmpty('Không tìm thấy người dùng với số điện thoại này');
+        isSearchingPhone = false;
+      }
+
+      if (data.type === 'search_error') {
+        showSearchEmpty('Lỗi: ' + (data.error || 'Không thể tìm kiếm'));
+        isSearchingPhone = false;
+      }
+  
+      if (data.type === 'friends_error' || data.type === 'sent_error') {
+        showNotification('Lỗi: ' + (data.error || 'Không xác định'), 'error');
+      }
+    };
+
+    // Cập nhật messageStore khi có tin nhắn mới
+    function updateMessageStore(uid, content, timestamp) {
+      messageStore.set(uid, {
+        lastMessage: content,
+        timestamp: timestamp,
+        messageCount: (messageStore.get(uid)?.messageCount || 0) + 1
+      });
+    }
+
+    // Hiển thị thông báo có tin nhắn mới
+    function showRefreshNotice() {
+      console.log('🔔 Hiển thị banner "Có tin nhắn mới"');
+      hasNewMessages = true;
+      document.getElementById('refreshNotice').style.display = 'block';
+    }
+
+    // Refresh danh sách bạn bè khi người dùng click
+    function refreshFriendsList() {
+      console.log('🔄 refreshFriendsList() được gọi - Stack:', new Error().stack);
+      hasNewMessages = false;
+      document.getElementById('refreshNotice').style.display = 'none';
+      renderFriendsVirtual();
+    }
+  
+    function loadFriends() {
+      ws.send(JSON.stringify({ type: 'get_friends' }));
+    }
+  
+    function logout() {
+      if (confirm('Bạn có chắc muốn đăng xuất không?')) {
+        showNotification('Đang đăng xuất...', 'info');
+        ws.send(JSON.stringify({ type: 'logout' }));
+      }
+    }
+    
+    // ==================== RENDER DANH SÁCH BẠN BÈ ====================
+    function renderFriendsVirtual() {
+      const container = document.getElementById('friendsList');
+      
+      // Sắp xếp: Người có tin nhắn lên đầu, theo thời gian mới nhất
+      const sortedFriends = [...filteredFriends].sort((a, b) => {
+        const aMsg = messageStore.get(a.userId);
+        const bMsg = messageStore.get(b.userId);
+        
+        // Người có tin nhắn lên trước
+        if (aMsg && !bMsg) return -1;
+        if (!aMsg && bMsg) return 1;
+        
+        // Cả 2 có tin nhắn -> sắp xếp theo thời gian
+        if (aMsg && bMsg) {
+          return bMsg.timestamp - aMsg.timestamp;
+        }
+        
+        // Cả 2 không có tin nhắn -> giữ nguyên thứ tự
+        return 0;
+      });
+      
+      if (sortedFriends.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">Chưa có bạn bè nào</div>';
+        return;
+      }
+  
+      const totalHeight = sortedFriends.length * ITEM_HEIGHT;
+      container.innerHTML = `
+        <div class="virtual-scroll-container" style="height:${totalHeight}px;position:relative;">
+          <div class="virtual-scroll-content" id="virtualScrollContent" style="position:absolute;top:0;left:0;width:100%;"></div>
+        </div>`;
+  
+      setTimeout(() => {
+        containerHeight = container.clientHeight || 600;
+        container.onscroll = () => {
+          scrollTop = container.scrollTop;
+          updateVisibleFriends(sortedFriends);
+        };
+        updateVisibleFriends(sortedFriends);
+      }, 100);
+    }
+  
+    function updateVisibleFriends(sortedFriends) {
+      const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
+      const endIndex = Math.min(sortedFriends.length, startIndex + Math.ceil(containerHeight / ITEM_HEIGHT) + BUFFER_SIZE * 2);
+      const visibleFriends = sortedFriends.slice(startIndex, endIndex);
+      const offsetY = startIndex * ITEM_HEIGHT;
+  
+      const content = document.getElementById('virtualScrollContent');
+      if (!content) return;
+  
+      content.style.transform = `translateY(${offsetY}px)`;
+      content.innerHTML = visibleFriends.map(f => {
+        const msgInfo = messageStore.get(f.userId);
+        const hasMessages = !!msgInfo;
+        const preview = hasMessages 
+          ? `<span class="has-message">${escapeHtml(msgInfo.lastMessage.substring(0, 30))}${msgInfo.lastMessage.length > 30 ? '...' : ''}</span>`
+          : 'Nhấn để chat • UID: ' + f.userId;
+        
+        const timeStr = hasMessages 
+          ? `<span class="message-time">${formatTime(msgInfo.timestamp)}</span>`
+          : '';
+
+        return `
+          <div class="friend-item ${hasMessages ? 'has-messages' : ''} ${(selectedFriend && selectedFriend.userId === f.userId) ? 'active' : ''}" 
+               onclick="selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${f.avatar || ''}')">
+            <img src="${f.avatar || 'https://via.placeholder.com/50'}" 
+                 onerror="this.src='https://via.placeholder.com/50'" 
+                 alt="${f.displayName || 'User'}">
+            <div class="info" style="flex:1;">
+              <div class="name">
+                <span>${f.displayName || 'Người dùng Zalo'}</span>
+                ${timeStr}
+              </div>
+              <div class="preview">${preview}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function formatTime(timestamp) {
+      const now = Date.now();
+      const diff = now - timestamp;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (minutes < 1) return 'Vừa xong';
+      if (minutes < 60) return `${minutes}p`;
+      if (hours < 24) return `${hours}h`;
+      if (days < 7) return `${days}d`;
+      
+      const date = new Date(timestamp);
+      return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    }
+  
+    function selectFriend(userId, displayName, avatar) {
+      selectedFriend = { userId, displayName, avatar };
+  
+      document.querySelectorAll('.friend-item').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById('chatHeader').style.display = 'flex';
+      document.getElementById('inputArea').style.display = 'flex';
+      document.getElementById('chatAvatar').src = avatar || 'https://via.placeholder.com/50';
+      document.getElementById('chatName').textContent = displayName || 'Người dùng Zalo';
+      document.getElementById('chatUid').textContent = 'UID: ' + userId;
+  
+      document.getElementById('messagesContainer').innerHTML = '<div class="loading-friends"><div class="spinner"></div><div>Đang tải tin nhắn...</div></div>';
+      currentMessages = [];
+      ws.send(JSON.stringify({ type: 'get_messages', uid: userId }));
+    }
+  
+    function renderMessages() {
+      const container = document.getElementById('messagesContainer');
+      if (currentMessages.length === 0) {
+        container.innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Chưa có tin nhắn nào</div></div>';
+        return;
+      }
+  
+      container.innerHTML = currentMessages.map(msg => {
+        const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        const isSelf = msg.isSelf || msg.senderId === currentUserId;
+        return `
+          <div class="message ${isSelf ? 'self' : ''}">
+            <img class="avatar" src="${isSelf ? document.getElementById('userAvatar').src : (selectedFriend?.avatar || 'https://via.placeholder.com/50')}" alt="Avatar">
+            <div>
+              <div class="bubble">${escapeHtml(msg.content || msg.msg || '')}</div>
+              <div class="time">${time}</div>
+            </div>
+          </div>`;
+      }).join('');
+  
+      scrollToBottom();
+    }
+  
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  
+    function escapeJs(str) {
+      return (str || '').replace(/'/g, "\\'");
+    }
+  
+    function sendMessage() {
+      console.log('📤 sendMessage() được gọi');
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text || !selectedFriend) {
+        console.log('⚠️ Không có text hoặc selectedFriend');
+        return;
+      }
+  
+      console.log('➡️ Gửi tin nhắn qua WebSocket');
+      ws.send(JSON.stringify({
+        type: 'send_message',
+        uid: selectedFriend.userId,
+        text: text
+      }));
+      input.value = '';
+      console.log('✅ Đã gửi tin nhắn, clear input');
+    }
+  
+    function scrollToBottom() {
+      setTimeout(() => {
+        const container = document.getElementById('messagesContainer');
+        if (container) container.scrollTop = container.scrollHeight;
+      }, 50);
+    }
+  
+    document.getElementById('messageInput')?.addEventListener('keypress', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  
+    function showNotification(msg, type = 'info') {
+      const n = document.createElement('div');
+      n.textContent = msg;
+      n.style.cssText = `
+        position:fixed;top:20px;right:20px;padding:12px 24px;
+        background:${type==='error'?'#ff3b30':type==='success'?'#34c759':'#0068ff'};
+        color:white;border-radius:8px;z-index:9999;font-size:14px;
+        box-shadow:0 4px 12px rgba(0,0,0,0.2);animation:slideIn 0.4s ease;
+      `;
+      document.body.appendChild(n);
+      setTimeout(() => n.remove(), 3500);
+    }
+  
+    const style = document.createElement('style');
+    style.textContent = `@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}`;
+    document.head.appendChild(style);
+  </script>
+  <!-- <script src = 'search.js'></script> -->
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Zalo Login</title>
+  <link rel="stylesheet" href="assets/style_index.css" />
+</head>
+<body>
+  <div class="box">
+    <h2>🔐 Zalo Login</h2>
+    <p class="subtitle">Quét mã QR để đăng nhập</p>
+    
+    <div class="qr-container">
+      <img id="qr" src="/qr.png?t=0" alt="QR Code" />
+    </div>
+    
+    <div class="loading">
+      <div class="spinner"></div>
+      <span id="statusText">Đang chờ quét mã...</span>
+    </div>
+    
+    <div class="status" id="statusBox" style="display: none;"></div>
+    
+    <div class="instructions">
+      <strong>📱 Hướng dẫn:</strong>
+      <ol>
+        <li>Mở ứng dụng <strong>Zalo</strong></li>
+        <li>Chọn <strong>Cài đặt</strong> → <strong>Thiết bị đã đăng nhập</strong></li>
+        <li>Nhấn <strong>Đăng nhập thiết bị mới</strong></li>
+        <li>Quét mã QR trên màn hình</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    const ws = new WebSocket('ws://' + location.hostname + ':8080');
+    const qrImg = document.querySelector('#qr');
+    const statusText = document.querySelector('#statusText');
+    const statusBox = document.querySelector('#statusBox');
+    let qrRefreshInterval;
+
+    // Xử lý khi WebSocket kết nối
+    ws.onopen = () => {
+      console.log('✅ Đã kết nối WebSocket');
+      updateStatus('Đang chờ quét mã...', 'waiting');
+      
+      // Auto refresh QR mỗi 3 giây nếu chưa login
+      qrRefreshInterval = setInterval(() => {
+        if (document.body.dataset.logged !== 'true') {
+          qrImg.src = '/qr.png?t=' + Date.now();
+        }
+      }, 3000);
+    };
+
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      
+      if (data.type === 'current_user') {
+        console.log('✅ Đăng nhập thành công:', data.user.name);
+        document.body.dataset.logged = 'true';
+        clearInterval(qrRefreshInterval);
+        
+        updateStatus('✅ Đăng nhập thành công! Đang chuyển hướng...', 'success');
+        
+        // Chuyển sang dashboard sau 1 giây
+        setTimeout(() => {
+          const params = new URLSearchParams({
+            name: data.user.name,
+            uid: data.user.uid,
+            avatar: data.user.avatar || ''
+          });
+          location.href = '/dashboard.html?' + params.toString();
+        }, 100);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('❌ Lỗi WebSocket:', error);
+      updateStatus('Lỗi kết nối! Đang thử kết nối lại...', 'error');
+    };
+
+    ws.onclose = () => {
+      console.log('⚠️ WebSocket đã đóng');
+      if (document.body.dataset.logged !== 'true') {
+        updateStatus('Mất kết nối! Vui lòng tải lại trang.', 'error');
+        clearInterval(qrRefreshInterval);
+      }
+    };
+
+    function updateStatus(message, type) {
+      statusText.textContent = message;
+      
+      if (type === 'success') {
+        statusBox.style.display = 'block';
+        statusBox.className = 'status success';
+        statusBox.textContent = message;
+        document.querySelector('.loading').style.display = 'none';
+      } else if (type === 'error') {
+        statusBox.style.display = 'block';
+        statusBox.className = 'status';
+        statusBox.style.background = '#f8d7da';
+        statusBox.style.color = '#721c24';
+        statusBox.style.border = '1px solid #f5c6cb';
+        statusBox.textContent = message;
+      }
+    }
+
+    // Xử lý lỗi load ảnh QR
+    qrImg.onerror = () => {
+      console.log('⏳ QR chưa sẵn sàng, đang thử lại...');
+      setTimeout(() => {
+        qrImg.src = '/qr.png?t=' + Date.now();
+      }, 1000);
+    };
+  </script>
+</body>
+</html>

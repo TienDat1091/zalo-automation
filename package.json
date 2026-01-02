@@ -1,0 +1,20 @@
+{
+  "name": "zalo-websocket",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.5.0",
+    "open": "^11.0.0",
+    "qrcode": "^1.5.4",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.18.3",
+    "zca-js": "^2.0.4"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

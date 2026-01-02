@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zalo Trigger Manager - SQLite v3</title>
+  <link rel="stylesheet" href="assets/style_trigger_manager.css" />
+  <style>
+    .notification-badge { position: absolute; top: -5px; right: -5px; background: #f44336; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
+    .notification-btn { position: relative; }
+    .user-info-panel { display: flex; align-items: center; gap: 10px; margin-left: 20px; padding: 8px 12px; background: #f5f7fa; border-radius: 8px; border: 1px solid #e0e0e0; }
+    .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; font-weight: 600; }
+    .user-details { display: flex; flex-direction: column; gap: 2px; }
+    .user-name { font-size: 13px; font-weight: 600; color: #333; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-uid { font-size: 10px; color: #999; font-family: monospace; }
+    .user-status { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: #e8f5e9; border-radius: 12px; font-size: 11px; font-weight: 600; color: #2e7d32; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; }
+    .trigger-item-compact { padding: 10px 12px; margin-bottom: 6px; border-radius: 6px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; background: #fff; }
+    .trigger-item-compact:hover { background: #f5f7fa; border-color: #e0e0e0; }
+    .trigger-item-compact.active { background: #e3f2fd; border-color: #0084ff; }
+    .trigger-header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .trigger-main-info { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .trigger-icon-small { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; background: #e3f2fd; }
+    .trigger-name-small { font-size: 13px; font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trigger-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
+    .trigger-item-compact:hover .trigger-actions { opacity: 1; }
+    .action-icon { width: 24px; height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; font-size: 12px; }
+    .action-icon:hover { background: #e0e0e0; }
+    .trigger-keywords-preview { font-size: 11px; color: #999; margin-top: 4px; }
+    .trigger-time-created { font-size: 10px; color: #aaa; margin-top: 2px; }
+    .db-badge { background: #4caf50; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+    .flow-badge { background: #9c27b0; color: white; font-size: 9px; padding: 2px 5px; border-radius: 4px; margin-left: 4px; }
+    .friends-selector { border: 1px solid #ddd; border-radius: 8px; max-height: 250px; overflow-y: auto; margin-top: 8px; }
+    .friends-selector-loading { text-align: center; padding: 20px; color: #999; }
+    .friend-checkbox-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+    .friend-checkbox-item:hover { background: #f5f7fa; }
+    .friend-checkbox-item:last-child { border-bottom: none; }
+    .friend-checkbox-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    .friend-checkbox-item img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+    .friend-checkbox-info { flex: 1; }
+    .friend-checkbox-name { font-size: 13px; font-weight: 500; color: #333; }
+    .friend-checkbox-uid { font-size: 10px; color: #999; font-family: monospace; }
+    .selected-friends-summary { margin-top: 8px; padding: 8px 12px; background: #e3f2fd; border-radius: 6px; font-size: 12px; color: #1976d2; }
+    .friends-search-box { padding: 8px; border-bottom: 1px solid #ddd; }
+    .friends-search-box input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+    .response-input-wrapper { position: relative; }
+    .emoji-btn { position: absolute; right: 10px; bottom: 10px; background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; border-radius: 4px; }
+    .emoji-btn:hover { background: #f0f0f0; }
+    .emoji-picker-container { position: absolute; bottom: 45px; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; width: 280px; display: none; }
+    .emoji-picker-container.show { display: block; }
+    .emoji-tabs { display: flex; gap: 4px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px; flex-wrap: wrap; }
+    .emoji-tab { background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+    .emoji-tab:hover { background: #f0f0f0; }
+    .emoji-tab.active { background: #e3f2fd; }
+    .emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; max-height: 150px; overflow-y: auto; }
+    .emoji-item { font-size: 18px; cursor: pointer; padding: 4px; border-radius: 4px; text-align: center; }
+    .emoji-item:hover { background: #f0f0f0; }
+    .delete-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 10000; }
+    .delete-modal.show { display: flex; }
+    .delete-modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 400px; text-align: center; }
+    .delete-modal-icon { font-size: 48px; margin-bottom: 16px; }
+    .delete-modal-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .delete-modal-text { font-size: 14px; color: #666; margin-bottom: 20px; }
+    .delete-modal-actions { display: flex; gap: 12px; justify-content: center; }
+    .delete-modal-actions button { padding: 10px 24px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    .delete-modal-cancel { background: #f0f0f0; border: none; color: #333; }
+    .delete-modal-confirm { background: #f44336; border: none; color: white; }
+    .activity-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 9998; display: none; }
+    .activity-backdrop.show { display: block; }
+    .activity-window { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-height: 600px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 9999; display: none; }
+    .activity-window.show { display: block; }
+    .activity-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #eee; }
+    .activity-header h3 { margin: 0; font-size: 16px; }
+    .activity-close { background: none; border: none; font-size: 20px; cursor: pointer; }
+    .activity-list { max-height: 500px; overflow-y: auto; padding: 12px; }
+    .activity-item { display: flex; gap: 12px; padding: 10px; border-radius: 8px; margin-bottom: 8px; background: #f9f9f9; }
+    .activity-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .activity-icon.create { background: #e8f5e9; }
+    .activity-icon.update { background: #e3f2fd; }
+    .activity-icon.delete { background: #ffebee; }
+    .activity-info { flex: 1; }
+    .activity-action { font-size: 13px; font-weight: 600; }
+    .activity-trigger { font-size: 12px; color: #666; }
+    .activity-time { font-size: 11px; color: #999; }
+    .activity-empty { text-align: center; padding: 40px; color: #999; }
+    .mode-hint { font-size: 11px; color: #666; margin-top: 4px; padding: 8px; background: #f5f7fa; border-radius: 4px; }
+    .mode-hint.flow { background: #f3e5f5; color: #7b1fa2; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div class="header-title"><span class="icon">🤖</span><span>Bot-Auto - Trigger Manager</span><span class="db-badge">SQLite v3</span></div>
+      <div class="user-info-panel" id="userInfoPanel" style="display:none;">
+        <div class="user-avatar" id="userAvatar">👤</div>
+        <div class="user-details"><div class="user-name" id="userName">Loading...</div><div class="user-uid" id="userUID">UID: -</div></div>
+        <div class="user-status" id="userStatus"><span class="status-dot"></span><span class="status-text">Online</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="auto-reply-toggle-container" id="autoReplyToggleContainer">
+        <span class="toggle-label"><span>🤖</span><span>Auto Reply</span></span>
+        <label class="toggle-switch"><input type="checkbox" id="autoReplyToggle" onchange="toggleAutoReply()" disabled><span class="toggle-slider"></span></label>
+        <span class="toggle-status loading" id="autoReplyStatus">...</span>
+      </div>
+      <button class="header-btn notification-btn" onclick="openActivityWindow()">
+        <span>📋</span><span>Lịch sử</span>
+        <span class="notification-badge" id="activityBadge" style="display:none;">0</span>
+      </button>
+      <a href="/dashboard.html" target="_blank" rel="noopener noreferrer" class="header-btn">
+        <span>🏠</span>
+        <span>Dashboard</span>
+      </a>
+      <a href="/bank-manager.html" target="_blank" rel="noopener noreferrer" class="header-btn">
+        <span>💰</span>
+        <span>Bank Manager</span>
+      </a>
+      <button class="header-btn primary" onclick="showNewTriggerModal()"><span>➕</span><span>Tạo Trigger</span></button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h3>Danh sách Trigger (<span id="triggerCount">0</span>)</h3>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="Tìm kiếm..." id="searchInput" oninput="searchTriggers()"></div>
+      </div>
+      <div class="trigger-list" id="triggerList"><div style="text-align:center; padding:40px; color:#999;">📋 Đang tải...</div></div>
+    </div>
+    <div class="canvas-area">
+      <div class="canvas-header">
+        <div class="canvas-title">
+          <h2 id="canvasTitle">Chọn một trigger</h2>
+          <span class="badge" id="canvasBadge" style="display:none;"></span>
+          <span class="flow-badge" id="canvasFlowBadge" style="display:none;">FLOW</span>
+        </div>
+        <div class="canvas-actions" id="canvasActions" style="display:none;">
+          <button class="header-btn" onclick="editCurrentTrigger()"><span>✏️</span><span>Sửa</span></button>
+          <button class="header-btn" onclick="openTriggerBuilder()" id="btnOpenBuilder" style="display:none;"><span>⚙️</span><span>Flow Builder</span></button>
+          <button class="header-btn" onclick="duplicateCurrentTrigger()"><span>📋</span><span>Nhân bản</span></button>
+          <button class="header-btn btn-danger" onclick="showDeleteModal()"><span>🗑️</span><span>Xóa</span></button>
+        </div>
+      </div>
+      <div class="canvas-content" id="canvasContent">
+        <div class="empty-state"><div class="icon">🎯</div><h3>Chọn trigger để xem chi tiết</h3><button class="btn btn-primary" onclick="showNewTriggerModal()">➕ Tạo mới</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRIGGER MODAL -->
+  <div class="modal-overlay" id="triggerModal">
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header"><h3 id="modalTitle">Tạo Trigger Mới</h3><button class="modal-close" onclick="hideTriggerModal()">✕</button></div>
+      <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+        <div class="form-group"><label class="form-label">Tên trigger *</label><input type="text" class="form-input" id="triggerName" placeholder="VD: Hỏi giá sản phẩm"></div>
+        <div class="form-group"><label class="form-label">Từ khóa *</label><input type="text" class="form-input" id="triggerKeywords" placeholder="VD: giá, báo giá (phân cách dấu phẩy)"></div>
+        
+        <!-- Chế độ chạy -->
+        <div class="form-group">
+          <label class="form-label">🚀 Chế độ chạy</label>
+          <select class="form-input" id="triggerMode" onchange="onModeChange()">
+            <option value="0">⚡ Gửi trực tiếp</option>
+            <option value="1">🔄 Chạy theo quy trình (Flow)</option>
+          </select>
+          <div class="mode-hint" id="modeHint">Tin nhắn sẽ được gửi ngay lập tức khi khớp từ khóa</div>
+        </div>
+        
+        <!-- Nội dung trả lời (chỉ hiện khi mode = 0) -->
+        <div class="form-group" id="responseGroup">
+          <label class="form-label">💬 Nội dung trả lời *</label>
+          <div class="response-input-wrapper">
+            <textarea class="form-input" id="triggerResponse" rows="4" placeholder="Nội dung auto-reply"></textarea>
+            <button type="button" class="emoji-btn" onclick="toggleEmojiPicker(event)">😊</button>
+            <div class="emoji-picker-container" id="emojiPickerContainer">
+              <div class="emoji-tabs" id="emojiTabs"></div>
+              <div class="emoji-grid" id="emojiGrid"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Lịch hoạt động - Giờ -->
+        <div class="form-group">
+          <label class="form-label">⏰ Thời gian hoạt động</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div><label style="font-size:11px; color:#666;">Từ giờ</label><input type="time" class="form-input" id="triggerStartTime" value="00:00"></div>
+            <div><label style="font-size:11px; color:#666;">Đến giờ</label><input type="time" class="form-input" id="triggerEndTime" value="23:59"></div>
+          </div>
+        </div>
+        
+        <!-- Lịch hoạt động - Ngày -->
+        <div class="form-group">
+          <label class="form-label">📅 Ngày hoạt động (tùy chọn)</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div><label style="font-size:11px; color:#666;">Từ ngày</label><input type="date" class="form-input" id="triggerDateStart"></div>
+            <div><label style="font-size:11px; color:#666;">Đến ngày</label><input type="date" class="form-input" id="triggerDateEnd"></div>
+          </div>
+          <div style="font-size:11px; color:#999; margin-top:4px;">Để trống nếu muốn hoạt động mọi ngày</div>
+        </div>
+        
+        <!-- Scope -->
+        <div class="form-group">
+          <label class="form-label">👥 Áp dụng cho (Scope)</label>
+          <select class="form-input" id="triggerScope" onchange="onScopeChange()">
+            <option value="0">Tất cả mọi người (Everyone)</option>
+            <option value="1">Chỉ người lạ (Stranger)</option>
+            <option value="2">Bạn bè cụ thể (SpecificFriends)</option>
+            <option value="3">Tất cả trừ một số người (FriendsExcept)</option>
+          </select>
+        </div>
+        
+        <!-- Friends Selector -->
+        <div class="form-group" id="friendsSelectorGroup" style="display:none;">
+          <label class="form-label" id="friendsSelectorLabel">Chọn bạn bè</label>
+          <div class="friends-selector" id="friendsSelector"><div class="friends-selector-loading">Đang tải...</div></div>
+          <div class="selected-friends-summary" id="selectedFriendsSummary" style="display:none;">Đã chọn: <span id="selectedFriendsCount">0</span> người</div>
+        </div>
+        
+        <div class="form-group"><label class="form-label">⏱️ Cooldown (giây)</label><input type="number" class="form-input" id="triggerCooldown" value="30" min="0"></div>
+        <div class="form-group"><label class="form-label"><input type="checkbox" id="triggerEnabled" checked style="margin-right:6px;">Kích hoạt ngay</label></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideTriggerModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveTrigger()" id="saveBtn">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE MODAL -->
+  <div class="delete-modal" id="deleteModal">
+    <div class="delete-modal-content">
+      <div class="delete-modal-icon">🗑️</div>
+      <div class="delete-modal-title">Xóa Trigger</div>
+      <div class="delete-modal-text">Bạn có chắc muốn xóa trigger "<span id="deleteTriggerName"></span>"?<br><small style="color:#f44336;">⚠️ Flow liên quan cũng sẽ bị xóa!</small></div>
+      <div class="delete-modal-actions">
+        <button class="delete-modal-cancel" onclick="hideDeleteModal()">Hủy</button>
+        <button class="delete-modal-confirm" onclick="confirmDelete()">Xóa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVITY WINDOW -->
+  <div class="activity-backdrop" id="activityBackdrop" onclick="closeActivityWindow()"></div>
+  <div class="activity-window" id="activityWindow">
+    <div class="activity-header">
+      <h3>📋 Lịch sử hoạt động</h3>
+      <div>
+        <button onclick="clearActivityLogs()" style="background:#ffebee; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-right:8px;">🗑️ Xóa</button>
+        <button class="activity-close" onclick="closeActivityWindow()">✕</button>
+      </div>
+    </div>
+    <div class="activity-list" id="activityList"></div>
+  </div>
+
+  <script>
+    // ================================================
+    // EMOJI DATA
+    // ================================================
+    const EMOJI_DATA = {
+      'Smileys': ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤗','🤩','🤔','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','🙁','😖','😞','😟','😤','😢','😭','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','🥴','😠','😡','🤬','😷','🤒','🤕','🤢','🤮','🤧','😇','🥳','🥺','🤠','🤡','🤥','🤫','🤭','🧐','🤓','😈','👿','👹','👺','💀','☠️','👻','👽','👾','🤖'],
+      'Hands': ['👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄'],
+      'Hearts': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉️','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'],
+      'Objects': ['⌚','📱','📲','💻','⌨️','🖥️','🖨️','🖱️','🖲️','🕹️','🗜️','💽','💾','💿','📀','📼','📷','📸','📹','🎥','📽️','🎞️','📞','☎️','📟','📠','📺','📻','🎙️','🎚️','🎛️','🧭','⏱️','⏲️','⏰','🕰️','⌛','⏳','📡','🔋','🔌','💡','🔦','🕯️','🪔','🧯','🛢️','💸','💵','💴','💶','💷','🪙','💰','💳','💎','⚖️','🪜','🧰','🪛','🔧','🔨','⚒️','🛠️','⛏️','🪚','🔩','⚙️','🪤','🧱','⛓️','🧲','🔫','💣','🧨','🪓','🔪','🗡️','⚔️','🛡️','🚬','⚰️','🪦','⚱️','🏺','🔮','📿','🧿','💈','⚗️','🔭','🔬','🕳️','🩹','🩺','💊','💉','🩸','🧬','🦠','🧫','🧪','🌡️','🧹','🪠','🧺','🧻','🚽','🚰','🚿','🛁','🛀','🧼','🪥','🪒','🧽','🪣','🧴','🛎️','🔑','🗝️','🚪','🪑','🛋️','🛏️','🛌','🧸','🪆','🖼️','🪞','🪟','🛍️','🛒','🎁','🎈','🎏','🎀','🪄','🪅','🎊','🎉','🎎','🏮','🎐','🧧','✉️','📩','📨','📧','💌','📥','📤','📦','🏷️','🪧','📪','📫','📬','📭','📮','📯','📜','📃','📄','📑','🧾','📊','📈','📉','🗒️','🗓️','📆','📅','🗑️','📇','🗃️','🗳️','🗄️','📋','📁','📂','🗂️','🗞️','📰','📓','📔','📒','📕','📗','📘','📙','📚','📖','🔖','🧷','🔗','📎','🖇️','📐','📏','🧮','📌','📍','✂️','🖊️','🖋️','✒️','🖌️','🖍️','📝','✏️','🔍','🔎','🔏','🔐','🔒','🔓']
+    };
+    let currentEmojiCategory = 'Smileys';
+
+    const AutoReplyScope = { Everyone: 0, Stranger: 1, SpecificFriends: 2, FriendsExcept: 3 };
+    const TriggerMode = { Direct: 0, Flow: 1 };
+    
+    let ws = null, triggers = [], currentTriggerId = null, editingTriggerId = null;
+    let currentUser = null, friendsList = [], selectedFriendUids = [];
+    let activityLogs = [], deleteTargetId = null, activityCount = 0;
+
+    // ================================================
+    // WEBSOCKET
+    // ================================================
+    function connectWebSocket() {
+      if (ws && ws.readyState === WebSocket.OPEN) return;
+      ws = new WebSocket('ws://' + location.hostname + ':8080');
+      ws.onopen = () => {
+        console.log('✅ WebSocket connected');
+        setTimeout(() => {
+          if (ws?.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'get_current_user' }));
+            ws.send(JSON.stringify({ type: 'get_auto_reply_status' }));
+            ws.send(JSON.stringify({ type: 'get_triggers' }));
+            ws.send(JSON.stringify({ type: 'get_friends' }));
+            ws.send(JSON.stringify({ type: 'get_activity_logs', limit: 100 }));
+          }
+        }, 200);
+      };
+      ws.onclose = () => { updateAutoReplyStatus('off', 'Offline'); setTimeout(connectWebSocket, 3000); };
+      ws.onmessage = (e) => { try { handleWebSocketMessage(JSON.parse(e.data)); } catch(err) { console.error(err); } };
+    }
+
+    function handleWebSocketMessage(data) {
+      console.log('📩', data.type);
+      if (data.type === 'current_user') { currentUser = data.user; updateUserInfo(currentUser); }
+      if (data.type === 'friends_list') { friendsList = data.friends || []; console.log('👥 Friends:', friendsList.length); }
+      if (data.type === 'triggers_list' || data.type === 'auto_reply_status') {
+        const list = data.triggers || data.scenarios || [];
+        if (list.length > 0 || data.type === 'triggers_list') { triggers = list.map(formatTrigger); renderTriggerList(); }
+        if (data.type === 'auto_reply_status') {
+          const toggle = document.getElementById('autoReplyToggle');
+          if (toggle) { toggle.checked = data.enabled; toggle.disabled = !currentUser?.uid; }
+          updateAutoReplyStatus(data.enabled ? 'on' : 'off', data.enabled ? 'ON' : 'OFF');
+        }
+      }
+      if (data.type === 'trigger_created' || data.type === 'scenario_added') { 
+        triggers.push(formatTrigger(data.trigger || data.scenario)); 
+        renderTriggerList(); 
+        showToast('✅ Đã tạo trigger!', 'success');
+        if ((data.trigger || data.scenario).setMode === 1) {
+          showToast('🔄 Flow đã được tạo - Mở Flow Builder để thiết kế', 'info');
+        }
+      }
+      if (data.type === 'trigger_updated' || data.type === 'scenario_updated') { const t = formatTrigger(data.trigger || data.scenario); const i = triggers.findIndex(x => x.id === t.id); if (i !== -1) { triggers[i] = t; renderTriggerList(); if (currentTriggerId === t.id) displayTrigger(t); } showToast('✅ Đã cập nhật!', 'success'); }
+      if (data.type === 'trigger_deleted' || data.type === 'scenario_deleted') { triggers = triggers.filter(t => t.id !== data.id); renderTriggerList(); if (currentTriggerId === data.id) showEmptyState(); showToast('✅ Đã xóa!', 'success'); }
+      if (data.type === 'trigger_toggled' || data.type === 'scenario_toggled') { const t = formatTrigger(data.trigger || data.scenario); const i = triggers.findIndex(x => x.id === t.id); if (i !== -1) { triggers[i] = t; renderTriggerList(); if (currentTriggerId === t.id) displayTrigger(t); } }
+      if (data.type === 'trigger_error') { showToast('❌ ' + (data.message || 'Lỗi'), 'error'); }
+      if (data.type === 'activity_logs') { activityLogs = data.logs || []; renderActivityList(); }
+      if (data.type === 'activity_log') { activityLogs.unshift(data.activity); activityCount++; updateActivityBadge(); renderActivityList(); }
+      if (data.type === 'activity_logs_cleared') { activityLogs = []; renderActivityList(); showToast('✅ Đã xóa lịch sử', 'success'); }
+    }
+
+    function formatTrigger(t) {
+      // Xử lý timestamp - có thể là số hoặc string
+      let timeCreated = t.timeCreated || t.createdAt;
+      let timeUpdate = t.timeUpdate || t.updatedAt;
+      
+      // Nếu là string dạng ISO, chuyển thành timestamp
+      if (typeof timeCreated === 'string') timeCreated = new Date(timeCreated).getTime();
+      if (typeof timeUpdate === 'string') timeUpdate = new Date(timeUpdate).getTime();
+      
+      // Nếu vẫn không hợp lệ, dùng Date.now()
+      if (!timeCreated || isNaN(timeCreated)) timeCreated = Date.now();
+      if (!timeUpdate || isNaN(timeUpdate)) timeUpdate = Date.now();
+
+      return {
+        id: t.triggerID || t.id, 
+        name: t.triggerName || t.name || 'Untitled',
+        keywords: t.triggerKey ? t.triggerKey.split(',').map(k => k.trim()) : (t.keywords || []),
+        response: t.triggerContent || t.response || '', 
+        enabled: t.enabled === true || t.enabled === 1,
+        scope: t.scope ?? 0, 
+        uids: t.uids || [],
+        schedule: { startTime: t.timeStartActive || t.schedule?.startTime || '00:00', endTime: t.timeEndActive || t.schedule?.endTime || '23:59' },
+        dateStart: t.dateStartActive || null,
+        dateEnd: t.dateEndActive || null,
+        cooldown: t.cooldown || 30000, 
+        timeCreated: timeCreated,
+        timeUpdate: timeUpdate,
+        userUID: t.triggerUserID || t.userUID, 
+        setMode: t.setMode ?? 0,
+        flow: t.flow || null,
+        icon: (t.setMode === 1) ? '🔄' : '🔑'
+      };
+    }
+
+    // ================================================
+    // UI HELPERS
+    // ================================================
+    function updateUserInfo(user) {
+      const panel = document.getElementById('userInfoPanel');
+      if (!user) { panel.style.display = 'none'; return; }
+      panel.style.display = 'flex';
+      document.getElementById('userAvatar').textContent = user.name ? user.name.charAt(0).toUpperCase() : '👤';
+      document.getElementById('userName').textContent = user.name || 'Unknown';
+      document.getElementById('userUID').textContent = 'UID: ' + (user.uid || '-');
+    }
+
+    function updateAutoReplyStatus(state, text) { const s = document.getElementById('autoReplyStatus'); if (s) { s.className = 'toggle-status ' + state; s.textContent = text; } }
+    function toggleAutoReply() { const t = document.getElementById('autoReplyToggle'); if (t && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'set_auto_reply', enabled: t.checked })); }
+
+    function formatDateTime(ts) { 
+      if (!ts || isNaN(ts)) return 'N/A'; 
+      const d = new Date(ts);
+      if (isNaN(d.getTime())) return 'N/A';
+      return d.toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); 
+    }
+    function formatTimeAgo(ts) { 
+      if (!ts || isNaN(ts)) return ''; 
+      const d = Date.now() - ts;
+      if (d < 0) return 'Vừa xong';
+      const m = Math.floor(d/60000), h = Math.floor(d/3600000), dd = Math.floor(d/86400000); 
+      if (m < 1) return 'Vừa xong'; 
+      if (m < 60) return m + ' phút trước'; 
+      if (h < 24) return h + ' giờ trước'; 
+      if (dd < 7) return dd + ' ngày trước'; 
+      return formatDateTime(ts); 
+    }
+    function getScopeText(s) { return ['Tất cả', 'Người lạ', 'Bạn bè cụ thể', 'Tất cả trừ'][s] || 'N/A'; }
+    function getModeText(m) { return m === 1 ? '🔄 Chạy theo Flow' : '⚡ Gửi trực tiếp'; }
+    function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+    function showToast(msg, type = 'info') { const t = document.createElement('div'); t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:' + (type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3') + ';color:white;padding:12px 20px;border-radius:8px;z-index:10001;'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => { t.remove(); }, 3000); }
+
+    // ================================================
+    // EMOJI PICKER
+    // ================================================
+    function toggleEmojiPicker(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const container = document.getElementById('emojiPickerContainer');
+      const isVisible = container.classList.contains('show');
+      if (isVisible) {
+        container.classList.remove('show');
+      } else {
+        renderEmojiPicker();
+        container.classList.add('show');
+      }
+    }
+
+    function renderEmojiPicker() {
+      // Render tabs
+      const tabsHtml = Object.keys(EMOJI_DATA).map(cat => 
+        `<button class="emoji-tab ${cat === currentEmojiCategory ? 'active' : ''}" onclick="selectEmojiCategory('${cat}')">${EMOJI_DATA[cat][0]}</button>`
+      ).join('');
+      document.getElementById('emojiTabs').innerHTML = tabsHtml;
+      
+      // Render emoji grid
+      renderEmojiGrid();
+    }
+
+    function selectEmojiCategory(cat) {
+      currentEmojiCategory = cat;
+      document.querySelectorAll('.emoji-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      renderEmojiGrid();
+    }
+
+    function renderEmojiGrid() {
+      const emojis = EMOJI_DATA[currentEmojiCategory] || [];
+      const gridHtml = emojis.map(e => `<span class="emoji-item" onclick="insertEmoji('${e}')">${e}</span>`).join('');
+      document.getElementById('emojiGrid').innerHTML = gridHtml;
+    }
+
+    function insertEmoji(emoji) {
+      const textarea = document.getElementById('triggerResponse');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      textarea.value = text.substring(0, start) + emoji + text.substring(end);
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+      // Đóng picker
+      document.getElementById('emojiPickerContainer').classList.remove('show');
+    }
+
+    // Đóng emoji picker khi click ra ngoài
+    document.addEventListener('click', function(e) {
+      const container = document.getElementById('emojiPickerContainer');
+      const btn = document.querySelector('.emoji-btn');
+      if (container && !container.contains(e.target) && e.target !== btn) {
+        container.classList.remove('show');
+      }
+    });
+
+    // ================================================
+    // RENDER TRIGGER LIST
+    // ================================================
+    function renderTriggerList() {
+      const c = document.getElementById('triggerList');
+      if (triggers.length === 0) { c.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">📋 Chưa có trigger<br><button onclick="showNewTriggerModal()" style="margin-top:10px; padding:8px 16px; background:#667eea; color:white; border:none; border-radius:6px; cursor:pointer;">➕ Tạo mới</button></div>'; document.getElementById('triggerCount').textContent = '0'; return; }
+      const active = triggers.filter(t => t.enabled), inactive = triggers.filter(t => !t.enabled);
+      let html = '';
+      if (active.length > 0) { html += '<div class="trigger-group"><div class="trigger-group-title">✅ Đang hoạt động (' + active.length + ')</div>' + active.map(renderTriggerItem).join('') + '</div>'; }
+      if (inactive.length > 0) { html += '<div class="trigger-group"><div class="trigger-group-title">⏸️ Tạm dừng (' + inactive.length + ')</div>' + inactive.map(renderTriggerItem).join('') + '</div>'; }
+      html += '<button class="new-trigger-btn" onclick="showNewTriggerModal()">➕ Tạo trigger mới</button>';
+      c.innerHTML = html;
+      document.getElementById('triggerCount').textContent = triggers.length;
+    }
+
+    function renderTriggerItem(t) {
+      const flowBadge = t.setMode === 1 ? '<span class="flow-badge">FLOW</span>' : '';
+      return '<div class="trigger-item-compact ' + (currentTriggerId === t.id ? 'active' : '') + '" data-trigger-id="' + t.id + '"><div class="trigger-header-row" onclick="selectTrigger(' + t.id + ')"><div class="trigger-main-info"><div class="trigger-icon-small">' + t.icon + '</div><div style="flex:1;min-width:0;"><div class="trigger-name-small">' + escapeHtml(t.name) + ' ' + flowBadge + '</div><div class="trigger-keywords-preview">' + escapeHtml(t.keywords.slice(0,3).join(', ')) + '</div><div class="trigger-time-created">🕐 ' + formatTimeAgo(t.timeCreated) + '</div></div></div><div class="trigger-actions" onclick="event.stopPropagation()"><button class="action-icon" onclick="editTrigger(' + t.id + ')">✏️</button><button class="action-icon" onclick="showDeleteModalFor(' + t.id + ')">🗑️</button></div><div class="trigger-status ' + (t.enabled ? 'active' : '') + '" onclick="event.stopPropagation(); toggleTriggerStatus(' + t.id + ')"></div></div></div>';
+    }
+
+    function selectTrigger(id) { const t = triggers.find(x => x.id === id); if (!t) return; currentTriggerId = id; document.querySelectorAll('.trigger-item-compact').forEach(e => e.classList.remove('active')); const el = document.querySelector('[data-trigger-id="' + id + '"]'); if (el) el.classList.add('active'); displayTrigger(t); }
+
+    function displayTrigger(t) {
+      document.getElementById('canvasTitle').textContent = t.name;
+      const badge = document.getElementById('canvasBadge'); badge.textContent = t.enabled ? 'Đang hoạt động' : 'Tạm dừng'; badge.className = 'badge ' + (t.enabled ? 'active' : 'inactive'); badge.style.display = 'inline-block';
+      const flowBadge = document.getElementById('canvasFlowBadge'); flowBadge.style.display = t.setMode === 1 ? 'inline-block' : 'none';
+      document.getElementById('canvasActions').style.display = 'flex';
+      document.getElementById('btnOpenBuilder').style.display = t.setMode === 1 ? 'inline-flex' : 'none';
+      
+      let uidsDisplay = t.uids?.length > 0 ? t.uids.map(uid => { const f = friendsList.find(x => x.userId === uid); return f ? f.displayName : uid; }).join(', ') : '';
+      
+      document.getElementById('canvasContent').innerHTML = '<div class="trigger-card"><div class="trigger-card-header"><div class="trigger-card-icon general">' + t.icon + '</div><div class="trigger-card-info"><h3>' + escapeHtml(t.name) + '</h3><p style="font-size:11px;color:#999;">ID: ' + t.id + '</p></div></div>' +
+        (t.keywords.length > 0 ? '<div class="trigger-section"><div class="section-label">🔑 Từ khóa</div><div class="keyword-list">' + t.keywords.map(k => '<span class="keyword-chip">' + escapeHtml(k) + '</span>').join('') + '</div></div>' : '') +
+        '<div class="trigger-section"><div class="section-label">🚀 Chế độ</div><div class="info-value">' + getModeText(t.setMode) + (t.setMode === 1 ? ' - <a href="#" onclick="openTriggerBuilder();return false;" style="color:#9c27b0;">Mở Flow Builder</a>' : '') + '</div></div>' +
+        (t.setMode === 0 ? '<div class="trigger-section"><div class="section-label">💬 Trả lời</div><div class="response-box">' + escapeHtml(t.response) + '</div></div>' : '') +
+        '<div class="trigger-section"><div class="section-label">ℹ️ Thông tin</div>' +
+        '<div class="info-item"><span class="info-label">Trạng thái:</span><span class="info-value">' + (t.enabled ? '✅ Hoạt động' : '⏸️ Tạm dừng') + '</span></div>' +
+        '<div class="info-item"><span class="info-label">Scope:</span><span class="info-value">' + getScopeText(t.scope) + '</span></div>' +
+        (uidsDisplay ? '<div class="info-item"><span class="info-label">UIDs:</span><span class="info-value" style="font-size:11px;">' + uidsDisplay + '</span></div>' : '') +
+        '<div class="info-item"><span class="info-label">Giờ:</span><span class="info-value">' + t.schedule.startTime + ' - ' + t.schedule.endTime + '</span></div>' +
+        (t.dateStart || t.dateEnd ? '<div class="info-item"><span class="info-label">Ngày:</span><span class="info-value">' + (t.dateStart || '...') + ' → ' + (t.dateEnd || '...') + '</span></div>' : '') +
+        '<div class="info-item"><span class="info-label">Cooldown:</span><span class="info-value">' + (t.cooldown/1000) + 's</span></div>' +
+        '<div class="info-item"><span class="info-label">Tạo lúc:</span><span class="info-value">' + formatDateTime(t.timeCreated) + '</span></div>' +
+        '<div class="info-item"><span class="info-label">Cập nhật:</span><span class="info-value">' + formatDateTime(t.timeUpdate) + '</span></div></div></div>';
+    }
+
+    function showEmptyState() { 
+      document.getElementById('canvasTitle').textContent = 'Chọn một trigger'; 
+      document.getElementById('canvasBadge').style.display = 'none'; 
+      document.getElementById('canvasFlowBadge').style.display = 'none';
+      document.getElementById('canvasActions').style.display = 'none'; 
+      currentTriggerId = null; 
+      document.getElementById('canvasContent').innerHTML = '<div class="empty-state"><div class="icon">🎯</div><h3>Chọn trigger để xem</h3><button class="btn btn-primary" onclick="showNewTriggerModal()">➕ Tạo mới</button></div>'; 
+    }
+
+    // ================================================
+    // OPEN TRIGGER BUILDER
+    // ================================================
+    function openTriggerBuilder() {
+      if (!currentTriggerId) {
+        showToast('❌ Vui lòng chọn trigger trước!', 'error');
+        return;
+      }
+      const t = triggers.find(x => x.id === currentTriggerId);
+      if (!t) return;
+      if (t.setMode !== 1) {
+        showToast('❌ Trigger này không ở chế độ Flow!', 'error');
+        return;
+      }
+      window.open('/trigger-builder.html?trigger=' + currentTriggerId, '_blank');
+    }
+
+    // ================================================
+    // MODE CHANGE
+    // ================================================
+    function onModeChange() {
+      const mode = parseInt(document.getElementById('triggerMode').value);
+      const responseGroup = document.getElementById('responseGroup');
+      const modeHint = document.getElementById('modeHint');
+      
+      if (mode === 1) {
+        responseGroup.style.display = 'none';
+        modeHint.className = 'mode-hint flow';
+        modeHint.innerHTML = '🔄 Workflow sẽ được tạo tự động. Sau khi lưu, mở <strong>Flow Builder</strong> để thiết kế quy trình.';
+      } else {
+        responseGroup.style.display = 'block';
+        modeHint.className = 'mode-hint';
+        modeHint.textContent = 'Tin nhắn sẽ được gửi ngay lập tức khi khớp từ khóa';
+      }
+    }
+
+    // ================================================
+    // SCOPE CHANGE
+    // ================================================
+    function onScopeChange() {
+      const scope = parseInt(document.getElementById('triggerScope').value);
+      const g = document.getElementById('friendsSelectorGroup');
+      if (scope === 2 || scope === 3) { 
+        g.style.display = 'block'; 
+        document.getElementById('friendsSelectorLabel').textContent = scope === 2 ? 'Chọn bạn bè sẽ nhận' : 'Chọn bạn bè sẽ KHÔNG nhận'; 
+        renderFriendsSelector(); 
+      }
+      else { g.style.display = 'none'; }
+    }
+
+    function renderFriendsSelector() {
+      const c = document.getElementById('friendsSelector');
+      if (friendsList.length === 0) { c.innerHTML = '<div class="friends-selector-loading">Không có bạn bè<br><button onclick="ws.send(JSON.stringify({type:\'get_friends\'}))">🔄 Tải lại</button></div>'; return; }
+      c.innerHTML = '<div class="friends-search-box"><input type="text" placeholder="🔍 Tìm kiếm..." oninput="filterFriends(this.value)"></div><div id="friendsListContainer">' + friendsList.map(f => '<label class="friend-checkbox-item"><input type="checkbox" value="' + f.userId + '" ' + (selectedFriendUids.includes(f.userId) ? 'checked' : '') + ' onchange="onFriendCheck(this)"><img src="' + (f.avatar || 'https://via.placeholder.com/36') + '" onerror="this.src=\'https://via.placeholder.com/36\'"><div class="friend-checkbox-info"><div class="friend-checkbox-name">' + escapeHtml(f.displayName) + '</div><div class="friend-checkbox-uid">' + f.userId + '</div></div></label>').join('') + '</div>';
+      updateSelectedSummary();
+    }
+
+    function filterFriends(q) { const lq = q.toLowerCase(); document.querySelectorAll('#friendsListContainer .friend-checkbox-item').forEach(e => { const n = e.querySelector('.friend-checkbox-name')?.textContent.toLowerCase() || ''; e.style.display = n.includes(lq) ? 'flex' : 'none'; }); }
+    function onFriendCheck(cb) { if (cb.checked) { if (!selectedFriendUids.includes(cb.value)) selectedFriendUids.push(cb.value); } else { selectedFriendUids = selectedFriendUids.filter(u => u !== cb.value); } updateSelectedSummary(); }
+    function updateSelectedSummary() { const s = document.getElementById('selectedFriendsSummary'); if (selectedFriendUids.length > 0) { s.style.display = 'block'; document.getElementById('selectedFriendsCount').textContent = selectedFriendUids.length; } else { s.style.display = 'none'; } }
+
+    // ================================================
+    // MODAL FUNCTIONS
+    // ================================================
+    function showNewTriggerModal() {
+      editingTriggerId = null; selectedFriendUids = [];
+      document.getElementById('modalTitle').textContent = 'Tạo Trigger Mới';
+      document.getElementById('triggerName').value = ''; 
+      document.getElementById('triggerKeywords').value = ''; 
+      document.getElementById('triggerResponse').value = '';
+      document.getElementById('triggerEnabled').checked = true; 
+      document.getElementById('triggerStartTime').value = '00:00'; 
+      document.getElementById('triggerEndTime').value = '23:59';
+      document.getElementById('triggerDateStart').value = '';
+      document.getElementById('triggerDateEnd').value = '';
+      document.getElementById('triggerScope').value = '0'; 
+      document.getElementById('friendsSelectorGroup').style.display = 'none'; 
+      document.getElementById('triggerCooldown').value = '30';
+      document.getElementById('triggerMode').value = '0';
+      onModeChange();
+      document.getElementById('saveBtn').textContent = '💾 Lưu'; 
+      document.getElementById('triggerModal').classList.add('show');
+    }
+
+    function editTrigger(id) {
+      const t = triggers.find(x => x.id === id); if (!t) return;
+      editingTriggerId = id; selectedFriendUids = t.uids ? [...t.uids] : [];
+      document.getElementById('modalTitle').textContent = 'Chỉnh sửa Trigger';
+      document.getElementById('triggerName').value = t.name; 
+      document.getElementById('triggerKeywords').value = t.keywords.join(', '); 
+      document.getElementById('triggerResponse').value = t.response;
+      document.getElementById('triggerEnabled').checked = t.enabled; 
+      document.getElementById('triggerStartTime').value = t.schedule.startTime; 
+      document.getElementById('triggerEndTime').value = t.schedule.endTime;
+      document.getElementById('triggerDateStart').value = t.dateStart || '';
+      document.getElementById('triggerDateEnd').value = t.dateEnd || '';
+      document.getElementById('triggerScope').value = t.scope.toString(); 
+      document.getElementById('triggerCooldown').value = Math.floor(t.cooldown / 1000);
+      document.getElementById('triggerMode').value = t.setMode.toString();
+      onModeChange();
+      onScopeChange();
+      document.getElementById('saveBtn').textContent = '💾 Cập nhật'; 
+      document.getElementById('triggerModal').classList.add('show');
+    }
+
+    function editCurrentTrigger() { if (currentTriggerId) editTrigger(currentTriggerId); }
+    function hideTriggerModal() { document.getElementById('triggerModal').classList.remove('show'); editingTriggerId = null; selectedFriendUids = []; document.getElementById('emojiPickerContainer').classList.remove('show'); }
+
+    function saveTrigger() {
+      const name = document.getElementById('triggerName').value.trim();
+      const kw = document.getElementById('triggerKeywords').value.trim().split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+      const resp = document.getElementById('triggerResponse').value.trim();
+      const scope = parseInt(document.getElementById('triggerScope').value);
+      const setMode = parseInt(document.getElementById('triggerMode').value);
+      
+      if (!name) { showToast('❌ Nhập tên!', 'error'); return; }
+      if (kw.length === 0) { showToast('❌ Nhập từ khóa!', 'error'); return; }
+      if (setMode === 0 && !resp) { showToast('❌ Nhập nội dung trả lời!', 'error'); return; }
+      if ((scope === 2 || scope === 3) && selectedFriendUids.length === 0) { showToast('❌ Chọn bạn bè!', 'error'); return; }
+      if (!ws || ws.readyState !== WebSocket.OPEN) { showToast('❌ Chưa kết nối!', 'error'); return; }
+      
+      const data = {
+        triggerName: name, 
+        triggerKey: kw.join(','), 
+        triggerContent: setMode === 0 ? resp : '',
+        timeStartActive: document.getElementById('triggerStartTime').value || '00:00',
+        timeEndActive: document.getElementById('triggerEndTime').value || '23:59',
+        dateStartActive: document.getElementById('triggerDateStart').value || null,
+        dateEndActive: document.getElementById('triggerDateEnd').value || null,
+        scope: scope, 
+        uids: (scope === 2 || scope === 3) ? selectedFriendUids : null,
+        cooldown: (parseInt(document.getElementById('triggerCooldown').value) || 30) * 1000,
+        enabled: document.getElementById('triggerEnabled').checked,
+        setMode: setMode
+      };
+      
+      if (editingTriggerId) { 
+        data.id = editingTriggerId; 
+        data.triggerID = editingTriggerId; 
+        ws.send(JSON.stringify({ type: 'update_trigger', trigger: data })); 
+      }
+      else { 
+        ws.send(JSON.stringify({ type: 'create_trigger', trigger: data })); 
+      }
+      hideTriggerModal();
+    }
+
+    // ================================================
+    // DELETE MODAL
+    // ================================================
+    function showDeleteModal() { if (currentTriggerId) showDeleteModalFor(currentTriggerId); }
+    function showDeleteModalFor(id) {
+      const t = triggers.find(x => x.id === id); if (!t) return;
+      deleteTargetId = id;
+      document.getElementById('deleteTriggerName').textContent = t.name;
+      document.getElementById('deleteModal').classList.add('show');
+    }
+    function hideDeleteModal() { document.getElementById('deleteModal').classList.remove('show'); deleteTargetId = null; }
+    function confirmDelete() {
+      if (!deleteTargetId || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: 'delete_trigger', id: deleteTargetId }));
+      hideDeleteModal();
+    }
+
+    function duplicateCurrentTrigger() { 
+      if (!currentTriggerId) return; 
+      const t = triggers.find(x => x.id === currentTriggerId); 
+      if (!t) return; 
+      editingTriggerId = null; 
+      selectedFriendUids = t.uids ? [...t.uids] : []; 
+      document.getElementById('modalTitle').textContent = 'Nhân bản'; 
+      document.getElementById('triggerName').value = t.name + ' (Copy)'; 
+      document.getElementById('triggerKeywords').value = t.keywords.join(', '); 
+      document.getElementById('triggerResponse').value = t.response; 
+      document.getElementById('triggerEnabled').checked = false; 
+      document.getElementById('triggerScope').value = t.scope.toString();
+      document.getElementById('triggerMode').value = t.setMode.toString();
+      onModeChange();
+      onScopeChange(); 
+      document.getElementById('saveBtn').textContent = '💾 Tạo bản sao'; 
+      document.getElementById('triggerModal').classList.add('show'); 
+    }
+    
+    function toggleTriggerStatus(id) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'toggle_trigger', id: id })); }
+    function searchTriggers() { const q = document.getElementById('searchInput').value.toLowerCase(); document.querySelectorAll('.trigger-item-compact').forEach(e => { const n = e.querySelector('.trigger-name-small')?.textContent.toLowerCase() || ''; const k = e.querySelector('.trigger-keywords-preview')?.textContent.toLowerCase() || ''; e.style.display = (n.includes(q) || k.includes(q)) ? 'block' : 'none'; }); }
+
+    // ================================================
+    // ACTIVITY WINDOW
+    // ================================================
+    function openActivityWindow() {
+      document.getElementById('activityBackdrop').classList.add('show');
+      document.getElementById('activityWindow').classList.add('show');
+      activityCount = 0; updateActivityBadge();
+      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'get_activity_logs', limit: 100 }));
+    }
+    function closeActivityWindow() { 
+      document.getElementById('activityBackdrop').classList.remove('show'); 
+      document.getElementById('activityWindow').classList.remove('show'); 
+    }
+    function updateActivityBadge() { 
+      const b = document.getElementById('activityBadge'); 
+      if (activityCount > 0) { b.textContent = activityCount > 99 ? '99+' : activityCount; b.style.display = 'block'; } 
+      else { b.style.display = 'none'; } 
+    }
+    function clearActivityLogs() { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'clear_activity_logs' })); }
+    function renderActivityList() {
+      const c = document.getElementById('activityList');
+      if (activityLogs.length === 0) { c.innerHTML = '<div class="activity-empty">📋 Chưa có hoạt động<br><small style="color:#aaa;">Lịch sử sẽ hiển thị khi bạn tạo/sửa/xóa trigger</small></div>'; return; }
+      c.innerHTML = activityLogs.map(log => {
+        const icons = { CREATE: '➕', UPDATE: '✏️', DELETE: '🗑️', ENABLE: '✅', DISABLE: '⏸️', AUTO_REPLY: '🤖' };
+        const actionTexts = { CREATE: 'Tạo mới', UPDATE: 'Cập nhật', DELETE: 'Xóa', ENABLE: 'Bật', DISABLE: 'Tắt', AUTO_REPLY: 'Auto Reply' };
+        const action = log.action || 'UNKNOWN';
+        return '<div class="activity-item"><div class="activity-icon ' + action.toLowerCase() + '">' + (icons[action] || '📋') + '</div><div class="activity-info"><div class="activity-action">' + (actionTexts[action] || action) + '</div><div class="activity-trigger">' + escapeHtml(log.triggerName || log.trigger?.triggerName || 'N/A') + '</div><div class="activity-time">' + formatDateTime(log.timestamp) + '</div></div></div>';
+      }).join('');
+    }
+
+    // ================================================
+    // INIT
+    // ================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('triggerModal').addEventListener('click', (e) => { if (e.target.id === 'triggerModal') hideTriggerModal(); });
+      connectWebSocket();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Zalo Messenger - Dual Search</title>
+  <link rel="stylesheet" href="assets/style_dashboard.css" />
+  <style>
+    /* ✅ CSS cho tin nhắn Auto Reply */
+    .message.auto-reply .message-content {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb) !important;
+      border-left: 3px solid #2196f3;
+      position: relative;
+    }
+    
+    .message.auto-reply .bubble {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb) !important;
+      border-left: 3px solid #2196f3;
+      position: relative;
+    }
+    
+    .auto-reply-badge {
+      display: inline-block;
+      background: #2196f3;
+      color: white;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>Zalo Messenger</h1>
+        <div class="user-info" id="userInfo" style="display:none;">
+          <img id="userAvatar" src="" alt="Avatar">
+          <div id="userName">Đang tải...</div>
+          <div id="userUid" style="font-size:12px;"></div>
+          
+          <div class="button-group">
+            <button class="backup-button" onclick="openStorageInfo()">
+              <span>💾</span> QUẢN LÝ DỮ LIỆU
+            </button>
+            
+            <button class="storage-button" onclick="openAutoReplyViewer()">
+              <span>🤖</span> CÀI ĐẶT KỊCH BẢN
+            </button>
+          </div>
+          
+          <button class="logout-btn" onclick="logout()">
+            <span>🚪</span><span>Đăng xuất</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ✅ DUAL SEARCH TABS -->
+      <div class="search-tabs">
+        <button class="search-tab active" onclick="FriendTab('friends')">
+          👥 Bạn bè
+        </button>
+      </div>
+
+      <!-- ✅ FRIENDS SEARCH -->
+      <div id="friendsSearch" class="search-content active">
+        <div class="friends-search-box">
+          <input 
+            type="text" 
+            id="friendsSearchInput"
+            placeholder="🔍 Tìm bạn bè hoặc nhập SĐT..." 
+            autocomplete="off"
+            onkeyup="searchFriends(this.value)"
+          >
+        </div>
+        <div class="search-results-container" id="friendsResults"></div>
+      </div>
+
+      <!-- ✅ FRIENDS LIST -->
+      <div class="friends-list" id="friendsList">
+        <div class="loading-friends">
+          <div class="spinner"></div>
+          <div>Đang tải danh sách...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-area">
+      <div class="chat-header" id="chatHeader" style="display:none;">
+        <img id="chatAvatar" src="" alt="Avatar">
+        <div class="info">
+          <div class="name" id="chatName">Chọn bạn bè</div>
+          <div class="uid" id="chatUid"></div>
+          <div class="status">Đang hoạt động</div>
+        </div>
+      </div>
+
+      <div class="messages-container" id="messagesContainer">
+        <div class="empty-chat">
+          <div class="icon">💬</div>
+          <div>Chọn một cuộc trò chuyện để bắt đầu</div>
+        </div>
+      </div>
+
+      <div class="input-area" id="inputArea" style="display:none;">
+        <button class="emoji-btn" onclick="openEmojiPicker()" title="Chọn emoji">😊</button>
+        <textarea id="messageInput" placeholder="Nhập tin nhắn..." rows="1"></textarea>
+        <button type="button" id="sendBtn" onclick="sendMessage()">Gửi</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== GLOBAL VARIABLES ==========
+    const ITEM_HEIGHT = 74;
+    const BUFFER_SIZE = 20;
+    
+    let currentSearchTab = 'friends';
+    let allFriends = [];
+    let friends = [];
+    let filteredFriends = [];
+    let allMessages = new Map();
+    let selectedFriend = null;
+    let currentUserId = null;
+    let currentMessages = [];
+    let messageStore = new Map();
+    let friendsRendered = false;
+    let scrollTop = 0;
+    let containerHeight = 0;
+    
+    // ========== DATABASE MANAGEMENT ==========
+    let dbInstance = null;
+    let currentUserUID = null;
+
+    // ========== MOVE TO TOP FUNCTION ==========
+    function moveConversationToTop(userId) {
+      console.log(`⬆️ Moving conversation to top: ${userId}`);
+      filteredFriends = filteredFriends.filter(f => f.userId !== userId);
+      const friend = friends.find(f => f.userId === userId);
+      if (friend) {
+        filteredFriends.unshift(friend);
+        console.log(`✅ Moved to top. Top: ${filteredFriends[0]?.displayName}`);
+      }
+      renderFriendsVirtual();
+    }
+
+    // ========== WEBSOCKET ==========
+    const ws = new WebSocket('ws://' + location.hostname + ':8080');
+  
+    ws.onopen = () => {
+      console.log('✅ WebSocket connected');
+      ws.send(JSON.stringify({ type: 'get_friends' }));
+    };
+
+    ws.onerror = (error) => {
+      console.error('❌ WebSocket error:', error);
+    };
+
+    ws.onmessage = e => {
+      try {
+        const data = JSON.parse(e.data);
+    
+        if (data.type === 'current_user') {
+          currentUserId = data.user.uid;
+          document.getElementById('userName').textContent = data.user.name || "User";
+          document.getElementById('userAvatar').src = data.user.avatar || "https://via.placeholder.com/50";
+          document.getElementById('userUid').textContent = 'UID: ' + data.user.uid;
+          document.getElementById('userInfo').style.display = 'flex';
+          
+          initIndexedDB(data.user.uid).catch(err => {
+            console.error('❌ Failed to init DB:', err);
+          });
+          
+          console.log('🔄 Auto-requesting friends list after login...');
+          ws.send(JSON.stringify({ type: 'get_friends' }));
+        }
+    
+        if (data.type === 'friends_list') {
+          console.log('👥 Friends:', data.friends?.length);
+          friends = data.friends || [];
+          allFriends = [...friends];
+          filteredFriends = [...friends];
+          
+          console.log('✅ Rendering friends list immediately...');
+          friendsRendered = true;
+          renderFriendsVirtual();
+          
+          setTimeout(() => {
+            if (messageStore.size > 0) {
+              console.log('🔄 Re-sorting with messageStore data...');
+              sortFriendsAfterLoad();
+            }
+          }, 300);
+        }
+
+        if (data.type === 'messages_history') {
+          if (selectedFriend && data.uid === selectedFriend.userId) {
+            console.log(`📨 Received ${data.messages?.length} messages`);
+            
+            const uniqueMessages = [];
+            const seenMsgIds = new Set();
+            
+            for (const msg of (data.messages || [])) {
+              const msgId = msg.msgId || msg.id;
+              if (!seenMsgIds.has(msgId)) {
+                uniqueMessages.push(msg);
+                seenMsgIds.add(msgId);
+              }
+            }
+            
+            currentMessages = uniqueMessages.sort((a, b) => a.timestamp - b.timestamp);
+            renderMessages();
+          }
+        }
+    
+        // ✅ XỬ LÝ sent_ok (bao gồm cả auto reply)
+        if (data.type === 'sent_ok') {
+          console.log('✅ sent_ok', data.message?.isAutoReply ? '(Auto Reply)' : '');
+          
+          const uid = data.uid || data.message?.threadId || selectedFriend?.userId;
+          if (!uid) return;
+          
+          const isDuplicate = currentMessages.some(m => m.msgId === data.message.msgId);
+          
+          if (!isDuplicate) {
+            if (selectedFriend && uid === selectedFriend.userId) {
+              currentMessages.push(data.message);
+              renderMessages();
+              autoSaveToIndexedDB(uid, data.message);
+            }
+          }
+          
+          const content = data.message.content || data.message.msg || '';
+          messageStore.set(uid, {
+            lastMessage: content,
+            timestamp: data.message.timestamp || Date.now()
+          });
+          
+          localStorage.setItem('lastChatWith', JSON.stringify({
+            userId: uid,
+            timestamp: data.message.timestamp || Date.now()
+          }));
+          
+          moveConversationToTop(uid);
+          
+          if (!data.message?.isAutoReply) {
+            document.getElementById('messageInput').value = '';
+          }
+          scrollToBottom();
+        }
+    
+        // ✅ XỬ LÝ new_message (bao gồm cả auto reply)
+        if (data.type === 'new_message') {
+          console.log('📨 new_message from:', data.uid, data.message?.isAutoReply ? '(Auto Reply)' : '');
+          
+          const content = data.message.content || data.message.msg || '';
+          const uid = data.uid;
+          const isAutoReply = data.message?.isAutoReply || false;
+          
+          messageStore.set(uid, {
+            lastMessage: content,
+            timestamp: data.message.timestamp || Date.now()
+          });
+          
+          const sender = friends.find(f => f.userId === uid);
+          const senderName = sender?.displayName || 'Unknown';
+          const senderAvatar = sender?.avatar || '';
+          
+          if (selectedFriend && uid === selectedFriend.userId) {
+            const isDuplicate = currentMessages.some(m => m.msgId === data.message.msgId);
+            
+            if (!isDuplicate) {
+              const msgToAdd = {
+                ...data.message,
+                isSelf: isAutoReply ? true : false
+              };
+              
+              currentMessages.push(msgToAdd);
+              renderMessages();
+              autoSaveToIndexedDB(uid, msgToAdd);
+              scrollToBottom();
+            }
+            moveConversationToTop(uid);
+          } else {
+            if (!isAutoReply) {
+              console.log(`🔔 Showing notification from ${senderName}`);
+              showNotification(senderName, content.substring(0, 30), uid, senderAvatar);
+            }
+            
+            autoSaveToIndexedDB(uid, data.message);
+            moveConversationToTop(uid);
+          }
+        }
+
+        // ✅ XỬ LÝ auto_reply_sent
+        if (data.type === 'auto_reply_sent' || data.type === 'auto_reply_default_sent') {
+          console.log('🤖 Auto Reply đã gửi đến:', data.toUid);
+          
+          const uid = data.toUid;
+          const content = data.response || '';
+          
+          messageStore.set(uid, {
+            lastMessage: content,
+            timestamp: Date.now()
+          });
+          
+          if (selectedFriend && uid === selectedFriend.userId) {
+            const autoReplyMsg = {
+              msgId: 'auto_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+              content: content,
+              timestamp: Date.now(),
+              senderId: currentUserId,
+              isSelf: true,
+              isAutoReply: true
+            };
+            
+            const isDuplicate = currentMessages.some(m => 
+              m.content === content && 
+              Math.abs(m.timestamp - autoReplyMsg.timestamp) < 2000
+            );
+            
+            if (!isDuplicate) {
+              currentMessages.push(autoReplyMsg);
+              renderMessages();
+              scrollToBottom();
+              autoSaveToIndexedDB(uid, autoReplyMsg);
+            }
+          }
+          
+          moveConversationToTop(uid);
+        }
+
+        // ✅ XỬ LÝ KẾT QUẢ TÌM KIẾM QUA SỐ ĐIỆN THOẠI
+        if (data.type === 'user_found') {
+          console.log('✅ Tìm thấy user từ SĐT:', data.user);
+          handlePhoneSearchResult(data.user);
+        }
+
+        if (data.type === 'user_not_found') {
+          console.log('⚠️ Không tìm thấy user từ SĐT');
+          handlePhoneSearchNotFound();
+        }
+
+        if (data.type === 'search_error') {
+          console.error('❌ Lỗi tìm kiếm SĐT:', data.error);
+          handlePhoneSearchError(data.error);
+        }
+
+        if (data.type === 'logged_out') {
+          console.log('✅ Logout successful');
+          handleLogoutComplete();
+        }
+      } catch (err) {
+        console.error('❌ Error:', err);
+      }
+    };
+
+    // ========== CHAT FUNCTIONS ==========
+    function selectFriend(userId, displayName, avatar) {
+      console.log(`💬 Selecting friend: ${displayName} (${userId})`);
+      
+      selectedFriend = { userId, displayName, avatar };
+      
+      document.getElementById('chatHeader').style.display = 'flex';
+      document.getElementById('chatAvatar').src = avatar;
+      document.getElementById('chatName').textContent = displayName;
+      document.getElementById('chatUid').textContent = 'UID: ' + userId;
+      document.getElementById('inputArea').style.display = 'flex';
+      
+      currentMessages = [];
+      document.getElementById('messagesContainer').innerHTML = '<div class="loading-chat"><div class="spinner"></div></div>';
+      
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log(`📤 Requesting message history for: ${userId}`);
+        ws.send(JSON.stringify({ type: 'get_messages', uid: userId }));
+      } else {
+        console.warn('⚠️ WebSocket not ready');
+      }
+    }
+
+    // ✅ CẬP NHẬT renderMessages để hiển thị badge Auto Reply
+    function renderMessages() {
+      const container = document.getElementById('messagesContainer');
+      if (!container) return;
+      
+      if (currentMessages.length === 0) {
+        container.innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Không có tin nhắn</div></div>';
+        return;
+      }
+      
+      let html = '';
+      for (const msg of currentMessages) {
+        const isSelf = msg.isSelf || msg.senderId === currentUserId;
+        const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('vi-VN') : '';
+        const content = msg.content || msg.msg || '';
+        const isAutoReply = msg.isAutoReply || false;
+        
+        html += `
+          <div class="message ${isSelf ? 'self' : 'other'} ${isAutoReply ? 'auto-reply' : ''}">
+            <div class="message-content">
+              ${escapeHtml(content)}
+              ${isAutoReply ? '<span class="auto-reply-badge">🤖 Auto</span>' : ''}
+              <span class="message-time">${timestamp}</span>
+            </div>
+          </div>
+        `;
+      }
+      
+      container.innerHTML = html;
+      scrollToBottom();
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function escapeJs(str) {
+      return (str || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
+    }
+
+    function scrollToBottom() {
+      const container = document.getElementById('messagesContainer');
+      if (container) {
+        setTimeout(() => {
+          container.scrollTop = container.scrollHeight;
+          console.log(`⬇️ Scrolled to bottom`);
+        }, 100);
+      }
+    }
+
+    function sendMessage() {
+      if (!selectedFriend) {
+        alert('Vui lòng chọn bạn bè trước');
+        return;
+      }
+      
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      
+      if (!text) return;
+      
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log(`📤 Sending message: "${text}"`);
+        ws.send(JSON.stringify({
+          type: 'send_message',
+          uid: selectedFriend.userId,
+          text: text,
+          timestamp: Date.now()
+        }));
+      }
+    } 
+
+    function renderFriendsVirtual() {
+      const friendsListEl = document.getElementById('friendsList');
+      if (!friendsListEl || filteredFriends.length === 0) {
+        console.warn('⚠️ friendsList element not found or empty');
+        return;
+      }
+      
+      let html = '';
+      for (const friend of filteredFriends) {
+        const isSelected = selectedFriend && selectedFriend.userId === friend.userId;
+        const msgData = messageStore.get(friend.userId);
+        const lastMsg = msgData?.lastMessage || 'Nhắn tin...';
+        
+        html += `
+          <div class="friend-item ${isSelected ? 'selected' : ''}" onclick="selectFriend('${friend.userId}', '${escapeJs(friend.displayName)}', '${friend.avatar}')">
+            <img src="${friend.avatar}" alt="Avatar">
+            <div class="friend-info">
+              <div class="friend-name">${friend.displayName}</div>
+              <div class="friend-message">${escapeHtml(lastMsg).substring(0, 30)}...</div>
+            </div>
+          </div>
+        `;
+      }
+  
+      friendsListEl.innerHTML = html;
+      console.log(`✅ Rendered ${filteredFriends.length} friends`);
+    }
+
+    // ========== SEARCH FUNCTIONS ==========
+    function FriendTab(tab) {
+      console.log(`🔄 Switching to ${tab} search`);
+      currentSearchTab = tab;
+      document.querySelectorAll('.search-tab').forEach(el => el.classList.remove('active'));
+      event.target.classList.add('active');
+      document.querySelectorAll('.search-content').forEach(el => el.classList.remove('active'));
+      document.getElementById(tab === 'friends' ? 'friendsSearch' : 'messagesSearch').classList.add('active');
+      document.getElementById('friendsSearchInput').value = '';
+      document.getElementById('friendsResults').innerHTML = '';  
+    }
+
+    // ✅ XỬ LÝ KẾT QUẢ TÌM KIẾM SỐ ĐIỆN THOẠI
+    function handlePhoneSearchResult(user) {
+      const resultsDiv = document.getElementById('friendsResults');
+      if (!resultsDiv) return;
+      
+      const displayName = user.display_name || user.zalo_name || 'Người dùng Zalo';
+      const gender = user.gender === 2 ? 'Nam' : user.gender === 1 ? 'Nữ' : '';
+      
+      resultsDiv.innerHTML = `
+        <div style="padding: 8px 12px; background: #e8f5e9; border-bottom: 1px solid #c8e6c9; font-size: 12px; color: #388e3c;">
+          ✅ Tìm thấy từ số điện thoại
+        </div>
+        <div class="search-result-item" onclick="selectFriendFromSearch('${user.uid}', '${escapeJs(displayName)}', '${user.avatar || ''}')">
+          <div class="result-friend">
+            <img src="${user.avatar || 'https://via.placeholder.com/50'}" 
+                 onerror="this.src='https://via.placeholder.com/50'"
+                 alt="Avatar"
+                 style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
+            <div class="result-friend-info" style="flex: 1; margin-left: 10px;">
+              <div class="result-friend-name" style="font-weight: 600; color: #333;">${escapeHtml(displayName)}</div>
+              <div class="result-friend-uid" style="font-size: 12px; color: #666; margin-top: 2px;">
+                ${gender ? gender + ' • ' : ''}UID: ${user.uid}
+              </div>
+            </div>
+            <span style="background: #e8f5e9; color: #388e3c; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500;">Từ SĐT</span>
+          </div>
+        </div>
+      `;
+      
+      console.log('✅ Đã hiển thị kết quả tìm kiếm SĐT');
+    }
+
+    function handlePhoneSearchNotFound() {
+      const resultsDiv = document.getElementById('friendsResults');
+      if (!resultsDiv) return;
+      
+      resultsDiv.innerHTML = `
+        <div style="padding: 30px; text-align: center; color: #999;">
+          <div style="font-size: 32px; margin-bottom: 10px;">😕</div>
+          <div>Không tìm thấy người dùng với số điện thoại này</div>
+        </div>
+      `;
+    }
+
+    function handlePhoneSearchError(error) {
+      const resultsDiv = document.getElementById('friendsResults');
+      if (!resultsDiv) return;
+      
+      resultsDiv.innerHTML = `
+        <div style="padding: 30px; text-align: center; color: #f44336;">
+          <div style="font-size: 32px; margin-bottom: 10px;">❌</div>
+          <div>Lỗi: ${escapeHtml(error || 'Không thể tìm kiếm')}</div>
+        </div>
+      `;
+    }
+
+    function selectFriendFromSearch(userId, displayName, avatar) {
+      // Xóa kết quả tìm kiếm
+      document.getElementById('friendsResults').innerHTML = '';
+      document.getElementById('friendsSearchInput').value = '';
+      
+      // Reset danh sách
+      filteredFriends = [...friends];
+      renderFriendsVirtual();
+      
+      // Chọn friend
+      selectFriend(userId, displayName, avatar);
+    }
+
+    // Enter to send
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('messageInput');
+      if (input) {
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+          }
+        });
+      }
+    });
+  </script>
+  <script src="IndexedDB.js"></script> 
+  <script src="emoji-picker.js"></script>
+  <script src="load_data.js"></script>
+  <script src="public/sort.js"></script>
+  <script src="public/logout.js"></script>
+  <script src="public/search.js"></script>
+  <script src="public/notifications.js"></script>
+  <script src="public/time-format.js"></script>
+</body>
+</html>
