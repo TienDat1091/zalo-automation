@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧠 AI Models Manager</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 28px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      color: white;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ff416c, #ff4b2b);
+      color: white;
+    }
+
+    .btn-small {
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+
+    /* Cards */
+    .card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #333;
+    }
+
+    /* AI Models Grid */
+    .models-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .model-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      border: 2px solid #eee;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .model-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
+    }
+
+    .model-card.active {
+      border-color: #11998e;
+    }
+
+    .model-card .model-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .model-card .model-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .model-card .model-icon.gemini { background: linear-gradient(135deg, #4285f4, #34a853); }
+    .model-card .model-icon.openai { background: linear-gradient(135deg, #10a37f, #1a7f64); }
+    .model-card .model-icon.claude { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .model-card .model-icon.custom { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+
+    .model-card .model-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .model-card .model-provider {
+      font-size: 13px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .model-card .model-info {
+      margin-bottom: 16px;
+    }
+
+    .model-card .model-info-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .model-card .model-info-item .label {
+      color: #888;
+      min-width: 80px;
+    }
+
+    .model-card .api-key-masked {
+      font-family: monospace;
+      background: #f5f5f5;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .model-card .model-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .model-status.connected {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .model-status.disconnected {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .model-status.unknown {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .model-card .model-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+    }
+
+    .empty-state .icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      font-size: 18px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.active .modal {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      font-size: 20px;
+      color: #333;
+    }
+
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: #f5f5f5;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: #e0e0e0;
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .form-group label .required {
+      color: #ef4444;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: 6px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* Provider Select */
+    .provider-options {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .provider-option {
+      padding: 16px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .provider-option:hover {
+      border-color: #667eea;
+    }
+
+    .provider-option.selected {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+
+    .provider-option .icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .provider-option .name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    /* Test Section */
+    .test-section {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .test-section h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .test-result {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+      border: 1px solid #e5e7eb;
+      min-height: 100px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .test-result.success {
+      border-color: #10b981;
+      background: #ecfdf5;
+    }
+
+    .test-result.error {
+      border-color: #ef4444;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .test-result.loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #888;
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 2000;
+    }
+
+    .toast {
+      background: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn 0.3s ease;
+      min-width: 300px;
+    }
+
+    .toast.success { border-left: 4px solid #10b981; }
+    .toast.error { border-left: 4px solid #ef4444; }
+    .toast.info { border-left: 4px solid #3b82f6; }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Connection Status Badge */
+    .connection-badge {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .connection-badge.connected {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .connection-badge.disconnected {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+
+      .models-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .provider-options {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🧠 AI Models Manager</h1>
+      <div class="header-actions">
+        <button class="btn btn-secondary" onclick="refreshConfigs()">🔄 Làm mới</button>
+        <button class="btn btn-primary" onclick="openModal('configModal')">➕ Thêm AI Model</button>
+      </div>
+    </div>
+
+    <!-- Models List -->
+    <div class="card">
+      <div class="card-title">📋 Danh sách AI Models đã cấu hình</div>
+      <div id="modelsContainer" class="models-grid">
+        <!-- Models will be rendered here -->
+      </div>
+    </div>
+
+    <!-- Test Playground -->
+    <div class="card">
+      <div class="card-title">🧪 Test Playground</div>
+      <div class="form-group">
+        <label>Chọn AI Model</label>
+        <select class="form-select" id="testModelSelect" onchange="onTestModelChange()">
+          <option value="">-- Chọn model để test --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Prompt</label>
+        <textarea class="form-textarea" id="testPrompt" rows="4" placeholder="Nhập prompt để test...">Xin chào, hãy giới thiệu về bạn trong 2-3 câu.</textarea>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button class="btn btn-success" onclick="runTest()" id="btnRunTest">
+          ▶️ Chạy Test
+        </button>
+        <button class="btn btn-secondary" onclick="clearTest()">🗑️ Xóa</button>
+      </div>
+      <div class="test-section" id="testResultSection" style="display: none;">
+        <h4>📝 Kết quả</h4>
+        <div class="test-result" id="testResult"></div>
+        <div style="margin-top: 12px; font-size: 12px; color: #888;">
+          <span id="testStats"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supported Models Info -->
+    <div class="card">
+      <div class="card-title">ℹ️ Hướng dẫn lấy API Key</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+        <div style="padding: 16px; background: #f0f9ff; border-radius: 12px;">
+          <div style="font-size: 24px; margin-bottom: 8px;">✨</div>
+          <h4 style="margin-bottom: 8px;">Google Gemini</h4>
+          <p style="font-size: 13px; color: #666; margin-bottom: 12px;">AI của Google với khả năng đa phương thức</p>
+          <a href="https://aistudio.google.com/apikey" target="_blank" style="color: #3b82f6; font-size: 13px;">Lấy API Key →</a>
+        </div>
+        <div style="padding: 16px; background: #f0fdf4; border-radius: 12px;">
+          <div style="font-size: 24px; margin-bottom: 8px;">🤖</div>
+          <h4 style="margin-bottom: 8px;">OpenAI GPT</h4>
+          <p style="font-size: 13px; color: #666; margin-bottom: 12px;">ChatGPT và GPT-4 models</p>
+          <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #3b82f6; font-size: 13px;">Lấy API Key →</a>
+        </div>
+        <div style="padding: 16px; background: #fffbeb; border-radius: 12px;">
+          <div style="font-size: 24px; margin-bottom: 8px;">🧡</div>
+          <h4 style="margin-bottom: 8px;">Anthropic Claude</h4>
+          <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Claude 3 với khả năng phân tích sâu</p>
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color: #3b82f6; font-size: 13px;">Lấy API Key →</a>
+        </div>
+        <div style="padding: 16px; background: #faf5ff; border-radius: 12px;">
+          <div style="font-size: 24px; margin-bottom: 8px;">⚙️</div>
+          <h4 style="margin-bottom: 8px;">Custom API</h4>
+          <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Tích hợp API tùy chỉnh khác</p>
+          <span style="color: #888; font-size: 13px;">Hỗ trợ OpenAI-compatible</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config Modal -->
+  <div class="modal-overlay" id="configModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">➕ Thêm AI Model</h2>
+        <button class="modal-close" onclick="closeModal('configModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cfgEditId" value="">
+        
+        <!-- Provider Selection -->
+        <div class="form-group">
+          <label>Chọn Provider <span class="required">*</span></label>
+          <div class="provider-options">
+            <div class="provider-option selected" data-provider="gemini" onclick="selectProvider('gemini')">
+              <div class="icon">✨</div>
+              <div class="name">Gemini</div>
+            </div>
+            <div class="provider-option" data-provider="openai" onclick="selectProvider('openai')">
+              <div class="icon">🤖</div>
+              <div class="name">OpenAI</div>
+            </div>
+            <div class="provider-option" data-provider="claude" onclick="selectProvider('claude')">
+              <div class="icon">🧡</div>
+              <div class="name">Claude</div>
+            </div>
+            <div class="provider-option" data-provider="custom" onclick="selectProvider('custom')">
+              <div class="icon">⚙️</div>
+              <div class="name">Custom</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tên cấu hình <span class="required">*</span></label>
+            <input type="text" class="form-input" id="cfgName" placeholder="VD: Gemini Pro Bot">
+          </div>
+          <div class="form-group">
+            <label>Model</label>
+            <select class="form-select" id="cfgModel">
+              <!-- Options will be populated based on provider -->
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>API Key <span class="required">*</span></label>
+          <input type="password" class="form-input" id="cfgApiKey" placeholder="Nhập API Key...">
+          <div class="form-hint">API Key sẽ được mã hóa và lưu an toàn</div>
+        </div>
+
+        <div class="form-group" id="customEndpointGroup" style="display: none;">
+          <label>API Endpoint</label>
+          <input type="text" class="form-input" id="cfgEndpoint" placeholder="https://api.example.com/v1/chat/completions">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Temperature</label>
+            <input type="number" class="form-input" id="cfgTemperature" value="0.7" min="0" max="2" step="0.1">
+            <div class="form-hint">0 = chính xác, 1 = sáng tạo</div>
+          </div>
+          <div class="form-group">
+            <label>Max Tokens</label>
+            <input type="number" class="form-input" id="cfgMaxTokens" value="1024" min="1" max="128000">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>System Prompt (tùy chọn)</label>
+          <textarea class="form-textarea" id="cfgSystemPrompt" rows="3" placeholder="Bạn là một trợ lý AI thân thiện..."></textarea>
+        </div>
+
+        <!-- Test Connection -->
+        <div class="test-section">
+          <h4>🔌 Test kết nối</h4>
+          <button class="btn btn-small btn-success" onclick="testConnection()" id="btnTestConnection">
+            ⚡ Test Connection
+          </button>
+          <div class="test-result" id="connectionResult" style="display: none; margin-top: 12px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('configModal')">Hủy</button>
+        <button class="btn btn-primary" onclick="saveConfig()">💾 Lưu cấu hình</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Connection Badge -->
+  <div class="connection-badge disconnected" id="connectionBadge">
+    <span class="status-dot">●</span>
+    <span id="connectionText">Đang kết nối...</span>
+  </div>
+
+  <script>
+    // ========================================
+    // GLOBAL STATE
+    // ========================================
+    var ws = null;
+    var configs = [];
+    var selectedProvider = 'gemini';
+
+    // Model options for each provider
+    var MODEL_OPTIONS = {
+      gemini: [
+        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Mới nhất)' },
+        { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+        { value: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro' }
+      ],
+      openai: [
+        { value: 'gpt-4o', label: 'GPT-4o (Mới nhất)' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+        { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+        { value: 'gpt-4', label: 'GPT-4' },
+        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+      ],
+      claude: [
+        { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Mới nhất)' },
+        { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+        { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+        { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' }
+      ],
+      custom: [
+        { value: 'custom', label: 'Custom Model' }
+      ]
+    };
+
+    // Provider configs
+    var PROVIDERS = {
+      gemini: {
+        name: 'Google Gemini',
+        icon: '✨',
+        endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+        color: '#4285f4'
+      },
+      openai: {
+        name: 'OpenAI',
+        icon: '🤖',
+        endpoint: 'https://api.openai.com/v1/chat/completions',
+        color: '#10a37f'
+      },
+      claude: {
+        name: 'Anthropic Claude',
+        icon: '🧡',
+        endpoint: 'https://api.anthropic.com/v1/messages',
+        color: '#d97706'
+      },
+      custom: {
+        name: 'Custom API',
+        icon: '⚙️',
+        endpoint: '',
+        color: '#8b5cf6'
+      }
+    };
+
+    // ========================================
+    // INIT
+    // ========================================
+    document.addEventListener('DOMContentLoaded', function() {
+      setupWebSocket();
+      selectProvider('gemini');
+    });
+
+    // ========================================
+    // WEBSOCKET
+    // ========================================
+    var WS_PORT = window.WS_PORT || 8080;
+
+    function setupWebSocket() {
+      try {
+        var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        var hostname = location.hostname || 'localhost';
+        var wsUrl = protocol + '//' + hostname + ':' + WS_PORT;
+        console.log('🔌 Connecting to:', wsUrl);
+        
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = function() {
+          console.log('✅ WebSocket connected');
+          updateConnectionBadge(true);
+          ws.send(JSON.stringify({ type: 'get_ai_configs' }));
+        };
+        
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            console.log('📨 WS message:', msg.type);
+            handleMessage(msg);
+          } catch (err) {
+            console.error('Parse error:', err);
+          }
+        };
+        
+        ws.onclose = function() {
+          console.log('❌ WebSocket disconnected');
+          updateConnectionBadge(false);
+          setTimeout(setupWebSocket, 3000);
+        };
+        
+        ws.onerror = function(err) {
+          console.error('❌ WebSocket error:', err);
+        };
+      } catch (e) {
+        console.error('WebSocket error:', e);
+      }
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'ai_configs':
+          configs = (msg.configs || []).map(function(cfg) {
+            return Object.assign({}, cfg, { id: cfg.configID || cfg.id });
+          });
+          console.log('🧠 Loaded', configs.length, 'AI configs');
+          renderConfigs();
+          updateTestModelSelect();
+          break;
+          
+        case 'ai_config_saved':
+          toast('✅ Đã lưu cấu hình!', 'success');
+          closeModal('configModal');
+          ws.send(JSON.stringify({ type: 'get_ai_configs' }));
+          break;
+          
+        case 'ai_config_deleted':
+          toast('🗑️ Đã xóa cấu hình', 'success');
+          ws.send(JSON.stringify({ type: 'get_ai_configs' }));
+          break;
+          
+        case 'ai_test_result':
+          handleTestResult(msg);
+          break;
+          
+        case 'error':
+          console.error('❌ Server error:', msg.message);
+          toast('❌ ' + (msg.message || 'Lỗi server'), 'error');
+          break;
+      }
+    }
+
+    function updateConnectionBadge(connected) {
+      var badge = document.getElementById('connectionBadge');
+      var text = document.getElementById('connectionText');
+      if (connected) {
+        badge.className = 'connection-badge connected';
+        text.textContent = 'Đã kết nối';
+      } else {
+        badge.className = 'connection-badge disconnected';
+        text.textContent = 'Mất kết nối';
+      }
+    }
+
+    // ========================================
+    // RENDER
+    // ========================================
+    function renderConfigs() {
+      var container = document.getElementById('modelsContainer');
+      
+      if (configs.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1/-1;">
+            <div class="icon">🧠</div>
+            <h3>Chưa có AI Model nào</h3>
+            <p>Nhấn "Thêm AI Model" để bắt đầu</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = configs.map(function(cfg, idx) {
+        var provider = PROVIDERS[cfg.provider] || PROVIDERS.custom;
+        var statusClass = cfg.status === 'connected' ? 'connected' : (cfg.status === 'error' ? 'disconnected' : 'unknown');
+        var statusText = cfg.status === 'connected' ? 'Đã kết nối' : (cfg.status === 'error' ? 'Lỗi' : 'Chưa test');
+        
+        return `
+          <div class="model-card ${cfg.status === 'connected' ? 'active' : ''}">
+            <div class="model-header">
+              <div>
+                <div class="model-name">${escapeHtml(cfg.name)}</div>
+                <div class="model-provider">${provider.icon} ${provider.name}</div>
+              </div>
+              <div class="model-icon ${cfg.provider}">${provider.icon}</div>
+            </div>
+            <div class="model-info">
+              <div class="model-info-item">
+                <span class="label">Model:</span>
+                <span>${escapeHtml(cfg.model || 'N/A')}</span>
+              </div>
+              <div class="model-info-item">
+                <span class="label">API Key:</span>
+                <span class="api-key-masked">${maskApiKey(cfg.apiKey)}</span>
+              </div>
+              <div class="model-info-item">
+                <span class="label">Trạng thái:</span>
+                <span class="model-status ${statusClass}">● ${statusText}</span>
+              </div>
+            </div>
+            <div class="model-actions">
+              <button class="btn btn-small btn-secondary" onclick="testConfigConnection(${idx})">⚡ Test</button>
+              <button class="btn btn-small btn-secondary" onclick="editConfig(${idx})">✏️ Sửa</button>
+              <button class="btn btn-small btn-danger" onclick="deleteConfig(${idx})">🗑️</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateTestModelSelect() {
+      var select = document.getElementById('testModelSelect');
+      select.innerHTML = '<option value="">-- Chọn model để test --</option>';
+      configs.forEach(function(cfg, idx) {
+        var provider = PROVIDERS[cfg.provider] || PROVIDERS.custom;
+        select.innerHTML += `<option value="${idx}">${provider.icon} ${escapeHtml(cfg.name)} (${cfg.model})</option>`;
+      });
+    }
+
+    // ========================================
+    // MODAL
+    // ========================================
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+      resetForm();
+    }
+
+    function resetForm() {
+      document.getElementById('cfgEditId').value = '';
+      document.getElementById('cfgName').value = '';
+      document.getElementById('cfgApiKey').value = '';
+      document.getElementById('cfgEndpoint').value = '';
+      document.getElementById('cfgTemperature').value = '0.7';
+      document.getElementById('cfgMaxTokens').value = '1024';
+      document.getElementById('cfgSystemPrompt').value = '';
+      document.getElementById('connectionResult').style.display = 'none';
+      document.getElementById('modalTitle').textContent = '➕ Thêm AI Model';
+      selectProvider('gemini');
+    }
+
+    // ========================================
+    // PROVIDER & MODEL
+    // ========================================
+    function selectProvider(provider) {
+      selectedProvider = provider;
+      
+      // Update UI
+      document.querySelectorAll('.provider-option').forEach(function(el) {
+        el.classList.remove('selected');
+      });
+      document.querySelector('[data-provider="' + provider + '"]').classList.add('selected');
+      
+      // Update model options
+      var modelSelect = document.getElementById('cfgModel');
+      var options = MODEL_OPTIONS[provider] || [];
+      modelSelect.innerHTML = options.map(function(opt) {
+        return `<option value="${opt.value}">${opt.label}</option>`;
+      }).join('');
+      
+      // Show/hide custom endpoint
+      document.getElementById('customEndpointGroup').style.display = provider === 'custom' ? 'block' : 'none';
+    }
+
+    // ========================================
+    // CRUD
+    // ========================================
+    function saveConfig() {
+      var name = document.getElementById('cfgName').value.trim();
+      var apiKey = document.getElementById('cfgApiKey').value.trim();
+      var model = document.getElementById('cfgModel').value;
+      var endpoint = document.getElementById('cfgEndpoint').value.trim();
+      var temperature = parseFloat(document.getElementById('cfgTemperature').value) || 0.7;
+      var maxTokens = parseInt(document.getElementById('cfgMaxTokens').value) || 1024;
+      var systemPrompt = document.getElementById('cfgSystemPrompt').value.trim();
+      var editId = document.getElementById('cfgEditId').value;
+
+      if (!name || !apiKey) {
+        toast('❌ Vui lòng nhập Tên và API Key', 'error');
+        return;
+      }
+
+      var config = {
+        id: editId ? parseInt(editId) : null,
+        name: name,
+        provider: selectedProvider,
+        model: model,
+        apiKey: apiKey,
+        endpoint: selectedProvider === 'custom' ? endpoint : PROVIDERS[selectedProvider].endpoint,
+        temperature: temperature,
+        maxTokens: maxTokens,
+        systemPrompt: systemPrompt,
+        status: 'unknown'
+      };
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'save_ai_config',
+          config: config
+        }));
+      } else {
+        toast('❌ Mất kết nối server', 'error');
+      }
+    }
+
+    function editConfig(idx) {
+      var cfg = configs[idx];
+      if (!cfg) return;
+
+      document.getElementById('cfgEditId').value = cfg.id;
+      document.getElementById('cfgName').value = cfg.name || '';
+      document.getElementById('cfgApiKey').value = cfg.apiKey || '';
+      document.getElementById('cfgEndpoint').value = cfg.endpoint || '';
+      document.getElementById('cfgTemperature').value = cfg.temperature || 0.7;
+      document.getElementById('cfgMaxTokens').value = cfg.maxTokens || 1024;
+      document.getElementById('cfgSystemPrompt').value = cfg.systemPrompt || '';
+      document.getElementById('modalTitle').textContent = '✏️ Sửa AI Model';
+      
+      selectProvider(cfg.provider || 'gemini');
+      
+      // Set model after provider is selected
+      setTimeout(function() {
+        document.getElementById('cfgModel').value = cfg.model || '';
+      }, 50);
+
+      openModal('configModal');
+    }
+
+    function deleteConfig(idx) {
+      var cfg = configs[idx];
+      if (!cfg) return;
+      
+      if (!confirm('Xóa cấu hình "' + cfg.name + '"?')) return;
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'delete_ai_config',
+          configId: cfg.id
+        }));
+      }
+    }
+
+    function refreshConfigs() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'get_ai_configs' }));
+        toast('🔄 Đang làm mới...', 'info');
+      }
+    }
+
+    // ========================================
+    // TEST CONNECTION
+    // ========================================
+    function testConnection() {
+      var apiKey = document.getElementById('cfgApiKey').value.trim();
+      var model = document.getElementById('cfgModel').value;
+      var endpoint = document.getElementById('cfgEndpoint').value.trim();
+
+      if (!apiKey) {
+        toast('❌ Vui lòng nhập API Key', 'error');
+        return;
+      }
+
+      var btn = document.getElementById('btnTestConnection');
+      var resultDiv = document.getElementById('connectionResult');
+      
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div> Đang test...';
+      resultDiv.style.display = 'block';
+      resultDiv.className = 'test-result loading';
+      resultDiv.innerHTML = '<div class="spinner"></div> Đang kết nối...';
+
+      // Send test request
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'test_ai_connection',
+          provider: selectedProvider,
+          model: model,
+          apiKey: apiKey,
+          endpoint: selectedProvider === 'custom' ? endpoint : null,
+          prompt: 'Hello, respond with just "OK" if you can hear me.'
+        }));
+      }
+
+      // Timeout
+      setTimeout(function() {
+        if (btn.disabled) {
+          btn.disabled = false;
+          btn.innerHTML = '⚡ Test Connection';
+        }
+      }, 30000);
+    }
+
+    function testConfigConnection(idx) {
+      var cfg = configs[idx];
+      if (!cfg) return;
+
+      toast('⚡ Đang test kết nối...', 'info');
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'test_ai_connection',
+          configId: cfg.id,
+          provider: cfg.provider,
+          model: cfg.model,
+          apiKey: cfg.apiKey,
+          endpoint: cfg.endpoint,
+          prompt: 'Hello, respond with just "OK" if you can hear me.'
+        }));
+      }
+    }
+
+    function handleTestResult(msg) {
+      var btn = document.getElementById('btnTestConnection');
+      var resultDiv = document.getElementById('connectionResult');
+      var testResultDiv = document.getElementById('testResult');
+      var testSection = document.getElementById('testResultSection');
+
+      // Handle connection test in modal
+      if (btn && btn.disabled) {
+        btn.disabled = false;
+        btn.innerHTML = '⚡ Test Connection';
+        
+        if (resultDiv) {
+          resultDiv.style.display = 'block';
+          if (msg.success) {
+            resultDiv.className = 'test-result success';
+            resultDiv.textContent = '✅ Kết nối thành công!\n\nResponse: ' + (msg.response || 'OK');
+          } else {
+            resultDiv.className = 'test-result error';
+            resultDiv.textContent = '❌ Lỗi: ' + (msg.error || 'Không thể kết nối');
+          }
+        }
+      }
+
+      // Handle playground test
+      var runTestBtn = document.getElementById('btnRunTest');
+      if (runTestBtn && runTestBtn.disabled && msg.isPlaygroundTest) {
+        runTestBtn.disabled = false;
+        runTestBtn.innerHTML = '▶️ Chạy Test';
+        
+        testSection.style.display = 'block';
+        if (msg.success) {
+          testResultDiv.className = 'test-result success';
+          testResultDiv.textContent = msg.response || 'No response';
+          document.getElementById('testStats').textContent = 
+            'Thời gian: ' + (msg.duration || 0) + 'ms | Tokens: ' + (msg.tokens || 'N/A');
+        } else {
+          testResultDiv.className = 'test-result error';
+          testResultDiv.textContent = '❌ Lỗi: ' + (msg.error || 'Không thể kết nối');
+          document.getElementById('testStats').textContent = '';
+        }
+      }
+
+      // Update config status
+      if (msg.configId) {
+        var cfg = configs.find(function(c) { return c.id === msg.configId; });
+        if (cfg) {
+          cfg.status = msg.success ? 'connected' : 'error';
+          renderConfigs();
+          toast(msg.success ? '✅ Kết nối thành công!' : '❌ Lỗi kết nối', msg.success ? 'success' : 'error');
+        }
+      }
+    }
+
+    // ========================================
+    // TEST PLAYGROUND
+    // ========================================
+    function onTestModelChange() {
+      // Can add logic here if needed
+    }
+
+    function runTest() {
+      var selectEl = document.getElementById('testModelSelect');
+      var idx = selectEl.value;
+      var prompt = document.getElementById('testPrompt').value.trim();
+
+      if (!idx) {
+        toast('❌ Vui lòng chọn model', 'error');
+        return;
+      }
+
+      if (!prompt) {
+        toast('❌ Vui lòng nhập prompt', 'error');
+        return;
+      }
+
+      var cfg = configs[parseInt(idx)];
+      if (!cfg) return;
+
+      var btn = document.getElementById('btnRunTest');
+      var testSection = document.getElementById('testResultSection');
+      var testResultDiv = document.getElementById('testResult');
+
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px;"></div> Đang xử lý...';
+      testSection.style.display = 'block';
+      testResultDiv.className = 'test-result loading';
+      testResultDiv.innerHTML = '<div class="spinner"></div> Đang gửi request...';
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'test_ai_connection',
+          configId: cfg.id,
+          provider: cfg.provider,
+          model: cfg.model,
+          apiKey: cfg.apiKey,
+          endpoint: cfg.endpoint,
+          systemPrompt: cfg.systemPrompt,
+          temperature: cfg.temperature,
+          maxTokens: cfg.maxTokens,
+          prompt: prompt,
+          isPlaygroundTest: true
+        }));
+      }
+
+      // Timeout
+      setTimeout(function() {
+        if (btn.disabled) {
+          btn.disabled = false;
+          btn.innerHTML = '▶️ Chạy Test';
+          testResultDiv.className = 'test-result error';
+          testResultDiv.textContent = '❌ Timeout - Request took too long';
+        }
+      }, 60000);
+    }
+
+    function clearTest() {
+      document.getElementById('testPrompt').value = '';
+      document.getElementById('testResultSection').style.display = 'none';
+      document.getElementById('testResult').textContent = '';
+    }
+
+    // ========================================
+    // HELPERS
+    // ========================================
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function maskApiKey(key) {
+      if (!key) return '•••••';
+      if (key.length <= 8) return '•'.repeat(key.length);
+      return key.substring(0, 4) + '•'.repeat(Math.min(12, key.length - 8)) + key.substring(key.length - 4);
+    }
+
+    function toast(message, type) {
+      type = type || 'info';
+      var container = document.getElementById('toastContainer');
+      var toast = document.createElement('div');
+      toast.className = 'toast ' + type;
+      toast.innerHTML = message;
+      container.appendChild(toast);
+      
+      setTimeout(function() {
+        toast.style.opacity = '0';
+        setTimeout(function() { toast.remove(); }, 300);
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

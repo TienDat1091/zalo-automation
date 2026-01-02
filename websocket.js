@@ -30,6 +30,236 @@ function broadcast(apiState, data) {
 }
 
 // ============================================
+// AI TEST CONNECTION
+// ============================================
+async function testAIConnection(ws, params) {
+  const { provider, model, apiKey, endpoint, prompt, systemPrompt, temperature, maxTokens, configId, isPlaygroundTest } = params;
+  const startTime = Date.now();
+  
+  console.log(`🧠 Testing AI: ${provider} / ${model}`);
+  
+  try {
+    let response, tokens;
+    
+    switch (provider) {
+      case 'gemini':
+        response = await testGemini(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+        break;
+      case 'openai':
+        response = await testOpenAI(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+        break;
+      case 'claude':
+        response = await testClaude(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+        break;
+      case 'custom':
+        response = await testCustomAPI(apiKey, model, endpoint, prompt, systemPrompt, temperature, maxTokens);
+        break;
+      default:
+        throw new Error('Unknown provider: ' + provider);
+    }
+    
+    const duration = Date.now() - startTime;
+    console.log(`✅ AI test success (${duration}ms)`);
+    
+    // Update config status if configId provided
+    if (configId) {
+      triggerDB.updateAIConfigStatus(configId, 'connected');
+    }
+    
+    ws.send(JSON.stringify({
+      type: 'ai_test_result',
+      success: true,
+      response: response.text,
+      tokens: response.tokens,
+      duration: duration,
+      configId: configId,
+      isPlaygroundTest: isPlaygroundTest
+    }));
+    
+  } catch (error) {
+    console.error(`❌ AI test failed: ${error.message}`);
+    
+    // Update config status if configId provided
+    if (configId) {
+      triggerDB.updateAIConfigStatus(configId, 'error');
+    }
+    
+    ws.send(JSON.stringify({
+      type: 'ai_test_result',
+      success: false,
+      error: error.message,
+      configId: configId,
+      isPlaygroundTest: isPlaygroundTest
+    }));
+  }
+}
+
+// Test Google Gemini
+async function testGemini(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+  
+  const modelName = model || 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  
+  const requestBody = {
+    contents: [{
+      parts: [{ text: prompt }]
+    }],
+    generationConfig: {
+      temperature: temperature || 0.7,
+      maxOutputTokens: maxTokens || 1024
+    }
+  };
+  
+  // Add system instruction if provided
+  if (systemPrompt) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemPrompt }]
+    };
+  }
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody)
+  });
+  
+  const data = await response.json();
+  
+  if (data.error) {
+    throw new Error(data.error.message || 'Gemini API error');
+  }
+  
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const tokens = data.usageMetadata?.totalTokenCount || null;
+  
+  return { text, tokens };
+}
+
+// Test OpenAI
+async function testOpenAI(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+  
+  const modelName = model || 'gpt-3.5-turbo';
+  const url = 'https://api.openai.com/v1/chat/completions';
+  
+  const messages = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: prompt });
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: messages,
+      temperature: temperature || 0.7,
+      max_tokens: maxTokens || 1024
+    })
+  });
+  
+  const data = await response.json();
+  
+  if (data.error) {
+    throw new Error(data.error.message || 'OpenAI API error');
+  }
+  
+  const text = data.choices?.[0]?.message?.content || '';
+  const tokens = data.usage?.total_tokens || null;
+  
+  return { text, tokens };
+}
+
+// Test Anthropic Claude
+async function testClaude(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+  
+  const modelName = model || 'claude-3-haiku-20240307';
+  const url = 'https://api.anthropic.com/v1/messages';
+  
+  const requestBody = {
+    model: modelName,
+    max_tokens: maxTokens || 1024,
+    messages: [{ role: 'user', content: prompt }]
+  };
+  
+  if (systemPrompt) {
+    requestBody.system = systemPrompt;
+  }
+  
+  if (temperature !== undefined) {
+    requestBody.temperature = temperature;
+  }
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify(requestBody)
+  });
+  
+  const data = await response.json();
+  
+  if (data.error) {
+    throw new Error(data.error.message || 'Claude API error');
+  }
+  
+  const text = data.content?.[0]?.text || '';
+  const tokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
+  
+  return { text, tokens: tokens || null };
+}
+
+// Test Custom API (OpenAI-compatible)
+async function testCustomAPI(apiKey, model, endpoint, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+  
+  if (!endpoint) {
+    throw new Error('Custom endpoint is required');
+  }
+  
+  const messages = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: prompt });
+  
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model || 'default',
+      messages: messages,
+      temperature: temperature || 0.7,
+      max_tokens: maxTokens || 1024
+    })
+  });
+  
+  const data = await response.json();
+  
+  if (data.error) {
+    throw new Error(data.error.message || 'API error');
+  }
+  
+  // Try to parse response in OpenAI format
+  const text = data.choices?.[0]?.message?.content || data.response || data.text || JSON.stringify(data);
+  const tokens = data.usage?.total_tokens || null;
+  
+  return { text, tokens };
+}
+
+// ============================================
 // MIGRATE OLD JSON DATA (nếu có)
 // ============================================
 function migrateOldData(userUID) {
@@ -620,7 +850,6 @@ function startWebSocketServer(apiState) {
               blockType: block.blockType,
               blockData: block.blockData,
               blockOrder: block.blockOrder,
-              parentBlockID: block.parentBlockID,
               condition1: block.condition1,
               condition2: block.condition2
             });
@@ -634,9 +863,8 @@ function startWebSocketServer(apiState) {
             );
             
             // Update additional fields if needed
-            if (savedBlock && (block.parentBlockID || block.condition1 || block.condition2)) {
+            if (savedBlock && (block.condition1 || block.condition2)) {
               savedBlock = triggerDB.updateFlowBlock(savedBlock.blockID, {
-                parentBlockID: block.parentBlockID,
                 condition1: block.condition1,
                 condition2: block.condition2
               });
@@ -645,6 +873,33 @@ function startWebSocketServer(apiState) {
 
           if (savedBlock) {
             console.log(`💾 Block saved: #${savedBlock.blockID} (${savedBlock.blockType})`);
+            
+            // Đặc biệt xử lý cho table-data block - lưu conditions, columnValues, resultMappings vào tables riêng
+            if (savedBlock.blockType === 'table-data' && block.blockData) {
+              const blockData = block.blockData;
+              
+              // Lưu conditions
+              if (blockData.conditions && Array.isArray(blockData.conditions)) {
+                triggerDB.saveBlockConditions(savedBlock.blockID, blockData.conditions);
+                console.log(`  📋 Saved ${blockData.conditions.length} conditions`);
+              }
+              
+              // Lưu columnValues
+              if (blockData.columnValues && Array.isArray(blockData.columnValues)) {
+                triggerDB.saveBlockColumnValues(savedBlock.blockID, blockData.columnValues);
+                console.log(`  📝 Saved ${blockData.columnValues.length} column values`);
+              }
+              
+              // Lưu resultMappings
+              if (blockData.resultMappings && Array.isArray(blockData.resultMappings)) {
+                triggerDB.saveBlockResultMappings(savedBlock.blockID, blockData.resultMappings);
+                console.log(`  💾 Saved ${blockData.resultMappings.length} result mappings`);
+              }
+              
+              // Reload block để có đầy đủ data
+              savedBlock = triggerDB.getFlowBlockById(savedBlock.blockID);
+            }
+            
             ws.send(JSON.stringify({ type: 'block_saved', block: savedBlock }));
             
             // Send updated flow
@@ -992,14 +1247,489 @@ function startWebSocketServer(apiState) {
         // ============================================
         // AUTO REPLY HANDLERS (fallback)
         // ============================================
+
+        // ============================================
+        // USER TABLES HANDLERS (Google Sheets-like)
+        // ============================================
+        else if (msg.type === 'get_user_tables') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Chưa đăng nhập' }));
+            return;
+          }
+          const tables = triggerDB.getUserTables(userUID);
+          ws.send(JSON.stringify({ type: 'user_tables_list', tables }));
+        }
+
+        else if (msg.type === 'get_user_table') {
+          const table = triggerDB.getUserTableById(msg.tableID);
+          if (table) {
+            ws.send(JSON.stringify({ type: 'user_table_data', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không tìm thấy bảng' }));
+          }
+        }
+
+        else if (msg.type === 'get_full_table_data') {
+          const data = triggerDB.getFullTableData(msg.tableID);
+          if (data) {
+            ws.send(JSON.stringify({ type: 'full_table_data', data }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không tìm thấy bảng' }));
+          }
+        }
+
+        else if (msg.type === 'create_user_table') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Chưa đăng nhập' }));
+            return;
+          }
+          const table = triggerDB.createUserTable(userUID, {
+            tableName: msg.tableName,
+            tableDescription: msg.tableDescription,
+            flowID: msg.flowID,
+            status: msg.status
+          });
+          if (table) {
+            console.log(`📊 Created table: ${table.tableName}`);
+            ws.send(JSON.stringify({ type: 'user_table_created', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể tạo bảng' }));
+          }
+        }
+
+        else if (msg.type === 'update_user_table') {
+          const updated = triggerDB.updateUserTable(msg.tableID, {
+            tableName: msg.tableName,
+            tableDescription: msg.tableDescription,
+            flowID: msg.flowID,
+            status: msg.status
+          });
+          if (updated) {
+            ws.send(JSON.stringify({ type: 'user_table_updated', table: updated }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể cập nhật bảng' }));
+          }
+        }
+
+        else if (msg.type === 'delete_user_table') {
+          const success = triggerDB.deleteUserTable(msg.tableID);
+          if (success) {
+            console.log(`🗑️ Deleted table: ${msg.tableID}`);
+            ws.send(JSON.stringify({ type: 'user_table_deleted', tableID: msg.tableID }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể xóa bảng' }));
+          }
+        }
+
+        // Column handlers (for custom_tables)
+        else if (msg.type === 'add_table_column') {
+          const table = triggerDB.addTableColumn(msg.tableID, {
+            name: msg.column?.name || msg.columnName || 'Cột mới',
+            type: msg.column?.type || msg.columnType || 'text',
+            width: msg.column?.width || 150,
+            options: msg.column?.options || null
+          });
+          if (table) {
+            ws.send(JSON.stringify({ type: 'table_updated', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể thêm cột' }));
+          }
+        }
+
+        else if (msg.type === 'update_table_column') {
+          const table = triggerDB.updateTableColumn(msg.tableID, msg.columnId || msg.columnID, msg.updates || {
+            name: msg.columnName,
+            type: msg.columnType,
+            width: msg.width
+          });
+          if (table) {
+            ws.send(JSON.stringify({ type: 'table_updated', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể cập nhật cột' }));
+          }
+        }
+
+        else if (msg.type === 'delete_table_column') {
+          const table = triggerDB.deleteTableColumn(msg.tableID, msg.columnId || msg.columnID);
+          if (table) {
+            ws.send(JSON.stringify({ type: 'table_updated', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể xóa cột' }));
+          }
+        }
+
+        // Row handlers
+        else if (msg.type === 'add_table_row') {
+          const userUID = apiState.currentUser?.uid;
+          const row = triggerDB.addTableRow(msg.tableID, msg.rowData || msg.cellValues || {});
+          if (row) {
+            // Log activity
+            const tableInfo = triggerDB.getUserTableById(msg.tableID);
+            triggerDB.logActivity(userUID, 'add', 'row', row.rowID, `Row #${row.rowID}`, `Thêm hàng vào bảng "${tableInfo?.tableName || msg.tableID}"`);
+            
+            ws.send(JSON.stringify({ type: 'row_added', row }));
+            // Send updated table - use table_detail for auto-refresh
+            const table = triggerDB.getUserTableById(msg.tableID);
+            ws.send(JSON.stringify({ type: 'table_detail', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể thêm hàng' }));
+          }
+        }
+
+        else if (msg.type === 'delete_table_row') {
+          const userUID = apiState.currentUser?.uid;
+          const tableInfo = triggerDB.getUserTableById(msg.tableID);
+          const success = triggerDB.deleteTableRow(msg.rowID);
+          if (success) {
+            // Log activity
+            triggerDB.logActivity(userUID, 'delete', 'row', msg.rowID, `Row #${msg.rowID}`, `Xóa hàng từ bảng "${tableInfo?.tableName || msg.tableID}"`);
+            
+            ws.send(JSON.stringify({ type: 'row_deleted', rowID: msg.rowID }));
+            // Send updated table - use table_detail for auto-refresh
+            if (msg.tableID) {
+              const table = triggerDB.getUserTableById(msg.tableID);
+              ws.send(JSON.stringify({ type: 'table_detail', table }));
+            }
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể xóa hàng' }));
+          }
+        }
+
+        else if (msg.type === 'delete_table_rows') {
+          const userUID = apiState.currentUser?.uid;
+          const tableInfo = triggerDB.getUserTableById(msg.tableID);
+          const result = triggerDB.deleteTableRows(msg.tableID, msg.rowIDs || []);
+          if (result && result.success) {
+            // Log activity
+            triggerDB.logActivity(userUID, 'delete', 'row', null, `${result.deletedCount} rows`, `Xóa ${result.deletedCount} hàng từ bảng "${tableInfo?.tableName || msg.tableID}"`);
+            
+            ws.send(JSON.stringify({ type: 'rows_deleted', rowIDs: msg.rowIDs, deletedCount: result.deletedCount }));
+            // Send updated table
+            if (msg.tableID) {
+              const table = triggerDB.getUserTableById(msg.tableID);
+              ws.send(JSON.stringify({ type: 'table_detail', table }));
+            }
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể xóa các hàng' }));
+          }
+        }
+
+        // Cell handlers
+        else if (msg.type === 'update_table_cell') {
+          const userUID = apiState.currentUser?.uid;
+          const oldCell = triggerDB.getTableRowById ? null : null; // Could get old value here if needed
+          const row = triggerDB.updateTableCell(msg.rowID, msg.columnId || msg.columnID, msg.value);
+          if (row) {
+            // Log activity - nhưng không log quá nhiều để tránh spam
+            // triggerDB.logActivity(userUID, 'update', 'cell', msg.rowID, `Cell [${msg.rowID}, ${msg.columnId || msg.columnID}]`, `Cập nhật giá trị: "${msg.value?.substring(0, 50) || ''}"`);
+            
+            ws.send(JSON.stringify({ type: 'cell_updated', row }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể cập nhật ô' }));
+          }
+        }
+
+        else if (msg.type === 'update_row_cells') {
+          const row = triggerDB.updateTableRow(msg.rowID, msg.rowData || msg.cellValues);
+          if (row) {
+            ws.send(JSON.stringify({ type: 'row_updated', row }));
+          } else {
+            ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể cập nhật hàng' }));
+          }
+        }
+
+        // ============================================
+        // CUSTOM TABLES HANDLERS (for table-manager.html)
+        // ============================================
+        
+        // Get all tables
+        else if (msg.type === 'get_tables') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'tables_list', tables: [], error: 'Not logged in' }));
+            return;
+          }
+          const tables = triggerDB.getUserTables(userUID);
+          ws.send(JSON.stringify({ type: 'tables_list', tables }));
+        }
+
+        // ============================================
+        // GET ALL VARIABLES - Lấy tất cả biến đã lưu
+        // ============================================
+        else if (msg.type === 'get_all_variables') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'variables_list', variables: [], error: 'Not logged in' }));
+            return;
+          }
+          const variables = triggerDB.getAllVariablesByUser(userUID);
+          ws.send(JSON.stringify({ type: 'variables_list', variables }));
+        }
+
+        // ============================================
+        // DELETE VARIABLE - Xóa một biến
+        // ============================================
+        else if (msg.type === 'delete_variable') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+          const { variableName, conversationID } = msg;
+          triggerDB.deleteVariable(userUID, conversationID, variableName);
+          ws.send(JSON.stringify({ type: 'variable_deleted', variableName }));
+        }
+
+        // ============================================
+        // CLEAR ALL VARIABLES - Xóa tất cả biến của user
+        // ============================================
+        else if (msg.type === 'clear_all_variables') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+          // Xóa tất cả biến của user
+          try {
+            const db = triggerDB.getDB();
+            db.prepare('DELETE FROM variables WHERE userUID = ?').run(userUID);
+            ws.send(JSON.stringify({ type: 'variables_cleared' }));
+          } catch (error) {
+            ws.send(JSON.stringify({ type: 'error', message: error.message }));
+          }
+        }
+
+        // Get single table with data
+        else if (msg.type === 'get_table') {
+          const table = triggerDB.getUserTableById(msg.tableID);
+          ws.send(JSON.stringify({ type: 'table_data', table }));
+        }
+        
+        // Get table detail (alias for table-manager.html)
+        else if (msg.type === 'get_table_detail') {
+          const table = triggerDB.getUserTableById(msg.tableID);
+          if (table) {
+            ws.send(JSON.stringify({ type: 'table_detail', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Table not found' }));
+          }
+        }
+
+        // Create table
+        else if (msg.type === 'create_table') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+          const table = triggerDB.createUserTable(userUID, {
+            tableName: msg.tableName,
+            tableDescription: msg.tableDescription,
+            columns: msg.columns,
+            flowID: msg.flowID
+          });
+          if (table) {
+            console.log(`📊 Created custom table: ${table.tableName}`);
+            // Log activity
+            triggerDB.logActivity(userUID, 'create', 'table', table.tableID, table.tableName, `Tạo bảng với ${table.columns?.length || 0} cột`);
+            ws.send(JSON.stringify({ type: 'table_created', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Failed to create table' }));
+          }
+        }
+
+        // Update table
+        else if (msg.type === 'update_table') {
+          const userUID = apiState.currentUser?.uid;
+          const table = triggerDB.updateUserTable(msg.tableID, {
+            tableName: msg.tableName,
+            tableDescription: msg.tableDescription,
+            columns: msg.columns,
+            flowID: msg.flowID,
+            status: msg.status
+          });
+          if (table) {
+            // Log activity
+            triggerDB.logActivity(userUID, 'update', 'table', table.tableID, table.tableName, 'Cập nhật thông tin bảng');
+            ws.send(JSON.stringify({ type: 'table_updated', table }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Failed to update table' }));
+          }
+        }
+
+        // Delete table
+        else if (msg.type === 'delete_table') {
+          const userUID = apiState.currentUser?.uid;
+          // Get table name before delete
+          const tableInfo = triggerDB.getUserTableById(msg.tableID);
+          const tableName = tableInfo?.tableName || `Table #${msg.tableID}`;
+          
+          const success = triggerDB.deleteUserTable(msg.tableID);
+          if (success) {
+            console.log(`🗑️ Deleted custom table: ${msg.tableID}`);
+            // Log activity
+            triggerDB.logActivity(userUID, 'delete', 'table', msg.tableID, tableName, 'Xóa bảng');
+            ws.send(JSON.stringify({ type: 'table_deleted', tableID: msg.tableID }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Failed to delete table' }));
+          }
+        }
+
+        // ========================================
+        // ACTIVITY LOGS
+        // ========================================
+        else if (msg.type === 'get_activity_logs') {
+          const userUID = apiState.currentUser?.uid;
+          const logs = triggerDB.getActivityLogs(userUID, msg.limit || 500, msg.offset || 0);
+          ws.send(JSON.stringify({ type: 'activity_logs', logs }));
+        }
+        
+        else if (msg.type === 'clear_activity_logs') {
+          const userUID = apiState.currentUser?.uid;
+          const success = triggerDB.clearActivityLogs(userUID);
+          if (success) {
+            ws.send(JSON.stringify({ type: 'logs_cleared' }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa logs' }));
+          }
+        }
+
+        // ========================================
+        // GOOGLE SHEETS CONFIG
+        // ========================================
+        else if (msg.type === 'get_google_sheet_configs') {
+          const userUID = apiState.currentUser?.uid;
+          console.log('[WS] get_google_sheet_configs - userUID:', userUID);
+          
+          // Temporarily get ALL configs for testing
+          let configs;
+          if (userUID) {
+            configs = triggerDB.getGoogleSheetConfigs(userUID);
+          } else {
+            // Fallback: get all configs
+            try {
+              const stmt = triggerDB.db.prepare('SELECT * FROM google_sheet_configs ORDER BY createdAt DESC');
+              configs = stmt.all();
+            } catch (e) {
+              configs = [];
+            }
+          }
+          console.log('[WS] Found configs:', configs?.length || 0);
+          ws.send(JSON.stringify({ type: 'google_sheet_configs', configs }));
+        }
+
+        else if (msg.type === 'save_google_sheet_config') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
+            return;
+          }
+          const config = msg.config;
+          config.userUID = userUID;
+          
+          const saved = triggerDB.saveGoogleSheetConfig(config);
+          if (saved) {
+            ws.send(JSON.stringify({ type: 'google_sheet_config_saved', config: saved }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể lưu config' }));
+          }
+        }
+
+        else if (msg.type === 'delete_google_sheet_config') {
+          const userUID = apiState.currentUser?.uid;
+          const success = triggerDB.deleteGoogleSheetConfig(msg.configId, userUID);
+          if (success) {
+            ws.send(JSON.stringify({ type: 'google_sheet_config_deleted' }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa config' }));
+          }
+        }
+
+        // ========================================
+        // AI CONFIGS
+        // ========================================
+        else if (msg.type === 'get_ai_configs') {
+          const userUID = apiState.currentUser?.uid;
+          console.log('[WS] get_ai_configs - userUID:', userUID);
+          
+          let configs;
+          if (userUID) {
+            configs = triggerDB.getAIConfigs(userUID);
+          } else {
+            // Fallback: get all configs
+            try {
+              const stmt = triggerDB.getDB().prepare('SELECT * FROM ai_configs ORDER BY createdAt DESC');
+              configs = stmt.all().map(c => ({
+                id: c.configID,
+                configID: c.configID,
+                name: c.name,
+                provider: c.provider,
+                model: c.model,
+                apiKey: c.apiKey,
+                endpoint: c.endpoint,
+                temperature: c.temperature,
+                maxTokens: c.maxTokens,
+                systemPrompt: c.systemPrompt,
+                status: c.status,
+                isDefault: c.isDefault === 1
+              }));
+            } catch (e) {
+              configs = [];
+            }
+          }
+          console.log('[WS] Found AI configs:', configs?.length || 0);
+          ws.send(JSON.stringify({ type: 'ai_configs', configs }));
+        }
+
+        else if (msg.type === 'save_ai_config') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
+            return;
+          }
+          const config = msg.config;
+          config.userUID = userUID;
+          
+          const saved = triggerDB.saveAIConfig(config);
+          if (saved) {
+            ws.send(JSON.stringify({ type: 'ai_config_saved', config: saved }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể lưu AI config' }));
+          }
+        }
+
+        else if (msg.type === 'delete_ai_config') {
+          const userUID = apiState.currentUser?.uid;
+          const success = triggerDB.deleteAIConfig(msg.configId, userUID);
+          if (success) {
+            ws.send(JSON.stringify({ type: 'ai_config_deleted' }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa AI config' }));
+          }
+        }
+
+        else if (msg.type === 'test_ai_connection') {
+          // Test AI connection
+          testAIConnection(ws, msg).catch(err => {
+            console.error('AI test error:', err);
+            ws.send(JSON.stringify({
+              type: 'ai_test_result',
+              success: false,
+              error: err.message,
+              configId: msg.configId,
+              isPlaygroundTest: msg.isPlaygroundTest
+            }));
+          });
+        }
+
         else {
           const handled = handleAutoReplyMessage(apiState, ws, msg);
           if (!handled) {
             console.log('⚠️ Unhandled message type:', msg.type);
           }
         }
-        
-
         
 
       } catch (err) {

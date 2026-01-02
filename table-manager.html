@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Table Manager - Quản lý bảng dữ liệu</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; min-height: 100vh; }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .back-link { color: white; font-size: 20px; cursor: pointer; text-decoration: none; opacity: 0.9; }
+    .back-link:hover { opacity: 1; }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header-actions { display: flex; gap: 8px; }
+
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: rgba(255,255,255,0.2); }
+    .btn-white { background: white; color: #667eea; border-color: white; }
+    .btn-white:hover { background: #f0f0f0; }
+    .btn-primary { background: #0084ff; color: white; border-color: #0084ff; }
+    .btn-primary:hover { background: #006edb; }
+    .btn-danger { color: #f44336; border-color: #f44336; background: white; }
+    .btn-danger:hover { background: #f44336; color: white; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-outline { background: white; color: #333; border-color: #e0e0e0; }
+    .btn-outline:hover { border-color: #0084ff; color: #0084ff; }
+
+    .main-container { display: flex; height: calc(100vh - 53px); }
+
+    .sidebar {
+      width: 280px;
+      background: #fff;
+      border-right: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-header { padding: 16px; border-bottom: 1px solid #e0e0e0; }
+    .sidebar-header h3 { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; }
+    .tables-list { flex: 1; overflow-y: auto; padding: 12px; }
+    .table-item {
+      padding: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .table-item:hover { border-color: #0084ff; background: #f5f9ff; }
+    .table-item.active { border-color: #0084ff; background: #e3f2fd; }
+    .table-item-name { font-weight: 600; font-size: 14px; color: #333; margin-bottom: 4px; }
+    .table-item-info { font-size: 11px; color: #999; display: flex; gap: 12px; }
+    .table-item-actions { display: flex; gap: 4px; margin-top: 8px; }
+
+    .content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .toolbar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 10px 16px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-right: 12px;
+      border-right: 1px solid #e0e0e0;
+    }
+    .toolbar-group:last-child { border-right: none; }
+    .toolbar-label { font-size: 13px; color: #333; font-weight: 600; }
+    .search-input {
+      padding: 6px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 20px;
+      font-size: 13px;
+      width: 200px;
+      outline: none;
+    }
+    .search-input:focus { border-color: #0084ff; }
+
+    .table-container { flex: 1; overflow: auto; padding: 20px; background: #fafbfc; }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #999;
+    }
+    .empty-state-icon { font-size: 64px; margin-bottom: 16px; }
+
+    .spreadsheet {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      display: none;
+    }
+    .spreadsheet table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+    .spreadsheet th, .spreadsheet td { border: 1px solid #e0e0e0; padding: 0; position: relative; }
+    .spreadsheet th {
+      background: linear-gradient(180deg, #f8f9fa 0%, #f0f2f5 100%);
+      font-weight: 600;
+      font-size: 13px;
+      color: #333;
+      text-align: left;
+      user-select: none;
+      height: 40px;
+    }
+
+    .row-num {
+      width: 50px !important;
+      min-width: 50px !important;
+      max-width: 50px !important;
+      background: #f5f7fa;
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .row-num:hover { background: #e3f2fd; }
+    .row-num.selected { background: #0084ff; color: white; }
+
+    .col-header {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      cursor: pointer;
+      gap: 8px;
+    }
+    .col-header:hover { background: rgba(0,0,0,0.05); }
+    .col-header-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+    .col-header-type { font-size: 10px; color: #999; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
+    .col-resize { position: absolute; right: 0; top: 0; bottom: 0; width: 5px; cursor: col-resize; }
+    .col-resize:hover { background: #0084ff; }
+
+    .cell { min-width: 120px; height: 36px; }
+    .cell-input {
+      width: 100%;
+      height: 100%;
+      border: none;
+      padding: 8px 12px;
+      font-size: 13px;
+      background: transparent;
+      outline: none;
+    }
+    .cell-input:focus { background: #fff8e1; box-shadow: inset 0 0 0 2px #0084ff; }
+
+    .add-col-th { width: 50px !important; min-width: 50px !important; }
+    .add-col-btn {
+      width: 100%;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #0084ff;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .add-col-btn:hover { background: #e3f2fd; }
+
+    .add-row-btn {
+      background: #fafbfc;
+      color: #0084ff;
+      cursor: pointer;
+      text-align: center;
+      font-size: 13px;
+      padding: 12px;
+      font-weight: 500;
+    }
+    .add-row-btn:hover { background: #e3f2fd; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal.wide { max-width: 800px; }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 600; }
+    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #999; }
+    .modal-body { padding: 20px; overflow-y: auto; max-height: 60vh; }
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+    .form-input:focus { border-color: #0084ff; }
+
+    /* Activity Log Styles */
+    .log-list { max-height: 400px; overflow-y: auto; }
+    .log-item {
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .log-icon.create { background: #e8f5e9; }
+    .log-icon.update { background: #e3f2fd; }
+    .log-icon.delete { background: #ffebee; }
+    .log-icon.add { background: #fff3e0; }
+    .log-content { flex: 1; }
+    .log-title { font-size: 13px; font-weight: 600; color: #333; }
+    .log-detail { font-size: 12px; color: #666; margin-top: 2px; }
+    .log-time { font-size: 11px; color: #999; margin-top: 4px; }
+    .log-empty { text-align: center; padding: 40px; color: #999; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      z-index: 9999;
+      animation: slideIn 0.3s ease;
+    }
+    .toast.success { background: #4caf50; }
+    .toast.error { background: #f44336; }
+    .toast.info { background: #2196f3; }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Context Menu */
+    .context-menu {
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      padding: 8px 0;
+      min-width: 180px;
+      z-index: 1000;
+      display: none;
+    }
+    .context-menu.show { display: block; }
+    .context-menu-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .context-menu-item:hover { background: #f5f7fa; }
+    .context-menu-item.danger { color: #f44336; }
+    .context-menu-divider { height: 1px; background: #e0e0e0; margin: 8px 0; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-badge.active { background: #e8f5e9; color: #4caf50; }
+    .status-badge.inactive { background: #fce4ec; color: #e91e63; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="/trigger-manager.html" class="back-link">←</a>
+      <h1>📊 Quản lý bảng dữ liệu</h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn" onclick="openLogModal()">📋 Xem Log</button>
+      <button class="btn btn-white" onclick="openModal('createTableModal')">➕ Tạo bảng mới</button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h3>📁 Danh sách bảng</h3>
+        <input type="text" class="form-input" placeholder="🔍 Tìm kiếm..." oninput="filterTables(this.value)">
+      </div>
+      <div class="tables-list" id="tablesList"></div>
+    </div>
+
+    <div class="content-area">
+      <div class="toolbar" id="toolbar">
+        <div class="toolbar-group">
+          <span class="toolbar-label">Bảng:</span>
+          <strong id="currentTableName">-</strong>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn btn-sm btn-outline" onclick="refreshTable()" title="Làm mới dữ liệu">🔄 Làm mới</button>
+          <button class="btn btn-sm btn-outline" onclick="addColumn()">➕ Thêm cột</button>
+          <button class="btn btn-sm btn-outline" onclick="addRow()">➕ Thêm hàng</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSelectedRows()">🗑️ Xóa hàng</button>
+        </div>
+        <div class="toolbar-group">
+          <input type="text" class="search-input" placeholder="🔍 Tìm trong bảng..." oninput="searchInTable(this.value)">
+        </div>
+      </div>
+
+      <div class="table-container">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-state-icon">📊</div>
+          <h3>Chọn một bảng để bắt đầu</h3>
+          <p>Hoặc tạo bảng mới bằng nút ở trên</p>
+        </div>
+
+        <div class="spreadsheet" id="spreadsheet">
+          <table>
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Table Modal -->
+  <div class="modal-overlay" id="createTableModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>➕ Tạo bảng mới</h3>
+        <button class="modal-close" onclick="closeModal('createTableModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Tên bảng *</label>
+          <input type="text" class="form-input" id="newTableName" placeholder="Nhập tên bảng...">
+        </div>
+        <div class="form-group">
+          <label>Mô tả</label>
+          <input type="text" class="form-input" id="newTableDesc" placeholder="Mô tả bảng (tùy chọn)">
+        </div>
+        <div class="form-group">
+          <label>Số cột ban đầu</label>
+          <input type="number" class="form-input" id="newTableCols" value="3" min="1" max="20">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('createTableModal')">Hủy</button>
+        <button class="btn btn-primary" onclick="createTable()">Tạo bảng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Column Modal -->
+  <div class="modal-overlay" id="editColumnModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>✏️ Chỉnh sửa cột</h3>
+        <button class="modal-close" onclick="closeModal('editColumnModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Tên cột *</label>
+          <input type="text" class="form-input" id="editColName" placeholder="Nhập tên cột...">
+        </div>
+        <div class="form-group">
+          <label>Loại dữ liệu</label>
+          <select class="form-input" id="editColType">
+            <option value="text">Văn bản</option>
+            <option value="number">Số</option>
+            <option value="date">Ngày</option>
+            <option value="email">Email</option>
+            <option value="phone">Số điện thoại</option>
+            <option value="select">Lựa chọn</option>
+          </select>
+        </div>
+        <div class="form-group" id="selectOptionsGroup" style="display:none;">
+          <label>Các lựa chọn (mỗi dòng 1 lựa chọn)</label>
+          <textarea class="form-input" id="editColOptions" rows="4" placeholder="Lựa chọn 1&#10;Lựa chọn 2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="deleteColumn()" style="margin-right:auto;">🗑️ Xóa cột</button>
+        <button class="btn btn-outline" onclick="closeModal('editColumnModal')">Hủy</button>
+        <button class="btn btn-primary" onclick="saveColumn()">Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Log Modal -->
+  <div class="modal-overlay" id="logModal">
+    <div class="modal wide">
+      <div class="modal-header">
+        <h3>📋 Lịch sử hoạt động</h3>
+        <button class="modal-close" onclick="closeModal('logModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="log-list" id="logList">
+          <div class="log-empty">Đang tải...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="clearLogs()">🗑️ Xóa tất cả</button>
+        <button class="btn btn-outline" onclick="refreshLogs()">🔄 Làm mới</button>
+        <button class="btn btn-primary" onclick="closeModal('logModal')">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="context-menu" id="contextMenu">
+    <div class="context-menu-item" onclick="duplicateRow()">📋 Nhân đôi hàng</div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item danger" onclick="deleteRow()">🗑️ Xóa hàng</div>
+  </div>
+
+  <script>
+    const state = {
+      tables: [],
+      currentTableId: null,
+      currentTable: null,
+      selectedRows: new Set(),
+      editingColumnId: null,
+      contextMenuRowId: null,
+      searchTerm: '',
+      logs: []
+    };
+
+    let ws;
+    const WS_PORT = 8080;
+
+    function connect() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${location.hostname || 'localhost'}:${WS_PORT}`;
+      
+      ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('✅ WebSocket connected');
+        send({ type: 'get_tables' });
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleMessage(data);
+      };
+      
+      ws.onerror = (err) => {
+        console.error('❌ WebSocket error:', err);
+        showToast('❌ Lỗi kết nối WebSocket', 'error');
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket closed, reconnecting...');
+        setTimeout(connect, 3000);
+      };
+    }
+
+    function send(data) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(data));
+      }
+    }
+
+    function handleMessage(data) {
+      console.log('📩 Received:', data.type);
+      
+      switch (data.type) {
+        case 'tables_list':
+          state.tables = data.tables || [];
+          renderTablesList();
+          break;
+          
+        case 'table_created':
+          showToast('✅ Tạo bảng thành công', 'success');
+          send({ type: 'get_tables' });
+          if (data.table) selectTable(data.table.tableID);
+          break;
+          
+        case 'table_updated':
+          if (data.table && state.currentTableId === data.table.tableID) {
+            state.currentTable = data.table;
+            renderSpreadsheet();
+          }
+          send({ type: 'get_tables' });
+          break;
+          
+        case 'table_deleted':
+          showToast('🗑️ Đã xóa bảng', 'info');
+          state.currentTableId = null;
+          state.currentTable = null;
+          document.getElementById('emptyState').style.display = 'flex';
+          document.getElementById('spreadsheet').style.display = 'none';
+          document.getElementById('toolbar').style.display = 'none';
+          send({ type: 'get_tables' });
+          break;
+          
+        case 'row_added':
+        case 'row_deleted':
+        case 'rows_deleted':
+        case 'cell_updated':
+        case 'column_added':
+        case 'column_updated':
+        case 'column_deleted':
+          if (state.currentTableId) {
+            send({ type: 'get_table_detail', tableID: state.currentTableId });
+          }
+          break;
+          
+        case 'table_detail':
+          if (data.table) {
+            state.currentTable = data.table;
+            renderSpreadsheet();
+          }
+          break;
+          
+        case 'activity_logs':
+          state.logs = data.logs || [];
+          renderLogs();
+          break;
+          
+        case 'logs_cleared':
+          state.logs = [];
+          renderLogs();
+          showToast('✅ Đã xóa log', 'success');
+          break;
+          
+        case 'error':
+          showToast('❌ ' + (data.message || 'Có lỗi xảy ra'), 'error');
+          break;
+      }
+    }
+
+    function renderTablesList() {
+      const container = document.getElementById('tablesList');
+      const searchTerm = state.searchTerm.toLowerCase();
+      
+      const filtered = state.tables.filter(t => 
+        t.tableName.toLowerCase().includes(searchTerm)
+      );
+      
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:40px 20px;color:#999;">
+            <div style="font-size:32px;margin-bottom:12px;">📭</div>
+            <div>Chưa có bảng nào</div>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = filtered.map(t => `
+        <div class="table-item ${state.currentTableId === t.tableID ? 'active' : ''}" 
+             onclick="selectTable(${t.tableID})">
+          <div class="table-item-name">📊 ${escapeHtml(t.tableName)}</div>
+          <div class="table-item-info">
+            <span>${t.columns?.length || 0} cột</span>
+            <span>${t.rows?.length || 0} hàng</span>
+            <span class="status-badge ${t.status ? 'active' : 'inactive'}">${t.status ? 'Active' : 'Inactive'}</span>
+          </div>
+          <div class="table-item-actions">
+            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); renameTable(${t.tableID}, '${escapeHtml(t.tableName)}')">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteTable(${t.tableID})">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderSpreadsheet() {
+      const table = state.currentTable;
+      if (!table) return;
+
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('spreadsheet').style.display = 'block';
+      document.getElementById('toolbar').style.display = 'flex';
+      document.getElementById('currentTableName').textContent = table.tableName;
+
+      const columns = table.columns || [];
+      const rows = table.rows || [];
+
+      // Header
+      let headHtml = '<tr>';
+      headHtml += '<th class="row-num">#</th>';
+      
+      columns.forEach((col) => {
+        const colId = col.columnID;
+        const colName = col.columnName || col.name || 'Cột';
+        const colType = col.columnType || col.type || 'text';
+        const colWidth = col.width || 150;
+        
+        headHtml += `
+          <th style="width: ${colWidth}px; min-width: ${colWidth}px;">
+            <div class="col-header" onclick="editColumn(${colId})" title="Click để chỉnh sửa">
+              <span class="col-header-name">${escapeHtml(colName)}</span>
+              <span class="col-header-type">${colType}</span>
+            </div>
+            <div class="col-resize"></div>
+          </th>
+        `;
+      });
+      
+      headHtml += '<th class="add-col-th"><div class="add-col-btn" onclick="addColumn()" title="Thêm cột">+</div></th>';
+      headHtml += '</tr>';
+      document.getElementById('tableHead').innerHTML = headHtml;
+
+      // Body
+      let bodyHtml = '';
+      rows.forEach((row, rowIdx) => {
+        const isSelected = state.selectedRows.has(row.rowID);
+        bodyHtml += `<tr data-row-id="${row.rowID}">`;
+        bodyHtml += `
+          <td class="row-num ${isSelected ? 'selected' : ''}" 
+              onclick="toggleRowSelection(${row.rowID}, event)"
+              oncontextmenu="showRowContextMenu(event, ${row.rowID})">
+            ${rowIdx + 1}
+          </td>
+        `;
+        
+        columns.forEach(col => {
+          const colId = col.columnID;
+          const colName = col.columnName || col.name;
+          let value = '';
+          
+          if (row.rowData) {
+            value = row.rowData[colId] || row.rowData[colName] || '';
+          }
+          
+          if (!value && row.cells) {
+            const cell = row.cells.find(c => c.columnID === colId || c.columnID == colId);
+            if (cell) value = cell.cellValue || cell.value || '';
+          }
+          
+          const colWidth = col.width || 150;
+          bodyHtml += `
+            <td class="cell" style="width: ${colWidth}px; min-width: ${colWidth}px;">
+              ${renderCellInput(row.rowID, col, value)}
+            </td>
+          `;
+        });
+        
+        bodyHtml += '<td></td></tr>';
+      });
+
+      bodyHtml += `
+        <tr>
+          <td class="add-row-btn" colspan="${columns.length + 2}" onclick="addRow()">
+            ➕ Thêm hàng mới
+          </td>
+        </tr>
+      `;
+
+      document.getElementById('tableBody').innerHTML = bodyHtml;
+    }
+
+    function renderCellInput(rowID, col, value) {
+      const colId = col.columnID;
+      const colType = col.columnType || col.type || 'text';
+
+      if (colType === 'select' && col.options) {
+        const options = col.options.split('\n').filter(o => o.trim());
+        return `
+          <select class="cell-input" onchange="updateCell(${rowID}, ${colId}, this.value)">
+            <option value="">-- Chọn --</option>
+            ${options.map(opt => `<option value="${escapeHtml(opt)}" ${value === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
+          </select>
+        `;
+      }
+
+      const inputType = colType === 'number' ? 'number' : 
+                        colType === 'date' ? 'date' : 
+                        colType === 'email' ? 'email' : 'text';
+
+      return `
+        <input type="${inputType}" 
+               class="cell-input" 
+               value="${escapeHtml(value)}" 
+               onblur="updateCell(${rowID}, ${colId}, this.value)"
+               onkeydown="handleCellKeydown(event, ${rowID}, ${colId})">
+      `;
+    }
+
+    // Activity Log
+    function openLogModal() {
+      openModal('logModal');
+      refreshLogs();
+    }
+
+    function refreshLogs() {
+      send({ type: 'get_activity_logs', limit: 100 });
+    }
+
+    function clearLogs() {
+      if (confirm('Xóa tất cả log?')) {
+        send({ type: 'clear_activity_logs' });
+      }
+    }
+
+    function renderLogs() {
+      const container = document.getElementById('logList');
+      
+      if (state.logs.length === 0) {
+        container.innerHTML = '<div class="log-empty">📭 Chưa có hoạt động nào</div>';
+        return;
+      }
+      
+      const actionIcons = { create: '➕', update: '✏️', delete: '🗑️', add: '📝' };
+      const actionLabels = { create: 'Tạo mới', update: 'Cập nhật', delete: 'Xóa', add: 'Thêm' };
+      
+      container.innerHTML = state.logs.map(log => {
+        const time = new Date(log.timestamp).toLocaleString('vi-VN');
+        const icon = actionIcons[log.action] || '📄';
+        const actionLabel = actionLabels[log.action] || log.action;
+        
+        return `
+          <div class="log-item">
+            <div class="log-icon ${log.action}">${icon}</div>
+            <div class="log-content">
+              <div class="log-title">${actionLabel} ${log.entityType}: ${escapeHtml(log.entityName || '')}</div>
+              <div class="log-detail">${escapeHtml(log.details || '')}</div>
+              <div class="log-time">${time}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterTables(term) {
+      state.searchTerm = term;
+      renderTablesList();
+    }
+
+    function selectTable(tableID) {
+      state.currentTableId = tableID;
+      state.selectedRows.clear();
+      renderTablesList();
+      send({ type: 'get_table_detail', tableID: tableID });
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    function createTable() {
+      const name = document.getElementById('newTableName').value.trim();
+      if (!name) { showToast('❌ Vui lòng nhập tên bảng', 'error'); return; }
+
+      const numCols = parseInt(document.getElementById('newTableCols').value) || 3;
+      const columns = [];
+      for (let i = 1; i <= numCols; i++) {
+        columns.push({ columnName: 'Cột ' + i, columnType: 'text', columnOrder: i - 1 });
+      }
+
+      send({
+        type: 'create_table',
+        tableName: name,
+        tableDescription: document.getElementById('newTableDesc').value.trim(),
+        columns: columns
+      });
+
+      closeModal('createTableModal');
+      document.getElementById('newTableName').value = '';
+      document.getElementById('newTableDesc').value = '';
+      document.getElementById('newTableCols').value = '3';
+    }
+
+    function renameTable(tableID, currentName) {
+      const newName = prompt('Nhập tên mới cho bảng:', currentName);
+      if (newName && newName.trim() && newName !== currentName) {
+        send({ type: 'update_table', tableID: tableID, tableName: newName.trim() });
+      }
+    }
+
+    function deleteTable(tableID) {
+      if (confirm('Bạn có chắc muốn xóa bảng này?')) {
+        send({ type: 'delete_table', tableID: tableID });
+      }
+    }
+
+    function addColumn() {
+      if (!state.currentTableId) return;
+      send({ type: 'add_table_column', tableID: state.currentTableId, columnName: 'Cột mới', columnType: 'text' });
+    }
+
+    function editColumn(columnId) {
+      state.editingColumnId = columnId;
+      const col = state.currentTable?.columns?.find(c => c.columnID === columnId || c.columnID == columnId);
+      if (!col) return;
+
+      document.getElementById('editColName').value = col.columnName || col.name || '';
+      document.getElementById('editColType').value = col.columnType || col.type || 'text';
+      document.getElementById('editColOptions').value = col.options || '';
+      toggleSelectOptions();
+      openModal('editColumnModal');
+    }
+
+    function toggleSelectOptions() {
+      const type = document.getElementById('editColType').value;
+      document.getElementById('selectOptionsGroup').style.display = type === 'select' ? 'block' : 'none';
+    }
+    document.getElementById('editColType').addEventListener('change', toggleSelectOptions);
+
+    function saveColumn() {
+      if (!state.editingColumnId) return;
+      send({
+        type: 'update_table_column',
+        tableID: state.currentTableId,
+        columnID: state.editingColumnId,
+        updates: {
+          columnName: document.getElementById('editColName').value.trim(),
+          columnType: document.getElementById('editColType').value,
+          options: document.getElementById('editColOptions').value
+        }
+      });
+      closeModal('editColumnModal');
+    }
+
+    function deleteColumn() {
+      if (!state.editingColumnId) return;
+      if (confirm('Xóa cột này?')) {
+        send({ type: 'delete_table_column', tableID: state.currentTableId, columnID: state.editingColumnId });
+        closeModal('editColumnModal');
+      }
+    }
+
+    function refreshTable() {
+      if (!state.currentTableId) {
+        showToast('⚠️ Chưa chọn bảng', 'info');
+        return;
+      }
+      showToast('🔄 Đang làm mới...', 'info');
+      send({ type: 'get_table_detail', tableID: state.currentTableId });
+      send({ type: 'get_tables' });
+    }
+
+    function addRow() {
+      if (!state.currentTableId) return;
+      send({ type: 'add_table_row', tableID: state.currentTableId, rowData: {} });
+    }
+
+    function toggleRowSelection(rowID, event) {
+      if (event.shiftKey) {
+        state.selectedRows.has(rowID) ? state.selectedRows.delete(rowID) : state.selectedRows.add(rowID);
+      } else {
+        state.selectedRows.clear();
+        state.selectedRows.add(rowID);
+      }
+      renderSpreadsheet();
+    }
+
+    function deleteSelectedRows() {
+      if (state.selectedRows.size === 0) { showToast('⚠️ Chưa chọn hàng nào', 'info'); return; }
+      if (confirm(`Xóa ${state.selectedRows.size} hàng?`)) {
+        send({ type: 'delete_table_rows', tableID: state.currentTableId, rowIDs: Array.from(state.selectedRows) });
+        state.selectedRows.clear();
+      }
+    }
+
+    function showRowContextMenu(event, rowID) {
+      event.preventDefault();
+      state.contextMenuRowId = rowID;
+      const menu = document.getElementById('contextMenu');
+      menu.style.left = event.clientX + 'px';
+      menu.style.top = event.clientY + 'px';
+      menu.classList.add('show');
+    }
+
+    function hideContextMenu() { document.getElementById('contextMenu').classList.remove('show'); }
+    document.addEventListener('click', hideContextMenu);
+
+    function duplicateRow() {
+      if (!state.currentTableId || !state.contextMenuRowId) return;
+      const row = state.currentTable?.rows?.find(r => r.rowID === state.contextMenuRowId);
+      if (row) {
+        const rowData = {};
+        if (row.cells) row.cells.forEach(cell => { rowData[cell.columnID] = cell.cellValue || ''; });
+        else if (row.rowData) Object.assign(rowData, row.rowData);
+        send({ type: 'add_table_row', tableID: state.currentTableId, rowData: rowData });
+      }
+      hideContextMenu();
+    }
+
+    function deleteRow() {
+      if (!state.currentTableId || !state.contextMenuRowId) return;
+      send({ type: 'delete_table_row', tableID: state.currentTableId, rowID: state.contextMenuRowId });
+      hideContextMenu();
+    }
+
+    function updateCell(rowID, columnId, value) {
+      if (!state.currentTableId) return;
+      send({ type: 'update_table_cell', tableID: state.currentTableId, rowID: rowID, columnID: columnId, value: value });
+    }
+
+    function handleCellKeydown(event, rowID, columnId) {
+      if (event.key === 'Enter') event.target.blur();
+      else if (event.key === 'Tab') {
+        event.preventDefault();
+        event.target.blur();
+        const inputs = document.querySelectorAll('.cell-input');
+        const idx = Array.from(inputs).indexOf(event.target);
+        const next = event.shiftKey ? idx - 1 : idx + 1;
+        if (inputs[next]) inputs[next].focus();
+      }
+    }
+
+    function searchInTable(term) {
+      const s = term.toLowerCase();
+      document.querySelectorAll('.cell-input').forEach(input => {
+        input.style.background = s && input.value.toLowerCase().includes(s) ? '#fff3cd' : '';
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showToast(message, type = 'info') {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    connect();
+  </script>
+</body>
+</html>

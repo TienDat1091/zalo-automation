@@ -632,6 +632,572 @@ const BlockProperties = {
       preview(data) {
         return data.gateId ? `💳 Gate #${data.gateId}` : '⚠️ Chưa chọn cổng';
       }
+    },
+
+    // TABLE DATA
+    'table-data': {
+      _tables: [],
+      _columns: [],
+      _savedData: null,
+      
+      render(block, data, context) {
+        const self = BlockProperties.renderers['table-data'];
+        
+        console.log('🎨 table-data render():', {
+          blockID: block?.blockID,
+          tableID: data?.tableID,
+          action: data?.action,
+          conditions: data?.conditions?.length || 0,
+          columnValues: data?.columnValues?.length || 0
+        });
+        
+        // Log chi tiết columnValues
+        if (data?.columnValues && data.columnValues.length > 0) {
+          console.log('  📋 columnValues detail:');
+          data.columnValues.forEach((v, i) => {
+            console.log(`    [${i}] column=${v.column}, value=${v.value}`);
+          });
+        }
+        
+        self._savedData = data; // Lưu data để dùng sau khi load tables
+        
+        // Load tables on render
+        setTimeout(() => self.loadTables(data.tableID), 100);
+        
+        const actionOptions = [
+          { value: 'find', label: '🔍 Tìm kiếm dữ liệu' },
+          { value: 'add', label: '➕ Thêm hàng mới' },
+          { value: 'update', label: '✏️ Cập nhật dữ liệu' },
+          { value: 'delete', label: '🗑️ Xóa dữ liệu' }
+        ];
+
+        // Pre-render conditions với placeholder
+        let conditionsHtml = '<div class="text-muted" style="color:#999;font-size:12px;">Chưa có điều kiện.</div>';
+        if (data.conditions && data.conditions.length > 0) {
+          conditionsHtml = data.conditions.map((c, i) => self.renderConditionRowPlaceholder(c, i)).join('');
+        }
+
+        // Pre-render column values với placeholder
+        let valuesHtml = '<div class="text-muted" style="color:#999;font-size:12px;">Chưa có giá trị.</div>';
+        if (data.columnValues && data.columnValues.length > 0) {
+          valuesHtml = data.columnValues.map((v, i) => self.renderValueRowPlaceholder(v, i)).join('');
+        }
+
+        return `
+          <div class="property-group">
+            <label class="property-label">📊 Bảng *</label>
+            <select class="property-select" id="prop_tableID" onchange="BlockProperties.renderers['table-data'].onTableChange()">
+              <option value="">-- Đang tải... --</option>
+            </select>
+          </div>
+
+          <div class="property-group">
+            <label class="property-label">⚡ Hành động</label>
+            <select class="property-select" id="prop_action" onchange="BlockProperties.renderers['table-data'].onActionChange()">
+              ${actionOptions.map(o => `<option value="${o.value}" ${data.action === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+          </div>
+
+          <div id="columnsInfoPanel" style="display:none;background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;padding:12px;margin:12px 0;">
+            <label class="property-label" style="margin-bottom:8px;display:block;">📋 Các cột trong bảng:</label>
+            <div id="columnsList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          </div>
+
+          <div id="conditionsSection" style="display:${['find', 'update', 'delete'].includes(data.action) ? 'block' : 'none'};background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin:12px 0;">
+            <label class="property-label">🔎 Điều kiện lọc</label>
+            <div id="conditionsContainer">${conditionsHtml}</div>
+            <button type="button" class="btn-add-item" onclick="BlockProperties.renderers['table-data'].addCondition()" style="margin-top:8px;padding:6px 12px;background:#e3f2fd;border:1px solid #90caf9;border-radius:4px;cursor:pointer;font-size:12px;">
+              ➕ Thêm điều kiện
+            </button>
+          </div>
+
+          <div id="valuesSection" style="display:${['add', 'update'].includes(data.action) ? 'block' : 'none'};background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin:12px 0;">
+            <label class="property-label">📝 Giá trị thêm mới</label>
+            <div class="property-hint" style="margin-bottom:10px;color:#666;font-size:12px;">
+              💡 Dùng <code style="background:#e3f2fd;padding:2px 6px;border-radius:4px;">{tên_biến}</code> để chèn giá trị biến. VD: <code style="background:#e3f2fd;padding:2px 6px;border-radius:4px;">{phone}</code>, <code style="background:#e3f2fd;padding:2px 6px;border-radius:4px;">{sender_name}</code>
+            </div>
+            <div id="valuesContainer">${valuesHtml}</div>
+            <button type="button" class="btn-add-item" onclick="BlockProperties.renderers['table-data'].addColumnValue()" style="margin-top:8px;padding:6px 12px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:4px;cursor:pointer;font-size:12px;">
+              ➕ Thêm cột
+            </button>
+          </div>
+
+          <div id="resultSection" style="display:${data.action === 'find' ? 'block' : 'none'};">
+            <div class="property-group">
+              <label class="property-label">💾 Lưu kết quả vào biến</label>
+              <input type="text" class="property-input" id="prop_resultVariable" value="${data.resultVariable || 'table_result'}" placeholder="table_result">
+            </div>
+            <div class="property-group">
+              <label class="property-label">🔢 Số kết quả tối đa</label>
+              <input type="number" class="property-input" id="prop_limitResults" value="${data.limitResults || 1}" min="1" max="100">
+            </div>
+          </div>
+        `;
+      },
+
+      // Render condition row với placeholder (chưa có columns)
+      renderConditionRowPlaceholder(cond, idx) {
+        const operators = [
+          { value: 'equals', label: '= Bằng' },
+          { value: 'not_equals', label: '≠ Khác' },
+          { value: 'contains', label: '∋ Chứa' },
+          { value: 'not_contains', label: '∌ Không chứa' },
+          { value: 'is_empty', label: '∅ Rỗng' },
+          { value: 'is_not_empty', label: '≠∅ Không rỗng' },
+          { value: 'greater', label: '> Lớn hơn' },
+          { value: 'less', label: '< Nhỏ hơn' }
+        ];
+        
+        const escapedValue = BlockProperties.escapeHtml(cond?.value || '');
+        const columnVal = cond?.column || '';
+        console.log(`  🔧 renderConditionRowPlaceholder[${idx}]: column=${columnVal}, value=${cond?.value}`);
+        
+        return `
+          <div class="condition-row" data-idx="${idx}" data-saved-column="${columnVal}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px;border:1px solid #e0e0e0;flex-wrap:wrap;">
+            <select class="property-select cond-column" data-idx="${idx}" style="flex:2;min-width:120px;">
+              <option value="${columnVal}">-- Đang tải... --</option>
+            </select>
+            <select class="property-select cond-operator" data-idx="${idx}" style="flex:1;min-width:100px;">
+              ${operators.map(o => `<option value="${o.value}" ${cond?.operator === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+            <input type="text" class="property-input cond-value" data-idx="${idx}" value="${escapedValue}" placeholder="Giá trị/{biến}" style="flex:2;min-width:100px;">
+            <button type="button" onclick="BlockProperties.renderers['table-data'].removeCondition(${idx})" style="background:#ffebee;border:none;color:#f44336;border-radius:4px;padding:4px 8px;cursor:pointer;flex-shrink:0;">✕</button>
+          </div>
+        `;
+      },
+
+      // Render value row với placeholder (chưa có columns)
+      renderValueRowPlaceholder(val, idx) {
+        const escapedValue = BlockProperties.escapeHtml(val?.value || '');
+        const columnVal = val?.column || '';
+        console.log(`  🔧 renderValueRowPlaceholder[${idx}]: column=${columnVal}, value=${val?.value}`);
+        return `
+          <div class="value-row" data-idx="${idx}" data-saved-column="${columnVal}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px;border:1px solid #e0e0e0;flex-wrap:wrap;">
+            <select class="property-select val-column" data-idx="${idx}" style="flex:1;min-width:120px;">
+              <option value="${columnVal}">-- Đang tải... --</option>
+            </select>
+            <input type="text" class="property-input val-value" data-idx="${idx}" value="${escapedValue}" placeholder="Giá trị/{biến}" style="flex:2;min-width:150px;">
+            <button type="button" onclick="BlockProperties.renderers['table-data'].removeColumnValue(${idx})" style="background:#ffebee;border:none;color:#f44336;border-radius:4px;padding:4px 8px;cursor:pointer;flex-shrink:0;">✕</button>
+          </div>
+        `;
+      },
+
+      getColumnOptions(selectedColumnID) {
+        if (!this._columns || this._columns.length === 0) {
+          return '<option value="">-- Chưa có cột --</option>';
+        }
+        return '<option value="">-- Chọn cột --</option>' + 
+          this._columns.map(c => 
+            `<option value="${c.columnID}" ${String(selectedColumnID) === String(c.columnID) ? 'selected' : ''}>${c.columnName}</option>`
+          ).join('');
+      },
+
+      renderConditionRow(cond, idx) {
+        const operators = [
+          { value: 'equals', label: '= Bằng' },
+          { value: 'not_equals', label: '≠ Khác' },
+          { value: 'contains', label: '∋ Chứa' },
+          { value: 'not_contains', label: '∌ Không chứa' },
+          { value: 'is_empty', label: '∅ Rỗng' },
+          { value: 'is_not_empty', label: '≠∅ Không rỗng' },
+          { value: 'greater', label: '> Lớn hơn' },
+          { value: 'less', label: '< Nhỏ hơn' }
+        ];
+        
+        return `
+          <div class="condition-row" data-idx="${idx}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px;border:1px solid #e0e0e0;flex-wrap:wrap;">
+            <select class="property-select cond-column" data-idx="${idx}" style="flex:2;min-width:120px;">
+              ${this.getColumnOptions(cond?.column)}
+            </select>
+            <select class="property-select cond-operator" data-idx="${idx}" style="flex:1;min-width:100px;">
+              ${operators.map(o => `<option value="${o.value}" ${cond?.operator === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+            <input type="text" class="property-input cond-value" data-idx="${idx}" value="${BlockProperties.escapeHtml(cond?.value || '')}" placeholder="Giá trị/{biến}" style="flex:2;min-width:100px;">
+            <button type="button" onclick="BlockProperties.renderers['table-data'].removeCondition(${idx})" style="background:#ffebee;border:none;color:#f44336;border-radius:4px;padding:4px 8px;cursor:pointer;flex-shrink:0;">✕</button>
+          </div>
+        `;
+      },
+
+      renderValueRow(val, idx) {
+        return `
+          <div class="value-row" data-idx="${idx}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px;border:1px solid #e0e0e0;flex-wrap:wrap;">
+            <select class="property-select val-column" data-idx="${idx}" style="flex:1;min-width:120px;">
+              ${this.getColumnOptions(val?.column)}
+            </select>
+            <input type="text" class="property-input val-value" data-idx="${idx}" value="${BlockProperties.escapeHtml(val?.value || '')}" placeholder="Giá trị/{biến}" style="flex:2;min-width:150px;">
+            <button type="button" onclick="BlockProperties.renderers['table-data'].removeColumnValue(${idx})" style="background:#ffebee;border:none;color:#f44336;border-radius:4px;padding:4px 8px;cursor:pointer;flex-shrink:0;">✕</button>
+          </div>
+        `;
+      },
+
+      loadTables(selectedTableID) {
+        const self = this;
+        console.log('🔄 loadTables called, selectedTableID:', selectedTableID);
+        console.log('  _savedData:', this._savedData);
+        
+        if (window.ws && ws.readyState === WebSocket.OPEN) {
+          const handler = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'tables_list') {
+                ws.removeEventListener('message', handler);
+                self._tables = data.tables || [];
+                console.log('📊 Tables loaded:', self._tables.length);
+                self.populateTableSelect(selectedTableID);
+              }
+            } catch (e) {
+              console.error('Load tables error:', e);
+            }
+          };
+          ws.addEventListener('message', handler);
+          ws.send(JSON.stringify({ type: 'get_tables' }));
+        } else {
+          console.warn('⚠️ WebSocket not ready');
+        }
+      },
+
+      populateTableSelect(selectedTableID) {
+        const select = document.getElementById('prop_tableID');
+        if (!select) return;
+        
+        console.log('📋 populateTableSelect:', selectedTableID);
+        
+        select.innerHTML = '<option value="">-- Chọn bảng --</option>' + 
+          this._tables.map(t => 
+            `<option value="${t.tableID}" ${String(t.tableID) === String(selectedTableID) ? 'selected' : ''}>
+              ${t.tableName} (${t.rows?.length || 0} hàng)
+            </option>`
+          ).join('');
+
+        // Nếu đã có bảng được chọn, load columns và render lại conditions/values
+        if (selectedTableID) {
+          const table = this._tables.find(t => String(t.tableID) === String(selectedTableID));
+          if (table) {
+            this._columns = table.columns || [];
+            this.updateColumnsInfo();
+            this.renderExistingData();
+          }
+        }
+      },
+
+      // Update dropdowns sau khi có columns - KHÔNG xóa dữ liệu đã nhập
+      renderExistingData() {
+        const data = this._savedData;
+        console.log('📋 renderExistingData - Updating dropdowns only');
+        
+        // Chỉ update các dropdown columns, không render lại toàn bộ
+        this.updateColumnDropdowns();
+      },
+
+      onTableChange() {
+        const select = document.getElementById('prop_tableID');
+        const tableID = select?.value;
+        const table = this._tables.find(t => String(t.tableID) === String(tableID));
+        
+        if (table) {
+          this._columns = table.columns || [];
+        } else {
+          this._columns = [];
+        }
+        
+        this.updateColumnsInfo();
+        this.updateColumnDropdowns();
+      },
+
+      onActionChange() {
+        const action = document.getElementById('prop_action')?.value;
+        document.getElementById('conditionsSection').style.display = ['find', 'update', 'delete'].includes(action) ? 'block' : 'none';
+        document.getElementById('valuesSection').style.display = ['add', 'update'].includes(action) ? 'block' : 'none';
+        document.getElementById('resultSection').style.display = action === 'find' ? 'block' : 'none';
+      },
+
+      updateColumnsInfo() {
+        const panel = document.getElementById('columnsInfoPanel');
+        const list = document.getElementById('columnsList');
+        
+        if (this._columns.length > 0) {
+          panel.style.display = 'block';
+          list.innerHTML = this._columns.map(c => `
+            <span style="background:#fff;border:1px solid #90caf9;border-radius:16px;padding:4px 12px;font-size:12px;display:inline-flex;align-items:center;gap:4px;">
+              📌 ${c.columnName} <span style="background:#e0e0e0;border-radius:4px;padding:1px 6px;font-size:10px;color:#666;">${c.columnType || 'text'}</span>
+            </span>
+          `).join('');
+        } else {
+          panel.style.display = 'none';
+        }
+      },
+
+      updateColumnDropdowns() {
+        console.log('🔄 updateColumnDropdowns called, columns:', this._columns?.length || 0);
+        
+        // Update condition dropdowns - giữ lại giá trị đã lưu
+        document.querySelectorAll('.cond-column').forEach((select, i) => {
+          const row = select.closest('.condition-row');
+          const savedColumn = row?.dataset?.savedColumn;
+          const currentVal = select.value || savedColumn || '';
+          console.log(`  Condition ${i}: savedColumn=${savedColumn}, currentVal=${currentVal}`);
+          select.innerHTML = this.getColumnOptions(currentVal);
+        });
+        
+        // Update value dropdowns - giữ lại giá trị đã lưu  
+        document.querySelectorAll('.val-column').forEach((select, i) => {
+          const row = select.closest('.value-row');
+          const savedColumn = row?.dataset?.savedColumn;
+          const currentVal = select.value || savedColumn || '';
+          console.log(`  Value ${i}: savedColumn=${savedColumn}, currentVal=${currentVal}, rowDataset=${JSON.stringify(row?.dataset)}`);
+          select.innerHTML = this.getColumnOptions(currentVal);
+        });
+      },
+
+      addCondition() {
+        // Kiểm tra đã chọn bảng chưa
+        if (!this._columns || this._columns.length === 0) {
+          this.showNotice('⚠️ Vui lòng chọn bảng trước khi thêm điều kiện!', 'warning');
+          return;
+        }
+        
+        const container = document.getElementById('conditionsContainer');
+        if (!container) return;
+        
+        // Remove empty message
+        const emptyMsg = container.querySelector('.text-muted');
+        if (emptyMsg) emptyMsg.remove();
+        
+        const idx = container.querySelectorAll('.condition-row').length;
+        container.insertAdjacentHTML('beforeend', this.renderConditionRow({}, idx));
+      },
+
+      removeCondition(idx) {
+        const self = this;
+        this.showConfirm('🗑️ Xóa điều kiện', 'Bạn có chắc muốn xóa điều kiện này?', () => {
+          const container = document.getElementById('conditionsContainer');
+          if (!container) return;
+          
+          const row = container.querySelector(`.condition-row[data-idx="${idx}"]`);
+          if (row) row.remove();
+          
+          // Re-index
+          container.querySelectorAll('.condition-row').forEach((r, i) => {
+            r.dataset.idx = i;
+            r.querySelectorAll('[data-idx]').forEach(el => el.dataset.idx = i);
+          });
+          
+          if (container.querySelectorAll('.condition-row').length === 0) {
+            container.innerHTML = '<div class="text-muted" style="color:#999;font-size:12px;">Chưa có điều kiện.</div>';
+          }
+        });
+      },
+
+      addColumnValue() {
+        // Kiểm tra đã chọn bảng chưa
+        if (!this._columns || this._columns.length === 0) {
+          this.showNotice('⚠️ Vui lòng chọn bảng trước khi thêm giá trị cột!', 'warning');
+          return;
+        }
+        
+        const container = document.getElementById('valuesContainer');
+        if (!container) return;
+        
+        // Remove empty message
+        const emptyMsg = container.querySelector('.text-muted');
+        if (emptyMsg) emptyMsg.remove();
+        
+        const idx = container.querySelectorAll('.value-row').length;
+        container.insertAdjacentHTML('beforeend', this.renderValueRow({}, idx));
+      },
+
+      removeColumnValue(idx) {
+        const self = this;
+        this.showConfirm('🗑️ Xóa giá trị', 'Bạn có chắc muốn xóa giá trị cột này?', () => {
+          const container = document.getElementById('valuesContainer');
+          if (!container) return;
+          
+          const row = container.querySelector(`.value-row[data-idx="${idx}"]`);
+          if (row) row.remove();
+          
+          // Re-index
+          container.querySelectorAll('.value-row').forEach((r, i) => {
+            r.dataset.idx = i;
+            r.querySelectorAll('[data-idx]').forEach(el => el.dataset.idx = i);
+          });
+          
+          if (container.querySelectorAll('.value-row').length === 0) {
+            container.innerHTML = '<div class="text-muted" style="color:#999;font-size:12px;">Chưa có giá trị.</div>';
+          }
+        });
+      },
+
+      // Helper: Show notice
+      showNotice(message, type = 'info') {
+        const colors = {
+          info: { bg: '#e3f2fd', border: '#90caf9', text: '#1976d2' },
+          warning: { bg: '#fff3e0', border: '#ffb74d', text: '#f57c00' },
+          error: { bg: '#ffebee', border: '#ef9a9a', text: '#d32f2f' },
+          success: { bg: '#e8f5e9', border: '#a5d6a7', text: '#388e3c' }
+        };
+        const color = colors[type] || colors.info;
+        
+        // Remove existing notice
+        const existing = document.getElementById('tableDataNotice');
+        if (existing) existing.remove();
+        
+        const notice = document.createElement('div');
+        notice.id = 'tableDataNotice';
+        notice.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: ${color.bg};
+          border: 1px solid ${color.border};
+          color: ${color.text};
+          padding: 12px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          z-index: 10000;
+          font-size: 14px;
+          animation: slideIn 0.3s ease;
+        `;
+        notice.innerHTML = message;
+        document.body.appendChild(notice);
+        
+        setTimeout(() => {
+          notice.style.animation = 'slideOut 0.3s ease';
+          setTimeout(() => notice.remove(), 300);
+        }, 3000);
+      },
+
+      // Helper: Show confirm modal
+      showConfirm(title, message, onConfirm) {
+        // Remove existing modal
+        const existing = document.getElementById('tableDataConfirmModal');
+        if (existing) existing.remove();
+        
+        const modal = document.createElement('div');
+        modal.id = 'tableDataConfirmModal';
+        modal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10001;
+          animation: fadeIn 0.2s ease;
+        `;
+        
+        modal.innerHTML = `
+          <div style="
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 320px;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            animation: scaleIn 0.2s ease;
+          ">
+            <h3 style="margin: 0 0 12px 0; font-size: 18px; color: #333;">${title}</h3>
+            <p style="margin: 0 0 20px 0; color: #666; font-size: 14px;">${message}</p>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+              <button id="confirmCancel" style="
+                padding: 10px 20px;
+                border: 1px solid #e0e0e0;
+                background: white;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+                color: #666;
+              ">Hủy</button>
+              <button id="confirmOk" style="
+                padding: 10px 20px;
+                border: none;
+                background: #f44336;
+                color: white;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+              ">Xóa</button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add CSS animations if not exists
+        if (!document.getElementById('tableDataModalStyles')) {
+          const style = document.createElement('style');
+          style.id = 'tableDataModalStyles';
+          style.textContent = `
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100px); opacity: 0; } }
+          `;
+          document.head.appendChild(style);
+        }
+        
+        // Event handlers
+        document.getElementById('confirmCancel').onclick = () => modal.remove();
+        document.getElementById('confirmOk').onclick = () => {
+          modal.remove();
+          if (onConfirm) onConfirm();
+        };
+        modal.onclick = (e) => {
+          if (e.target === modal) modal.remove();
+        };
+      },
+
+      save() {
+        const tableSelect = document.getElementById('prop_tableID');
+        const selectedTableID = tableSelect?.value;
+        const table = this._tables.find(t => String(t.tableID) === String(selectedTableID));
+        
+        // Collect conditions - lưu tất cả dòng có column hoặc value
+        const conditions = [];
+        document.querySelectorAll('#conditionsContainer .condition-row').forEach((row, i) => {
+          const column = row.querySelector('.cond-column')?.value || '';
+          const operator = row.querySelector('.cond-operator')?.value || 'equals';
+          const value = row.querySelector('.cond-value')?.value || '';
+          console.log(`  💾 Condition ${i}: column=${column}, operator=${operator}, value=${value}`);
+          // Lưu nếu có column HOẶC có value
+          if (column || value) {
+            conditions.push({ column, operator, value });
+          }
+        });
+
+        // Collect column values - lưu tất cả dòng có column hoặc value
+        const columnValues = [];
+        document.querySelectorAll('#valuesContainer .value-row').forEach((row, i) => {
+          const column = row.querySelector('.val-column')?.value || '';
+          const value = row.querySelector('.val-value')?.value || '';
+          console.log(`  💾 Value ${i}: column=${column}, value=${value}`);
+          // Lưu nếu có column HOẶC có value
+          if (column || value) {
+            columnValues.push({ column, value });
+          }
+        });
+
+        console.log('💾 Saving table-data:', { tableID: selectedTableID, conditions: conditions.length, columnValues: columnValues.length });
+        console.log('  columnValues detail:', JSON.stringify(columnValues));
+
+        return {
+          tableID: selectedTableID ? parseInt(selectedTableID) : null,
+          tableName: table?.tableName || '',
+          action: document.getElementById('prop_action')?.value || 'find',
+          conditions,
+          columnValues,
+          resultVariable: document.getElementById('prop_resultVariable')?.value || 'table_result',
+          limitResults: parseInt(document.getElementById('prop_limitResults')?.value) || 1
+        };
+      },
+
+      preview(data) {
+        const actions = { find: '🔍 Tìm', add: '➕ Thêm', update: '✏️ Sửa', delete: '🗑️ Xóa' };
+        const tableName = data?.tableName || 'Chưa chọn bảng';
+        return `${actions[data?.action] || '📊'} ${tableName}`;
+      }
     }
   },
 

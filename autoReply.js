@@ -1,6 +1,7 @@
 // autoReply.js - Auto Reply v4.4 - FIXED CONDITION TO RUN FLOWS
 // Fix: condition chạy flow khác thay vì tìm child blocks
 const triggerDB = require('./triggerDB');
+const fetch = require('node-fetch');
 
 const autoReplyState = {
   enabled: false,
@@ -444,7 +445,6 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
       case 'webhook': {
         if (data.url) {
           try {
-            const fetch = require('node-fetch');
             const opts = { method: data.method || 'GET' };
             if (data.headers) try { opts.headers = JSON.parse(substituteVariables(data.headers, context)); } catch(e){}
             if (data.body && ['POST','PUT'].includes(opts.method)) {
@@ -460,10 +460,593 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
       }
 
       case 'ai-gemini': {
-        if (data.saveResponseTo) {
-          const resp = `[AI: ${(data.prompt||'').substring(0,20)}...]`;
-          triggerDB.setVariable(userUID, senderId, data.saveResponseTo, resp, 'text', block.blockID, flow.flowID);
-          context[data.saveResponseTo] = resp;
+        try {
+          if (data.enabled === false) {
+            console.log(`    ⏸️ AI block disabled`);
+            break;
+          }
+
+          // Lấy AI config
+          let aiConfig = null;
+          if (data.configId) {
+            aiConfig = triggerDB.getAIConfigById(data.configId);
+          }
+          
+          // Fallback to legacy apiKey
+          if (!aiConfig && data.apiKey) {
+            aiConfig = {
+              provider: 'gemini',
+              model: data.model || 'gemini-1.5-flash',
+              apiKey: data.apiKey,
+              temperature: 0.7,
+              maxTokens: 1024,
+              systemPrompt: ''
+            };
+          }
+
+          if (!aiConfig || !aiConfig.apiKey) {
+            console.log(`    ⚠️ AI config not found or missing API key`);
+            break;
+          }
+
+          const prompt = substituteVariables(data.prompt || '', context);
+          if (!prompt) {
+            console.log(`    ⚠️ Empty prompt`);
+            break;
+          }
+
+          console.log(`    🧠 Calling AI (${aiConfig.provider}/${aiConfig.model}): "${prompt.substring(0, 50)}..."`);
+
+          // Call AI API
+          const aiResponse = await callAIAPI(aiConfig, prompt);
+          
+          if (aiResponse.success) {
+            const responseText = aiResponse.text || '';
+            console.log(`    ✅ AI Response: "${responseText.substring(0, 50)}..."`);
+            
+            // Save to variable
+            if (data.saveResponseTo) {
+              triggerDB.setVariable(userUID, senderId, data.saveResponseTo, responseText, 'text', block.blockID, flow.flowID);
+              context[data.saveResponseTo] = responseText;
+              console.log(`    💾 Saved to {${data.saveResponseTo}}`);
+            }
+            
+            // Send response to user if enabled
+            if (data.sendResponse !== false && responseText) {
+              await sendMessage(apiState, senderId, responseText, userUID);
+              console.log(`    💬 Sent AI response to user`);
+            }
+          } else {
+            console.log(`    ❌ AI Error: ${aiResponse.error}`);
+            if (data.saveResponseTo) {
+              context[data.saveResponseTo] = '[AI Error: ' + aiResponse.error + ']';
+            }
+          }
+        } catch (err) {
+          console.error(`    ❌ AI Gemini error: ${err.message}`);
+        }
+        break;
+      }
+
+      case 'table-data': {
+        try {
+          const tableID = data.tableID;
+          const action = data.action || 'find';
+          const conditions = data.conditions || [];
+          const columnValues = data.columnValues || [];
+          const resultVariable = data.resultVariable || 'table_result';
+          const limitResults = data.limitResults || 1;
+
+          if (!tableID) {
+            console.log(`    ⚠️ Table Data: No table selected`);
+            break;
+          }
+
+          // Get table info
+          const table = triggerDB.getUserTableById(tableID);
+          if (!table) {
+            console.log(`    ⚠️ Table Data: Table not found (ID: ${tableID})`);
+            break;
+          }
+
+          console.log(`    📊 Table Data: ${action} on "${table.tableName}"`);
+          console.log(`    📋 Conditions:`, JSON.stringify(conditions));
+          console.log(`    📝 ColumnValues:`, JSON.stringify(columnValues));
+
+          // Helper: Check if row matches conditions
+          const checkConditions = (row) => {
+            if (!conditions || conditions.length === 0) return true;
+            
+            return conditions.every(cond => {
+              const columnID = cond.column;
+              const operator = cond.operator || 'equals';
+              const compareValue = substituteVariables(cond.value || '', context);
+              
+              // Find cell value for this column - FIX: use value instead of cellValue
+              let cellValue = '';
+              if (row.cells) {
+                const cell = row.cells.find(c => String(c.columnID) === String(columnID));
+                cellValue = cell?.value || cell?.cellValue || '';
+              }
+              // Also check rowData for direct access
+              if (!cellValue && row.rowData) {
+                cellValue = row.rowData[columnID] || '';
+              }
+              
+              // Compare based on operator
+              const rv = String(cellValue).toLowerCase();
+              const cv = String(compareValue).toLowerCase();
+              
+              console.log(`      🔍 Checking: column=${columnID}, cellValue="${cellValue}", operator=${operator}, compareValue="${compareValue}"`);
+              
+              let result = false;
+              switch (operator) {
+                case 'equals': result = rv === cv; break;
+                case 'not_equals': result = rv !== cv; break;
+                case 'contains': result = rv.includes(cv); break;
+                case 'not_contains': result = !rv.includes(cv); break;
+                case 'starts_with': result = rv.startsWith(cv); break;
+                case 'ends_with': result = rv.endsWith(cv); break;
+                case 'is_empty': result = !rv.trim(); break;
+                case 'is_not_empty': result = !!rv.trim(); break;
+                case 'greater': result = parseFloat(cellValue) > parseFloat(compareValue); break;
+                case 'less': result = parseFloat(cellValue) < parseFloat(compareValue); break;
+                default: result = rv === cv;
+              }
+              console.log(`      ➡️ Result: ${result}`);
+              return result;
+            });
+          };
+
+          const rows = table.rows || [];
+          console.log(`    📊 Total rows in table: ${rows.length}`);
+
+          if (action === 'find') {
+            // Find rows matching conditions
+            const matchedRows = rows.filter(checkConditions).slice(0, limitResults);
+            
+            // Get result mappings
+            const resultMappings = data.resultMappings || [];
+            
+            // Convert to usable format
+            const results = matchedRows.map(row => {
+              const rowData = { rowID: row.rowID };
+              if (row.cells) {
+                row.cells.forEach(cell => {
+                  // Find column name
+                  const col = table.columns?.find(c => c.columnID === cell.columnID);
+                  if (col) {
+                    rowData[col.columnName] = cell.value || cell.cellValue || '';
+                    rowData[`col_${cell.columnID}`] = cell.value || cell.cellValue || '';
+                  }
+                });
+              }
+              return rowData;
+            });
+
+            // Nếu có resultMappings, lưu từng cột vào biến riêng
+            if (resultMappings.length > 0 && resultMappings.some(rm => rm.column && rm.variableName)) {
+              const firstRow = results[0] || {};
+              
+              for (const mapping of resultMappings) {
+                if (!mapping.column || !mapping.variableName) continue;
+                
+                const columnID = String(mapping.column);
+                const variableName = mapping.variableName;
+                
+                // Tìm giá trị từ cột
+                let value = '';
+                
+                // Tìm theo col_ID
+                if (firstRow[`col_${columnID}`] !== undefined) {
+                  value = firstRow[`col_${columnID}`];
+                } else {
+                  // Tìm theo tên cột
+                  const col = table.columns?.find(c => String(c.columnID) === columnID);
+                  if (col && firstRow[col.columnName] !== undefined) {
+                    value = firstRow[col.columnName];
+                  }
+                }
+                
+                // Lưu vào context và database
+                context[variableName] = value;
+                triggerDB.setVariable(userUID, senderId, variableName, value, 'text', block.blockID, flow.flowID);
+                
+                console.log(`    💾 Saved: {${variableName}} = "${value}"`);
+              }
+              
+              console.log(`    🔍 Found ${results.length} row(s), saved ${resultMappings.filter(rm => rm.column && rm.variableName).length} variables`);
+            } else {
+              // Fallback: lưu toàn bộ row vào 1 biến (backward compatibility)
+              const resultValue = limitResults === 1 ? (results[0] || null) : results;
+              context[resultVariable] = resultValue;
+              triggerDB.setVariable(userUID, senderId, resultVariable, JSON.stringify(resultValue), 'json', block.blockID, flow.flowID);
+              
+              console.log(`    🔍 Found ${results.length} row(s), saved to {${resultVariable}}`);
+              if (results.length > 0) {
+                console.log(`    📦 Result data:`, JSON.stringify(resultValue));
+              }
+            }
+          }
+          
+          else if (action === 'add') {
+            // Add new row with values
+            const newRow = triggerDB.addTableRow(tableID, {});
+            
+            if (newRow && newRow.rowID) {
+              // Update cells with values
+              console.log(`    📋 Context keys: ${Object.keys(context).join(', ')}`);
+              
+              for (const cv of columnValues) {
+                const columnID = cv.column;
+                const rawValue = cv.value || '';
+                const value = substituteVariables(rawValue, context);
+                
+                console.log(`    📝 Column ${columnID}: "${rawValue}" → "${value}"`);
+                
+                if (columnID) {
+                  triggerDB.updateTableCell(newRow.rowID, parseInt(columnID), value);
+                }
+              }
+              
+              context[resultVariable] = { rowID: newRow.rowID, success: true };
+              console.log(`    ➕ Added new row ID: ${newRow.rowID}`);
+            } else {
+              context[resultVariable] = { success: false, error: 'Failed to add row' };
+              console.log(`    ❌ Failed to add row`);
+            }
+          }
+          
+          else if (action === 'update') {
+            // Find matching rows and update
+            const matchedRows = rows.filter(checkConditions);
+            let updatedCount = 0;
+            
+            console.log(`    🔍 Found ${matchedRows.length} row(s) to update`);
+            
+            for (const row of matchedRows) {
+              for (const cv of columnValues) {
+                const columnID = cv.column;
+                const value = substituteVariables(cv.value || '', context);
+                if (columnID) {
+                  console.log(`    ✏️ Updating row ${row.rowID}, column ${columnID}: "${value}"`);
+                  triggerDB.updateTableCell(row.rowID, parseInt(columnID), value);
+                }
+              }
+              updatedCount++;
+            }
+            
+            context[resultVariable] = { success: true, updatedCount };
+            console.log(`    ✏️ Updated ${updatedCount} row(s)`);
+          }
+          
+          else if (action === 'delete') {
+            // Find matching rows and delete
+            const matchedRows = rows.filter(checkConditions);
+            let deletedCount = 0;
+            
+            console.log(`    🔍 Found ${matchedRows.length} row(s) to delete`);
+            
+            for (const row of matchedRows) {
+              console.log(`    🗑️ Deleting row ${row.rowID}`);
+              const success = triggerDB.deleteTableRow(tableID, row.rowID);
+              if (success) deletedCount++;
+            }
+            
+            context[resultVariable] = { success: true, deletedCount };
+            console.log(`    🗑️ Deleted ${deletedCount} row(s)`);
+          }
+
+        } catch (err) {
+          console.error(`    ❌ Table Data error: ${err.message}`);
+          context[data.resultVariable || 'table_result'] = { success: false, error: err.message };
+        }
+        break;
+      }
+
+      // ========================================
+      // GOOGLE SHEET DATA BLOCK
+      // ========================================
+      case 'google-sheet-data': {
+        try {
+          const configId = data.configId;
+          const action = data.action || 'find';
+          const conditions = data.conditions || [];
+          const columnValues = data.columnValues || [];
+          const resultMappings = data.resultMappings || [];
+          const limitResults = data.limitResults || 1;
+          const columns = data._columns || [];
+
+          if (!configId) {
+            console.log(`    ⚠️ Google Sheet Data: No config selected`);
+            break;
+          }
+
+          // Get Google Sheet config
+          const config = triggerDB.getGoogleSheetConfigById(configId);
+          if (!config || !config.scriptURL) {
+            console.log(`    ⚠️ Google Sheet Data: Config not found or missing scriptURL (ID: ${configId})`);
+            break;
+          }
+
+          console.log(`    📗 Google Sheet Data: ${action} on "${config.name}"`);
+          console.log(`    📋 Conditions:`, JSON.stringify(conditions));
+          console.log(`    📝 ColumnValues:`, JSON.stringify(columnValues));
+
+          const scriptURL = config.scriptURL;
+          const sheetName = config.sheetName || 'Sheet1';
+
+          // Helper function to call Google Sheet API
+          const callGoogleSheetAPI = async (params) => {
+            const url = new URL(scriptURL);
+            url.searchParams.set('sheet', sheetName);
+            for (const [key, value] of Object.entries(params)) {
+              url.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+            }
+            
+            console.log(`    🌐 Calling: ${url.toString().substring(0, 100)}...`);
+            
+            const response = await fetch(url.toString());
+            const result = await response.json();
+            return result;
+          };
+
+          if (action === 'find') {
+            // Lấy tất cả dữ liệu từ sheet
+            const getData = await callGoogleSheetAPI({ action: 'getData' });
+            
+            if (!getData.success) {
+              console.log(`    ❌ Failed to get data: ${getData.error}`);
+              break;
+            }
+
+            const headers = getData.headers || [];
+            const rows = getData.rows || [];
+            
+            console.log(`    📊 Total rows: ${rows.length}, Headers: ${headers.join(', ')}`);
+
+            // Filter rows by conditions
+            const matchedRows = rows.filter(row => {
+              if (!conditions || conditions.length === 0) return true;
+              
+              return conditions.every(cond => {
+                const colIndex = parseInt(cond.column) - 1; // Convert to 0-based index
+                const operator = cond.operator || 'equals';
+                const compareValue = substituteVariables(cond.value || '', context);
+                
+                const cellValue = row.cells ? String(row.cells[colIndex] || '') : '';
+                const cv = String(cellValue).toLowerCase();
+                const rv = String(compareValue).toLowerCase();
+                
+                console.log(`      🔍 Column ${cond.column}: "${cellValue}" ${operator} "${compareValue}"`);
+                
+                let result = false;
+                switch (operator) {
+                  case 'equals': result = cv === rv; break;
+                  case 'not_equals': result = cv !== rv; break;
+                  case 'contains': result = cv.includes(rv); break;
+                  case 'not_contains': result = !cv.includes(rv); break;
+                  case 'starts_with': result = cv.startsWith(rv); break;
+                  case 'ends_with': result = cv.endsWith(rv); break;
+                  case 'is_empty': result = !cv.trim(); break;
+                  case 'is_not_empty': result = !!cv.trim(); break;
+                  default: result = cv === rv;
+                }
+                console.log(`      ➡️ Result: ${result}`);
+                return result;
+              });
+            }).slice(0, limitResults);
+
+            console.log(`    🔍 Found ${matchedRows.length} matching row(s)`);
+
+            // Convert to usable format with column names
+            const results = matchedRows.map(row => {
+              const rowData = { rowIndex: row.rowIndex };
+              if (row.cells) {
+                row.cells.forEach((cellValue, idx) => {
+                  const colName = headers[idx] || `col_${idx + 1}`;
+                  const colLetter = String.fromCharCode(65 + idx);
+                  rowData[colName] = cellValue;
+                  rowData[`col_${idx + 1}`] = cellValue;
+                  rowData[colLetter] = cellValue;
+                });
+              }
+              return rowData;
+            });
+
+            // Lưu kết quả vào biến
+            if (resultMappings.length > 0 && resultMappings.some(rm => rm.column && rm.variableName)) {
+              const firstRow = results[0] || {};
+              
+              for (const mapping of resultMappings) {
+                if (!mapping.column || !mapping.variableName) continue;
+                
+                const colIndex = parseInt(mapping.column) - 1;
+                const variableName = mapping.variableName;
+                
+                // Tìm giá trị từ cột
+                let value = '';
+                const colKey = `col_${mapping.column}`;
+                
+                if (firstRow[colKey] !== undefined) {
+                  value = firstRow[colKey];
+                } else if (headers[colIndex] && firstRow[headers[colIndex]] !== undefined) {
+                  value = firstRow[headers[colIndex]];
+                }
+                
+                // Lưu vào context và database
+                context[variableName] = value;
+                triggerDB.setVariable(userUID, senderId, variableName, String(value), 'text', block.blockID, flow.flowID);
+                
+                console.log(`    💾 Saved: {${variableName}} = "${value}"`);
+              }
+              
+              console.log(`    ✅ Saved ${resultMappings.filter(rm => rm.column && rm.variableName).length} variables`);
+            } else {
+              // Fallback: lưu toàn bộ row vào biến table_result
+              const resultValue = limitResults === 1 ? (results[0] || null) : results;
+              context['gsheet_result'] = resultValue;
+              triggerDB.setVariable(userUID, senderId, 'gsheet_result', JSON.stringify(resultValue), 'json', block.blockID, flow.flowID);
+              
+              console.log(`    🔍 Saved to {gsheet_result}:`, JSON.stringify(resultValue));
+            }
+          }
+          
+          else if (action === 'add') {
+            // Tạo mảng giá trị cho row mới
+            // Đầu tiên lấy headers để biết số cột
+            const getData = await callGoogleSheetAPI({ action: 'getData' });
+            const headers = getData.success ? getData.headers || [] : [];
+            
+            // Tạo mảng với số cột tương ứng
+            const rowData = new Array(headers.length).fill('');
+            
+            for (const cv of columnValues) {
+              const colIndex = parseInt(cv.column) - 1;
+              const value = substituteVariables(cv.value || '', context);
+              if (colIndex >= 0 && colIndex < rowData.length) {
+                rowData[colIndex] = value;
+              }
+              console.log(`    📝 Column ${cv.column}: "${value}"`);
+            }
+            
+            const result = await callGoogleSheetAPI({ 
+              action: 'addRow', 
+              data: JSON.stringify(rowData) 
+            });
+            
+            if (result.success) {
+              context['gsheet_result'] = { success: true, rowNumber: result.rowNumber };
+              console.log(`    ➕ Added new row #${result.rowNumber}`);
+            } else {
+              context['gsheet_result'] = { success: false, error: result.error };
+              console.log(`    ❌ Failed to add row: ${result.error}`);
+            }
+          }
+          
+          else if (action === 'update') {
+            // Lấy dữ liệu và tìm rows matching
+            const getData = await callGoogleSheetAPI({ action: 'getData' });
+            
+            if (!getData.success) {
+              console.log(`    ❌ Failed to get data: ${getData.error}`);
+              break;
+            }
+
+            const headers = getData.headers || [];
+            const rows = getData.rows || [];
+            
+            // Filter rows by conditions
+            const matchedRows = rows.filter(row => {
+              if (!conditions || conditions.length === 0) return true;
+              
+              return conditions.every(cond => {
+                const colIndex = parseInt(cond.column) - 1;
+                const operator = cond.operator || 'equals';
+                const compareValue = substituteVariables(cond.value || '', context);
+                const cellValue = row.cells ? String(row.cells[colIndex] || '') : '';
+                
+                const cv = cellValue.toLowerCase();
+                const rv = String(compareValue).toLowerCase();
+                
+                switch (operator) {
+                  case 'equals': return cv === rv;
+                  case 'not_equals': return cv !== rv;
+                  case 'contains': return cv.includes(rv);
+                  case 'not_contains': return !cv.includes(rv);
+                  case 'starts_with': return cv.startsWith(rv);
+                  case 'ends_with': return cv.endsWith(rv);
+                  case 'is_empty': return !cv.trim();
+                  case 'is_not_empty': return !!cv.trim();
+                  default: return cv === rv;
+                }
+              });
+            });
+
+            console.log(`    🔍 Found ${matchedRows.length} row(s) to update`);
+            
+            let updatedCount = 0;
+            for (const row of matchedRows) {
+              for (const cv of columnValues) {
+                const colIndex = parseInt(cv.column);
+                const value = substituteVariables(cv.value || '', context);
+                
+                console.log(`    ✏️ Updating row ${row.rowIndex}, column ${colIndex}: "${value}"`);
+                
+                const result = await callGoogleSheetAPI({
+                  action: 'updateCell',
+                  row: row.rowIndex,
+                  col: colIndex,
+                  value: value
+                });
+                
+                if (result.success) updatedCount++;
+              }
+            }
+            
+            context['gsheet_result'] = { success: true, updatedCount };
+            console.log(`    ✏️ Updated ${updatedCount} cell(s)`);
+          }
+          
+          else if (action === 'delete') {
+            // Lấy dữ liệu và tìm rows matching
+            const getData = await callGoogleSheetAPI({ action: 'getData' });
+            
+            if (!getData.success) {
+              console.log(`    ❌ Failed to get data: ${getData.error}`);
+              break;
+            }
+
+            const rows = getData.rows || [];
+            
+            // Filter rows by conditions (lấy từ cuối để tránh index shift khi xóa)
+            const matchedRows = rows.filter(row => {
+              if (!conditions || conditions.length === 0) return false; // Không xóa nếu không có điều kiện
+              
+              return conditions.every(cond => {
+                const colIndex = parseInt(cond.column) - 1;
+                const operator = cond.operator || 'equals';
+                const compareValue = substituteVariables(cond.value || '', context);
+                const cellValue = row.cells ? String(row.cells[colIndex] || '') : '';
+                
+                const cv = cellValue.toLowerCase();
+                const rv = String(compareValue).toLowerCase();
+                
+                switch (operator) {
+                  case 'equals': return cv === rv;
+                  case 'not_equals': return cv !== rv;
+                  case 'contains': return cv.includes(rv);
+                  case 'not_contains': return !cv.includes(rv);
+                  case 'starts_with': return cv.startsWith(rv);
+                  case 'ends_with': return cv.endsWith(rv);
+                  case 'is_empty': return !cv.trim();
+                  case 'is_not_empty': return !!cv.trim();
+                  default: return cv === rv;
+                }
+              });
+            }).sort((a, b) => b.rowIndex - a.rowIndex); // Sort descending để xóa từ cuối
+
+            console.log(`    🔍 Found ${matchedRows.length} row(s) to delete`);
+            
+            let deletedCount = 0;
+            for (const row of matchedRows) {
+              console.log(`    🗑️ Deleting row ${row.rowIndex}`);
+              
+              const result = await callGoogleSheetAPI({
+                action: 'deleteRow',
+                row: row.rowIndex
+              });
+              
+              if (result.success) deletedCount++;
+            }
+            
+            context['gsheet_result'] = { success: true, deletedCount };
+            console.log(`    🗑️ Deleted ${deletedCount} row(s)`);
+          }
+
+        } catch (err) {
+          console.error(`    ❌ Google Sheet Data error: ${err.message}`);
+          context['gsheet_result'] = { success: false, error: err.message };
         }
         break;
       }
@@ -547,6 +1130,7 @@ async function handleUserInputResponse(apiState, senderId, userMessage, inputSta
 
   // Valid - save variable
   if (variableName) {
+    console.log(`  📥 Saving variable: userUID=${userUID}, senderId=${senderId}, name=${variableName}, value=${validation.value}`);
     triggerDB.setVariable(userUID, senderId, variableName, validation.value, expectedType, 
       inputState.blockID || memoryState?.blockID, 
       inputState.flowID || memoryState?.flowID);
@@ -631,9 +1215,21 @@ async function resumeFlow(apiState, senderId, inputState, userUID, lastMessage) 
   let context = inputState.flowContext || {};
   context.message = lastMessage;
   
-  // Load all variables
+  // Load all variables from DB
+  console.log(`  📋 Loading variables for userUID=${userUID}, senderId=${senderId}`);
   const vars = triggerDB.getAllVariables(userUID, senderId);
-  vars.forEach(v => { context[v.variableName] = v.variableValue; });
+  console.log(`  📋 Loaded ${vars.length} variables from DB:`);
+  if (vars.length > 0) {
+    vars.forEach(v => { 
+      context[v.variableName] = v.variableValue;
+      console.log(`    ✓ {${v.variableName}} = "${v.variableValue}"`);
+    });
+  } else {
+    console.log(`    ⚠️ No variables found in DB!`);
+  }
+  
+  // Debug: Show all context keys
+  console.log(`  📋 Context keys after loading: [${Object.keys(context).join(', ')}]`);
 
   const processId = `flow_resume_${Date.now()}`;
 
@@ -644,6 +1240,184 @@ async function resumeFlow(apiState, senderId, inputState, userUID, lastMessage) 
 
   autoReplyState.stats.flowExecuted++;
   console.log(`  ✅ Flow resumed and completed`);
+}
+
+// ========================================
+// AI API HELPER
+// ========================================
+async function callAIAPI(config, prompt) {
+  const fetch = require('node-fetch');
+  
+  try {
+    const { provider, model, apiKey, systemPrompt, temperature, maxTokens } = config;
+    
+    switch (provider) {
+      case 'gemini':
+        return await callGeminiAPI(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+      case 'openai':
+        return await callOpenAIAPI(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+      case 'claude':
+        return await callClaudeAPI(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+      case 'custom':
+        return await callCustomAPI(apiKey, model, config.endpoint, prompt, systemPrompt, temperature, maxTokens);
+      default:
+        // Default to Gemini
+        return await callGeminiAPI(apiKey, model || 'gemini-1.5-flash', prompt, systemPrompt, temperature, maxTokens);
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function callGeminiAPI(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+  
+  const modelName = model || 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  
+  const requestBody = {
+    contents: [{
+      parts: [{ text: prompt }]
+    }],
+    generationConfig: {
+      temperature: temperature || 0.7,
+      maxOutputTokens: maxTokens || 1024
+    }
+  };
+  
+  if (systemPrompt) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemPrompt }]
+    };
+  }
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody)
+  });
+  
+  const data = await response.json();
+  
+  if (data.error) {
+    return { success: false, error: data.error.message || 'Gemini API error' };
+  }
+  
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return { success: true, text };
+}
+
+async function callOpenAIAPI(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+  
+  const modelName = model || 'gpt-3.5-turbo';
+  const url = 'https://api.openai.com/v1/chat/completions';
+  
+  const messages = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: prompt });
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: messages,
+      temperature: temperature || 0.7,
+      max_tokens: maxTokens || 1024
+    })
+  });
+  
+  const data = await response.json();
+  
+  if (data.error) {
+    return { success: false, error: data.error.message || 'OpenAI API error' };
+  }
+  
+  const text = data.choices?.[0]?.message?.content || '';
+  return { success: true, text };
+}
+
+async function callClaudeAPI(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+  
+  const modelName = model || 'claude-3-haiku-20240307';
+  const url = 'https://api.anthropic.com/v1/messages';
+  
+  const requestBody = {
+    model: modelName,
+    max_tokens: maxTokens || 1024,
+    messages: [{ role: 'user', content: prompt }]
+  };
+  
+  if (systemPrompt) {
+    requestBody.system = systemPrompt;
+  }
+  
+  if (temperature !== undefined) {
+    requestBody.temperature = temperature;
+  }
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify(requestBody)
+  });
+  
+  const data = await response.json();
+  
+  if (data.error) {
+    return { success: false, error: data.error.message || 'Claude API error' };
+  }
+  
+  const text = data.content?.[0]?.text || '';
+  return { success: true, text };
+}
+
+async function callCustomAPI(apiKey, model, endpoint, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+  
+  if (!endpoint) {
+    return { success: false, error: 'Custom endpoint is required' };
+  }
+  
+  const messages = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: prompt });
+  
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model || 'default',
+      messages: messages,
+      temperature: temperature || 0.7,
+      max_tokens: maxTokens || 1024
+    })
+  });
+  
+  const data = await response.json();
+  
+  if (data.error) {
+    return { success: false, error: data.error.message || 'API error' };
+  }
+  
+  const text = data.choices?.[0]?.message?.content || data.response || data.text || '';
+  return { success: true, text };
 }
 
 // ========================================
@@ -705,7 +1479,42 @@ function evaluateCondition(data, context) {
 
 function substituteVariables(text, context) {
   if (!text) return '';
-  return text.replace(/\{(\w+)\}/g, (m, k) => context[k] !== undefined ? context[k] : m);
+  
+  // Match {variable} hoặc {variable.property} hoặc {variable.property.subproperty}
+  return text.replace(/\{([^}]+)\}/g, (match, key) => {
+    // Kiểm tra nếu có dot notation (nested property)
+    if (key.includes('.')) {
+      const parts = key.split('.');
+      let value = context;
+      
+      for (const part of parts) {
+        if (value === undefined || value === null) {
+          return match; // Giữ nguyên nếu không tìm thấy
+        }
+        value = value[part];
+      }
+      
+      // Nếu value là object, stringify nó
+      if (value !== undefined && value !== null) {
+        if (typeof value === 'object') {
+          return JSON.stringify(value);
+        }
+        return String(value);
+      }
+      return match;
+    }
+    
+    // Simple variable
+    const value = context[key];
+    if (value !== undefined && value !== null) {
+      // Nếu value là object, stringify nó
+      if (typeof value === 'object') {
+        return JSON.stringify(value);
+      }
+      return String(value);
+    }
+    return match;
+  });
 }
 
 function getSenderName(apiState, senderId) {

@@ -5,7 +5,8 @@ const BLOCK_CATEGORIES = {
   message: { name: 'Tin nhắn', icon: '💬', color: '#e3f2fd' },
   logic: { name: 'Logic', icon: '⚙️', color: '#fff3e0' },
   action: { name: 'Hành động', icon: '⚡', color: '#f3e5f5' },
-  integration: { name: 'Tích hợp', icon: '🔌', color: '#e8f5e9' }
+  integration: { name: 'Tích hợp', icon: '🔌', color: '#e8f5e9' },
+  data: { name: 'Dữ liệu', icon: '📊', color: '#e0f2f1' }
 };
 
 const BLOCK_TYPES = {
@@ -194,6 +195,25 @@ const BLOCK_TYPES = {
     category: 'integration',
     color: '#e8f5e9',
     defaultData: { prompt: '', apiKey: '', saveResponseTo: '' }
+  },
+  
+  // ========== DATA BLOCKS ==========
+  'table-data': {
+    type: 'table-data',
+    name: 'Table Data',
+    desc: 'Thao tác bảng dữ liệu',
+    icon: '📊',
+    category: 'data',
+    color: '#e0f2f1',
+    defaultData: {
+      tableID: null,
+      tableName: '',
+      action: 'find',
+      conditions: [],
+      columnValues: [],
+      resultVariable: 'table_result',
+      limitResults: 1
+    }
   }
 };
 

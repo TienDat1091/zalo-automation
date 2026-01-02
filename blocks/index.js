@@ -20,6 +20,7 @@
     message: { name: 'Tin nhắn', icon: '💬', color: '#e3f2fd' },
     logic: { name: 'Logic', icon: '⚙️', color: '#fff3e0' },
     action: { name: 'Hành động', icon: '⚡', color: '#f3e5f5' },
+    data: { name: 'Dữ liệu', icon: '📊', color: '#e8eaf6' },
     integration: { name: 'Tích hợp', icon: '🔌', color: '#e8f5e9' }
   };
 
