@@ -215,6 +215,30 @@ module.exports = {
       CREATE INDEX IF NOT EXISTS idx_ai_configs_userUID ON ai_configs(userUID);
     `);
 
+    // Images table - Lưu trữ ảnh upload
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS images (
+        imageID INTEGER PRIMARY KEY AUTOINCREMENT,
+        userUID TEXT NOT NULL,
+        name TEXT NOT NULL,
+        variableName TEXT,
+        description TEXT,
+        fileName TEXT NOT NULL,
+        filePath TEXT NOT NULL,
+        fileSize INTEGER DEFAULT 0,
+        mimeType TEXT DEFAULT 'image/jpeg',
+        width INTEGER,
+        height INTEGER,
+        createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+        updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000)
+      )
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_images_userUID ON images(userUID);
+      CREATE INDEX IF NOT EXISTS idx_images_variableName ON images(variableName);
+    `);
+
     // Variables table - Lưu biến cho mỗi user/conversation
     db.exec(`
       CREATE TABLE IF NOT EXISTS variables (
@@ -2711,6 +2735,221 @@ module.exports = {
     } catch (error) {
       console.error('❌ Delete AI config error:', error.message);
       return false;
+    }
+  },
+
+  // ========================================
+  // IMAGES CRUD
+  // ========================================
+
+  /**
+   * Lấy danh sách images của user
+   */
+  getImages(userUID) {
+    try {
+      const images = db.prepare(`
+        SELECT * FROM images 
+        WHERE userUID = ? 
+        ORDER BY createdAt DESC
+      `).all(userUID);
+      
+      return images.map(img => ({
+        id: img.imageID,
+        imageID: img.imageID,
+        name: img.name,
+        variableName: img.variableName,
+        description: img.description,
+        fileName: img.fileName,
+        filePath: img.filePath,
+        fileSize: img.fileSize,
+        mimeType: img.mimeType,
+        width: img.width,
+        height: img.height,
+        createdAt: img.createdAt,
+        updatedAt: img.updatedAt,
+        url: `/api/images/${img.imageID}`
+      }));
+    } catch (error) {
+      console.error('❌ Get images error:', error.message);
+      return [];
+    }
+  },
+
+  /**
+   * Lấy một image theo ID
+   */
+  getImageById(imageId) {
+    try {
+      const img = db.prepare(`
+        SELECT * FROM images WHERE imageID = ?
+      `).get(imageId);
+      
+      if (img) {
+        return {
+          id: img.imageID,
+          imageID: img.imageID,
+          userUID: img.userUID,
+          name: img.name,
+          variableName: img.variableName,
+          description: img.description,
+          fileName: img.fileName,
+          filePath: img.filePath,
+          fileSize: img.fileSize,
+          mimeType: img.mimeType,
+          width: img.width,
+          height: img.height,
+          createdAt: img.createdAt,
+          updatedAt: img.updatedAt,
+          url: `/api/images/${img.imageID}`
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Get image by ID error:', error.message);
+      return null;
+    }
+  },
+
+  /**
+   * Lấy image theo variableName
+   */
+  getImageByVariable(userUID, variableName) {
+    try {
+      const img = db.prepare(`
+        SELECT * FROM images WHERE userUID = ? AND variableName = ?
+      `).get(userUID, variableName);
+      
+      if (img) {
+        return {
+          id: img.imageID,
+          imageID: img.imageID,
+          name: img.name,
+          variableName: img.variableName,
+          filePath: img.filePath,
+          mimeType: img.mimeType,
+          url: `/api/images/${img.imageID}`
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Get image by variable error:', error.message);
+      return null;
+    }
+  },
+
+  /**
+   * Tạo image mới
+   */
+  createImage(userUID, data) {
+    try {
+      const now = Date.now();
+      
+      const result = db.prepare(`
+        INSERT INTO images (userUID, name, variableName, description, fileName, filePath, fileSize, mimeType, width, height, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        userUID,
+        data.name,
+        data.variableName || null,
+        data.description || null,
+        data.fileName,
+        data.filePath,
+        data.fileSize || 0,
+        data.mimeType || 'image/jpeg',
+        data.width || null,
+        data.height || null,
+        now,
+        now
+      );
+      
+      console.log(`✅ Created image: ${data.name} (ID: ${result.lastInsertRowid})`);
+      return this.getImageById(result.lastInsertRowid);
+    } catch (error) {
+      console.error('❌ Create image error:', error.message);
+      return null;
+    }
+  },
+
+  /**
+   * Cập nhật image
+   */
+  updateImage(imageId, userUID, updates) {
+    try {
+      const fields = [];
+      const values = [];
+
+      if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+      if (updates.variableName !== undefined) { fields.push('variableName = ?'); values.push(updates.variableName || null); }
+      if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description); }
+
+      if (fields.length === 0) return this.getImageById(imageId);
+
+      fields.push('updatedAt = ?');
+      values.push(Date.now());
+      values.push(imageId);
+      values.push(userUID);
+
+      db.prepare(`UPDATE images SET ${fields.join(', ')} WHERE imageID = ? AND userUID = ?`).run(...values);
+      
+      console.log(`✅ Updated image ID: ${imageId}`);
+      return this.getImageById(imageId);
+    } catch (error) {
+      console.error('❌ Update image error:', error.message);
+      return null;
+    }
+  },
+
+  /**
+   * Xóa image
+   */
+  deleteImage(imageId, userUID) {
+    try {
+      // Get image info first (for file deletion)
+      const img = this.getImageById(imageId);
+      
+      const result = db.prepare(`
+        DELETE FROM images WHERE imageID = ? AND userUID = ?
+      `).run(imageId, userUID);
+      
+      if (result.changes > 0) {
+        console.log(`✅ Deleted image ID: ${imageId}`);
+        return { success: true, filePath: img?.filePath };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error('❌ Delete image error:', error.message);
+      return { success: false };
+    }
+  },
+
+  /**
+   * Xóa nhiều images
+   */
+  deleteImages(imageIds, userUID) {
+    try {
+      const images = [];
+      
+      // Get file paths first
+      imageIds.forEach(id => {
+        const img = this.getImageById(id);
+        if (img) images.push(img);
+      });
+      
+      // Delete from DB
+      const placeholders = imageIds.map(() => '?').join(',');
+      const result = db.prepare(`
+        DELETE FROM images WHERE imageID IN (${placeholders}) AND userUID = ?
+      `).run(...imageIds, userUID);
+      
+      console.log(`✅ Deleted ${result.changes} images`);
+      return { 
+        success: true, 
+        count: result.changes,
+        filePaths: images.map(img => img.filePath)
+      };
+    } catch (error) {
+      console.error('❌ Delete images error:', error.message);
+      return { success: false, count: 0 };
     }
   },
 

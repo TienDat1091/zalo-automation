@@ -731,6 +731,8 @@ function startWebSocketServer(apiState) {
             }
           }, 2000);
         }
+
+        // ============================================
         // ACTIVITY LOGS
         // ============================================
         else if (msg.type === 'get_activity_logs') {
@@ -1052,8 +1054,6 @@ function startWebSocketServer(apiState) {
           }
         }
 
-  
-
         // ============================================
         // PAYMENT GATES HANDLERS
         // ============================================
@@ -1212,17 +1212,13 @@ function startWebSocketServer(apiState) {
         // PROCESS PAYMENT (from external webhook or manual)
         // ============================================
         else if (msg.type === 'process_payment') {
-          // This can be called from a webhook when payment is detected
           const userUID = apiState.currentUser?.uid;
           const { transactionCode, amount, bankBin, accountNumber, accountName } = msg;
           
-          // Find transaction by code
           const transaction = triggerDB.getTransactionByCode(transactionCode);
           if (transaction && transaction.status === 'WAITING') {
-            // Mark as paid
             const updated = triggerDB.markTransactionPaid(transaction.transactionID);
             
-            // Create log
             triggerDB.createPaymentLog(userUID || transaction.userUID, {
               transactionID: transaction.transactionID,
               transactionCode,
@@ -1243,10 +1239,6 @@ function startWebSocketServer(apiState) {
             console.log(`💰 Payment received: ${transactionCode} - ${amount || transaction.amount}đ`);
           }
         }
-
-        // ============================================
-        // AUTO REPLY HANDLERS (fallback)
-        // ============================================
 
         // ============================================
         // USER TABLES HANDLERS (Google Sheets-like)
@@ -1323,7 +1315,7 @@ function startWebSocketServer(apiState) {
           }
         }
 
-        // Column handlers (for custom_tables)
+        // Column handlers
         else if (msg.type === 'add_table_column') {
           const table = triggerDB.addTableColumn(msg.tableID, {
             name: msg.column?.name || msg.columnName || 'Cột mới',
@@ -1365,12 +1357,10 @@ function startWebSocketServer(apiState) {
           const userUID = apiState.currentUser?.uid;
           const row = triggerDB.addTableRow(msg.tableID, msg.rowData || msg.cellValues || {});
           if (row) {
-            // Log activity
             const tableInfo = triggerDB.getUserTableById(msg.tableID);
             triggerDB.logActivity(userUID, 'add', 'row', row.rowID, `Row #${row.rowID}`, `Thêm hàng vào bảng "${tableInfo?.tableName || msg.tableID}"`);
             
             ws.send(JSON.stringify({ type: 'row_added', row }));
-            // Send updated table - use table_detail for auto-refresh
             const table = triggerDB.getUserTableById(msg.tableID);
             ws.send(JSON.stringify({ type: 'table_detail', table }));
           } else {
@@ -1383,11 +1373,9 @@ function startWebSocketServer(apiState) {
           const tableInfo = triggerDB.getUserTableById(msg.tableID);
           const success = triggerDB.deleteTableRow(msg.rowID);
           if (success) {
-            // Log activity
             triggerDB.logActivity(userUID, 'delete', 'row', msg.rowID, `Row #${msg.rowID}`, `Xóa hàng từ bảng "${tableInfo?.tableName || msg.tableID}"`);
             
             ws.send(JSON.stringify({ type: 'row_deleted', rowID: msg.rowID }));
-            // Send updated table - use table_detail for auto-refresh
             if (msg.tableID) {
               const table = triggerDB.getUserTableById(msg.tableID);
               ws.send(JSON.stringify({ type: 'table_detail', table }));
@@ -1402,11 +1390,9 @@ function startWebSocketServer(apiState) {
           const tableInfo = triggerDB.getUserTableById(msg.tableID);
           const result = triggerDB.deleteTableRows(msg.tableID, msg.rowIDs || []);
           if (result && result.success) {
-            // Log activity
             triggerDB.logActivity(userUID, 'delete', 'row', null, `${result.deletedCount} rows`, `Xóa ${result.deletedCount} hàng từ bảng "${tableInfo?.tableName || msg.tableID}"`);
             
             ws.send(JSON.stringify({ type: 'rows_deleted', rowIDs: msg.rowIDs, deletedCount: result.deletedCount }));
-            // Send updated table
             if (msg.tableID) {
               const table = triggerDB.getUserTableById(msg.tableID);
               ws.send(JSON.stringify({ type: 'table_detail', table }));
@@ -1418,13 +1404,8 @@ function startWebSocketServer(apiState) {
 
         // Cell handlers
         else if (msg.type === 'update_table_cell') {
-          const userUID = apiState.currentUser?.uid;
-          const oldCell = triggerDB.getTableRowById ? null : null; // Could get old value here if needed
           const row = triggerDB.updateTableCell(msg.rowID, msg.columnId || msg.columnID, msg.value);
           if (row) {
-            // Log activity - nhưng không log quá nhiều để tránh spam
-            // triggerDB.logActivity(userUID, 'update', 'cell', msg.rowID, `Cell [${msg.rowID}, ${msg.columnId || msg.columnID}]`, `Cập nhật giá trị: "${msg.value?.substring(0, 50) || ''}"`);
-            
             ws.send(JSON.stringify({ type: 'cell_updated', row }));
           } else {
             ws.send(JSON.stringify({ type: 'table_error', message: 'Không thể cập nhật ô' }));
@@ -1441,10 +1422,8 @@ function startWebSocketServer(apiState) {
         }
 
         // ============================================
-        // CUSTOM TABLES HANDLERS (for table-manager.html)
+        // CUSTOM TABLES HANDLERS
         // ============================================
-        
-        // Get all tables
         else if (msg.type === 'get_tables') {
           const userUID = apiState.currentUser?.uid;
           if (!userUID) {
@@ -1455,9 +1434,6 @@ function startWebSocketServer(apiState) {
           ws.send(JSON.stringify({ type: 'tables_list', tables }));
         }
 
-        // ============================================
-        // GET ALL VARIABLES - Lấy tất cả biến đã lưu
-        // ============================================
         else if (msg.type === 'get_all_variables') {
           const userUID = apiState.currentUser?.uid;
           if (!userUID) {
@@ -1468,9 +1444,6 @@ function startWebSocketServer(apiState) {
           ws.send(JSON.stringify({ type: 'variables_list', variables }));
         }
 
-        // ============================================
-        // DELETE VARIABLE - Xóa một biến
-        // ============================================
         else if (msg.type === 'delete_variable') {
           const userUID = apiState.currentUser?.uid;
           if (!userUID) {
@@ -1482,16 +1455,12 @@ function startWebSocketServer(apiState) {
           ws.send(JSON.stringify({ type: 'variable_deleted', variableName }));
         }
 
-        // ============================================
-        // CLEAR ALL VARIABLES - Xóa tất cả biến của user
-        // ============================================
         else if (msg.type === 'clear_all_variables') {
           const userUID = apiState.currentUser?.uid;
           if (!userUID) {
             ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
             return;
           }
-          // Xóa tất cả biến của user
           try {
             const db = triggerDB.getDB();
             db.prepare('DELETE FROM variables WHERE userUID = ?').run(userUID);
@@ -1501,13 +1470,11 @@ function startWebSocketServer(apiState) {
           }
         }
 
-        // Get single table with data
         else if (msg.type === 'get_table') {
           const table = triggerDB.getUserTableById(msg.tableID);
           ws.send(JSON.stringify({ type: 'table_data', table }));
         }
         
-        // Get table detail (alias for table-manager.html)
         else if (msg.type === 'get_table_detail') {
           const table = triggerDB.getUserTableById(msg.tableID);
           if (table) {
@@ -1517,7 +1484,6 @@ function startWebSocketServer(apiState) {
           }
         }
 
-        // Create table
         else if (msg.type === 'create_table') {
           const userUID = apiState.currentUser?.uid;
           if (!userUID) {
@@ -1532,7 +1498,6 @@ function startWebSocketServer(apiState) {
           });
           if (table) {
             console.log(`📊 Created custom table: ${table.tableName}`);
-            // Log activity
             triggerDB.logActivity(userUID, 'create', 'table', table.tableID, table.tableName, `Tạo bảng với ${table.columns?.length || 0} cột`);
             ws.send(JSON.stringify({ type: 'table_created', table }));
           } else {
@@ -1540,7 +1505,6 @@ function startWebSocketServer(apiState) {
           }
         }
 
-        // Update table
         else if (msg.type === 'update_table') {
           const userUID = apiState.currentUser?.uid;
           const table = triggerDB.updateUserTable(msg.tableID, {
@@ -1551,7 +1515,6 @@ function startWebSocketServer(apiState) {
             status: msg.status
           });
           if (table) {
-            // Log activity
             triggerDB.logActivity(userUID, 'update', 'table', table.tableID, table.tableName, 'Cập nhật thông tin bảng');
             ws.send(JSON.stringify({ type: 'table_updated', table }));
           } else {
@@ -1559,40 +1522,18 @@ function startWebSocketServer(apiState) {
           }
         }
 
-        // Delete table
         else if (msg.type === 'delete_table') {
           const userUID = apiState.currentUser?.uid;
-          // Get table name before delete
           const tableInfo = triggerDB.getUserTableById(msg.tableID);
           const tableName = tableInfo?.tableName || `Table #${msg.tableID}`;
           
           const success = triggerDB.deleteUserTable(msg.tableID);
           if (success) {
             console.log(`🗑️ Deleted custom table: ${msg.tableID}`);
-            // Log activity
             triggerDB.logActivity(userUID, 'delete', 'table', msg.tableID, tableName, 'Xóa bảng');
             ws.send(JSON.stringify({ type: 'table_deleted', tableID: msg.tableID }));
           } else {
             ws.send(JSON.stringify({ type: 'error', message: 'Failed to delete table' }));
-          }
-        }
-
-        // ========================================
-        // ACTIVITY LOGS
-        // ========================================
-        else if (msg.type === 'get_activity_logs') {
-          const userUID = apiState.currentUser?.uid;
-          const logs = triggerDB.getActivityLogs(userUID, msg.limit || 500, msg.offset || 0);
-          ws.send(JSON.stringify({ type: 'activity_logs', logs }));
-        }
-        
-        else if (msg.type === 'clear_activity_logs') {
-          const userUID = apiState.currentUser?.uid;
-          const success = triggerDB.clearActivityLogs(userUID);
-          if (success) {
-            ws.send(JSON.stringify({ type: 'logs_cleared' }));
-          } else {
-            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa logs' }));
           }
         }
 
@@ -1603,14 +1544,12 @@ function startWebSocketServer(apiState) {
           const userUID = apiState.currentUser?.uid;
           console.log('[WS] get_google_sheet_configs - userUID:', userUID);
           
-          // Temporarily get ALL configs for testing
           let configs;
           if (userUID) {
             configs = triggerDB.getGoogleSheetConfigs(userUID);
           } else {
-            // Fallback: get all configs
             try {
-              const stmt = triggerDB.db.prepare('SELECT * FROM google_sheet_configs ORDER BY createdAt DESC');
+              const stmt = triggerDB.getDB().prepare('SELECT * FROM google_sheet_configs ORDER BY createdAt DESC');
               configs = stmt.all();
             } catch (e) {
               configs = [];
@@ -1658,7 +1597,6 @@ function startWebSocketServer(apiState) {
           if (userUID) {
             configs = triggerDB.getAIConfigs(userUID);
           } else {
-            // Fallback: get all configs
             try {
               const stmt = triggerDB.getDB().prepare('SELECT * FROM ai_configs ORDER BY createdAt DESC');
               configs = stmt.all().map(c => ({
@@ -1711,7 +1649,6 @@ function startWebSocketServer(apiState) {
         }
 
         else if (msg.type === 'test_ai_connection') {
-          // Test AI connection
           testAIConnection(ws, msg).catch(err => {
             console.error('AI test error:', err);
             ws.send(JSON.stringify({
@@ -1724,13 +1661,163 @@ function startWebSocketServer(apiState) {
           });
         }
 
+        // ========================================
+        // IMAGES HANDLERS - QUAN TRỌNG!
+        // ========================================
+        else if (msg.type === 'get_images') {
+          const userUID = apiState.currentUser?.uid;
+          console.log('[WS] get_images - userUID:', userUID);
+          
+          let images;
+          if (userUID) {
+            images = triggerDB.getImages(userUID);
+          } else {
+            try {
+              const stmt = triggerDB.getDB().prepare('SELECT * FROM images ORDER BY createdAt DESC');
+              images = stmt.all().map(img => ({
+                id: img.imageID,
+                imageID: img.imageID,
+                name: img.name,
+                variableName: img.variableName,
+                description: img.description,
+                fileName: img.fileName,
+                filePath: img.filePath,
+                fileSize: img.fileSize,
+                mimeType: img.mimeType,
+                createdAt: img.createdAt,
+                url: `/api/images/${img.imageID}`
+              }));
+            } catch (e) {
+              images = [];
+            }
+          }
+          console.log('[WS] Found images:', images?.length || 0);
+          ws.send(JSON.stringify({ type: 'images_list', images }));
+        }
+
+        else if (msg.type === 'upload_image') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
+            return;
+          }
+          
+          try {
+            // Parse base64 data
+            const base64Data = msg.data.replace(/^data:image\/\w+;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            // Create images directory if not exists
+            const imagesDir = path.join(__dirname, 'data', 'images');
+            if (!fs.existsSync(imagesDir)) {
+              fs.mkdirSync(imagesDir, { recursive: true });
+            }
+            
+            // Generate unique filename
+            const ext = path.extname(msg.fileName) || '.jpg';
+            const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+            const filePath = path.join(imagesDir, uniqueName);
+            
+            // Save file
+            fs.writeFileSync(filePath, buffer);
+            
+            // Extract name from filename (without extension)
+            const baseName = path.basename(msg.fileName, ext);
+            
+            // Save to database
+            const image = triggerDB.createImage(userUID, {
+              name: baseName,
+              fileName: msg.fileName,
+              filePath: filePath,
+              fileSize: msg.fileSize || buffer.length,
+              mimeType: msg.fileType || 'image/jpeg'
+            });
+            
+            if (image) {
+              console.log(`✅ Created image: ${baseName} (ID: ${image.id})`);
+              ws.send(JSON.stringify({ type: 'image_uploaded', image }));
+            } else {
+              ws.send(JSON.stringify({ type: 'error', message: 'Không thể lưu ảnh' }));
+            }
+          } catch (error) {
+            console.error('❌ Upload image error:', error.message);
+            ws.send(JSON.stringify({ type: 'error', message: 'Lỗi upload: ' + error.message }));
+          }
+        }
+
+        else if (msg.type === 'update_image') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
+            return;
+          }
+          
+          const updated = triggerDB.updateImage(msg.imageId, userUID, {
+            name: msg.name,
+            variableName: msg.variableName,
+            description: msg.description
+          });
+          
+          if (updated) {
+            console.log(`✅ Updated image: ${msg.imageId}`);
+            ws.send(JSON.stringify({ type: 'image_updated', image: updated }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể cập nhật ảnh' }));
+          }
+        }
+
+        else if (msg.type === 'delete_image') {
+          const userUID = apiState.currentUser?.uid;
+          const result = triggerDB.deleteImage(msg.imageId, userUID);
+          
+          if (result.success) {
+            // Delete file from disk
+            if (result.filePath && fs.existsSync(result.filePath)) {
+              try {
+                fs.unlinkSync(result.filePath);
+                console.log(`🗑️ Deleted file: ${result.filePath}`);
+              } catch (e) {
+                console.error('Failed to delete file:', e.message);
+              }
+            }
+            console.log(`✅ Deleted image ID: ${msg.imageId}`);
+            ws.send(JSON.stringify({ type: 'image_deleted' }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa ảnh' }));
+          }
+        }
+
+        else if (msg.type === 'delete_images') {
+          const userUID = apiState.currentUser?.uid;
+          const result = triggerDB.deleteImages(msg.imageIds, userUID);
+          
+          if (result.success) {
+            // Delete files from disk
+            result.filePaths.forEach(filePath => {
+              if (filePath && fs.existsSync(filePath)) {
+                try {
+                  fs.unlinkSync(filePath);
+                } catch (e) {
+                  console.error('Failed to delete file:', e.message);
+                }
+              }
+            });
+            console.log(`✅ Deleted ${result.count} images`);
+            ws.send(JSON.stringify({ type: 'images_deleted', count: result.count }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa ảnh' }));
+          }
+        }
+
+        // ========================================
+        // FALLBACK - Unhandled message types
+        // ========================================
         else {
           const handled = handleAutoReplyMessage(apiState, ws, msg);
           if (!handled) {
             console.log('⚠️ Unhandled message type:', msg.type);
           }
         }
-        
 
       } catch (err) {
         console.error('❌ WebSocket message error:', err.message);

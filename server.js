@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { loginZalo } = require('./loginZalo');
-const { startWebSocketServer } = require('./websocket');
+const { startWebSocketServer, triggerDB } = require('./websocket');
 const { loadFriends } = require('./friends');
 
 // API state dùng chung
@@ -157,6 +157,56 @@ const server = http.createServer((req, res) => {
         res.end(data);
       });
     });
+  }
+  
+  // ============================================
+  // API: Serve uploaded images
+  // ============================================
+  else if (url.startsWith('/api/images/')) {
+    const parts = url.split('/');
+    const imageId = parseInt(parts[3]);
+    
+    if (!imageId) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid image ID' }));
+      return;
+    }
+    
+    try {
+      const image = triggerDB.getImageById(imageId);
+      
+      if (!image) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Image not found' }));
+        return;
+      }
+      
+      // Check if file exists
+      if (!fs.existsSync(image.filePath)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Image file not found on disk' }));
+        return;
+      }
+      
+      // Read and serve file
+      fs.readFile(image.filePath, (err, data) => {
+        if (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Failed to read image file' }));
+          return;
+        }
+        
+        res.writeHead(200, { 
+          'Content-Type': image.mimeType || 'image/jpeg',
+          'Cache-Control': 'public, max-age=86400'
+        });
+        res.end(data);
+      });
+    } catch (error) {
+      console.error('❌ Serve image error:', error.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Server error' }));
+    }
   }
   
   // ============================================

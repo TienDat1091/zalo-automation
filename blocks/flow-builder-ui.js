@@ -5,6 +5,11 @@
   'use strict';
 
   // ========================================
+  // API BASE URL - dùng port 3000 cho images
+  // ========================================
+  var API_BASE_URL = 'http://' + (location.hostname || 'localhost') + ':3000';
+
+  // ========================================
   // STATE
   // ========================================
   var state = {
@@ -25,6 +30,7 @@
   window.paymentGates = [];
   window.googleSheetConfigs = []; // Google Sheet configs
   window.aiConfigs = []; // AI configs
+  window.uploadedImages = []; // Uploaded images
 
   // ========================================
   // TOAST NOTIFICATION
@@ -144,6 +150,7 @@
     ws.send(JSON.stringify({ type: 'get_tables' })); // Load custom tables
     ws.send(JSON.stringify({ type: 'get_google_sheet_configs' })); // Load Google Sheet configs
     ws.send(JSON.stringify({ type: 'get_ai_configs' })); // Load AI configs
+    ws.send(JSON.stringify({ type: 'get_images' })); // Load uploaded images
   }
 
   function handleWSMessage(data) {
@@ -196,6 +203,18 @@
           return Object.assign({}, cfg, { id: cfg.configID || cfg.id });
         });
         console.log('🧠 Loaded', window.aiConfigs.length, 'AI configs');
+        break;
+
+      case 'images_list':
+        // Normalize: convert imageID to id và thêm URL đầy đủ
+        window.uploadedImages = (data.images || []).map(function(img) {
+          var id = img.imageID || img.id;
+          return Object.assign({}, img, { 
+            id: id,
+            url: API_BASE_URL + '/api/images/' + id
+          });
+        });
+        console.log('🖼️ Loaded', window.uploadedImages.length, 'uploaded images (API_BASE_URL:', API_BASE_URL, ')');
         break;
 
       case 'variables_list':
