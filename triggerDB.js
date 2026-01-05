@@ -112,20 +112,22 @@ module.exports = {
         blockType TEXT NOT NULL,
         blockData TEXT DEFAULT '{}',
         blockOrder INTEGER DEFAULT 0,
+        parentBlockID INTEGER,
         condition1 INTEGER,
         condition2 INTEGER,
+        branchType TEXT,
         createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
         FOREIGN KEY (flowID) REFERENCES flows(flowID) ON DELETE CASCADE,
+        FOREIGN KEY (parentBlockID) REFERENCES flow_blocks(blockID) ON DELETE CASCADE,
         FOREIGN KEY (condition1) REFERENCES flows(flowID) ON DELETE CASCADE,
         FOREIGN KEY (condition2) REFERENCES flows(flowID) ON DELETE CASCADE
       )
     `);
 
     // ========================================
-    // BLOCK DATA TABLES - Lưu conditions và columnValues cho Table Data block
+    // BLOCK DATA TABLES
     // ========================================
     
-    // Block Conditions - Điều kiện lọc của block
     db.exec(`
       CREATE TABLE IF NOT EXISTS block_conditions (
         conditionID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,7 +141,6 @@ module.exports = {
       )
     `);
 
-    // Block Column Values - Giá trị cột khi thêm/cập nhật
     db.exec(`
       CREATE TABLE IF NOT EXISTS block_column_values (
         valueID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,7 +153,6 @@ module.exports = {
       )
     `);
 
-    // Block Result Mappings - Lưu mapping cột -> biến cho action find
     db.exec(`
       CREATE TABLE IF NOT EXISTS block_result_mappings (
         mappingID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,14 +165,15 @@ module.exports = {
       )
     `);
 
-    // Indexes for block data tables
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_block_conditions_blockID ON block_conditions(blockID);
       CREATE INDEX IF NOT EXISTS idx_block_column_values_blockID ON block_column_values(blockID);
       CREATE INDEX IF NOT EXISTS idx_block_result_mappings_blockID ON block_result_mappings(blockID);
     `);
 
-    // Google Sheet Configs - Cấu hình kết nối Google Sheets
+    // ========================================
+    // GOOGLE SHEET CONFIGS
+    // ========================================
     db.exec(`
       CREATE TABLE IF NOT EXISTS google_sheet_configs (
         configID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -187,11 +188,11 @@ module.exports = {
       )
     `);
 
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_google_sheet_configs_userUID ON google_sheet_configs(userUID);
-    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_google_sheet_configs_userUID ON google_sheet_configs(userUID)`);
 
-    // AI Configs - Cấu hình các AI models (Gemini, OpenAI, Claude, etc.)
+    // ========================================
+    // AI CONFIGS
+    // ========================================
     db.exec(`
       CREATE TABLE IF NOT EXISTS ai_configs (
         configID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -211,11 +212,11 @@ module.exports = {
       )
     `);
 
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_ai_configs_userUID ON ai_configs(userUID);
-    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ai_configs_userUID ON ai_configs(userUID)`);
 
-    // Images table - Lưu trữ ảnh upload
+    // ========================================
+    // IMAGES TABLE
+    // ========================================
     db.exec(`
       CREATE TABLE IF NOT EXISTS images (
         imageID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -238,6 +239,58 @@ module.exports = {
       CREATE INDEX IF NOT EXISTS idx_images_userUID ON images(userUID);
       CREATE INDEX IF NOT EXISTS idx_images_variableName ON images(variableName);
     `);
+
+    // ========================================
+    // FILES TABLE
+    // ========================================
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS files (
+        fileID INTEGER PRIMARY KEY AUTOINCREMENT,
+        userUID TEXT NOT NULL,
+        name TEXT NOT NULL,
+        variableName TEXT,
+        description TEXT,
+        fileName TEXT NOT NULL,
+        filePath TEXT NOT NULL,
+        fileSize INTEGER DEFAULT 0,
+        mimeType TEXT,
+        fileType TEXT,
+        category TEXT DEFAULT 'document',
+        createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+        updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000)
+      )
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_files_userUID ON files(userUID);
+      CREATE INDEX IF NOT EXISTS idx_files_variableName ON files(variableName);
+      CREATE INDEX IF NOT EXISTS idx_files_category ON files(category);
+      CREATE INDEX IF NOT EXISTS idx_files_fileType ON files(fileType);
+    `);
+
+    // ========================================
+    // FILE TEMPLATES TABLE
+    // ========================================
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS file_templates (
+        templateID INTEGER PRIMARY KEY AUTOINCREMENT,
+        userUID TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        fileName TEXT NOT NULL,
+        filePath TEXT NOT NULL,
+        fileSize INTEGER DEFAULT 0,
+        mimeType TEXT,
+        fileType TEXT,
+        variables TEXT,
+        outputFormat TEXT DEFAULT 'same',
+        isActive INTEGER DEFAULT 1,
+        createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+        updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000)
+      )
+    `);
+
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_file_templates_userUID ON file_templates(userUID)`);
 
     // Variables table - Lưu biến cho mỗi user/conversation
     db.exec(`
@@ -357,6 +410,7 @@ module.exports = {
       CREATE INDEX IF NOT EXISTS idx_triggers_enabled ON triggers(enabled);
       CREATE INDEX IF NOT EXISTS idx_flows_triggerID ON flows(triggerID);
       CREATE INDEX IF NOT EXISTS idx_blocks_flowID ON flow_blocks(flowID);
+      CREATE INDEX IF NOT EXISTS idx_blocks_parent ON flow_blocks(parentBlockID);
       CREATE INDEX IF NOT EXISTS idx_variables_user ON variables(userUID, conversationID);
       CREATE INDEX IF NOT EXISTS idx_input_states_user ON user_input_states(userUID, conversationID);
       CREATE INDEX IF NOT EXISTS idx_activity_userUID ON activity_logs(userUID);
@@ -809,42 +863,6 @@ module.exports = {
           blockData: b.blockData ? JSON.parse(b.blockData) : {}
         };
         
-        // Load conditions, columnValues, resultMappings từ tables riêng cho table-data block
-        if (block.blockType === 'table-data') {
-          const conditions = this.getBlockConditions(block.blockID);
-          const columnValues = this.getBlockColumnValues(block.blockID);
-          const resultMappings = this.getBlockResultMappings(block.blockID);
-          
-          // Chỉ overwrite nếu có dữ liệu từ tables, nếu không giữ nguyên từ JSON
-          if (conditions && conditions.length > 0) {
-            block.blockData.conditions = conditions.map(c => ({
-              column: c.columnID,
-              operator: c.operator,
-              value: c.conditionValue
-            }));
-          }
-          
-          if (columnValues && columnValues.length > 0) {
-            block.blockData.columnValues = columnValues.map(v => ({
-              column: v.columnID,
-              value: v.columnValue
-            }));
-          }
-          
-          if (resultMappings && resultMappings.length > 0) {
-            block.blockData.resultMappings = resultMappings.map(m => ({
-              column: m.columnID,
-              variableName: m.variableName
-            }));
-          }
-          
-          console.log(`📊 Loaded table-data block ${block.blockID}:`, {
-            conditionsFromDB: conditions?.length || 0,
-            columnValuesFromDB: columnValues?.length || 0,
-            resultMappingsFromDB: resultMappings?.length || 0
-          });
-        }
-        
         return block;
       });
     } catch (error) {
@@ -858,42 +876,6 @@ module.exports = {
       const block = db.prepare('SELECT * FROM flow_blocks WHERE blockID = ?').get(blockID);
       if (block) {
         block.blockData = block.blockData ? JSON.parse(block.blockData) : {};
-        
-        // Load conditions, columnValues, resultMappings từ tables riêng cho table-data block
-        if (block.blockType === 'table-data') {
-          const conditions = this.getBlockConditions(block.blockID);
-          const columnValues = this.getBlockColumnValues(block.blockID);
-          const resultMappings = this.getBlockResultMappings(block.blockID);
-          
-          // Chỉ overwrite nếu có dữ liệu từ tables, nếu không giữ nguyên từ JSON
-          if (conditions && conditions.length > 0) {
-            block.blockData.conditions = conditions.map(c => ({
-              column: c.columnID,
-              operator: c.operator,
-              value: c.conditionValue
-            }));
-          }
-          
-          if (columnValues && columnValues.length > 0) {
-            block.blockData.columnValues = columnValues.map(v => ({
-              column: v.columnID,
-              value: v.columnValue
-            }));
-          }
-          
-          if (resultMappings && resultMappings.length > 0) {
-            block.blockData.resultMappings = resultMappings.map(m => ({
-              column: m.columnID,
-              variableName: m.variableName
-            }));
-          }
-          
-          console.log(`📊 Loaded table-data block ${block.blockID}:`, {
-            conditionsFromDB: conditions?.length || 0,
-            columnValuesFromDB: columnValues?.length || 0,
-            resultMappingsFromDB: resultMappings?.length || 0
-          });
-        }
       }
       return block;
     } catch (error) {
@@ -902,17 +884,28 @@ module.exports = {
     }
   },
 
-  addFlowBlock(flowID, blockType, blockData = {}, blockOrder = null, condition1 = null, condition2 = null) {
+  addFlowBlock(flowID, blockType, blockData = {}, blockOrder = null, parentBlockID = null, branchType = null, condition1 = null, condition2 = null) {
     try {
       if (blockOrder === null) {
-        // Tính blockOrder tự động
-        const maxOrder = db.prepare('SELECT MAX(blockOrder) as max FROM flow_blocks WHERE flowID = ?').get(flowID);
+        // Tính blockOrder riêng cho các block cùng parent và branchType
+        let query, params;
+        if (parentBlockID && branchType) {
+          query = 'SELECT MAX(blockOrder) as max FROM flow_blocks WHERE flowID = ? AND parentBlockID = ? AND branchType = ?';
+          params = [flowID, parentBlockID, branchType];
+        } else if (parentBlockID) {
+          query = 'SELECT MAX(blockOrder) as max FROM flow_blocks WHERE flowID = ? AND parentBlockID = ?';
+          params = [flowID, parentBlockID];
+        } else {
+          query = 'SELECT MAX(blockOrder) as max FROM flow_blocks WHERE flowID = ? AND parentBlockID IS NULL';
+          params = [flowID];
+        }
+        const maxOrder = db.prepare(query).get(...params);
         blockOrder = (maxOrder?.max ?? -1) + 1;
       }
 
       const stmt = db.prepare(`
-        INSERT INTO flow_blocks (flowID, blockType, blockData, blockOrder, condition1, condition2)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO flow_blocks (flowID, blockType, blockData, blockOrder, parentBlockID, branchType, condition1, condition2)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       const result = stmt.run(
@@ -920,6 +913,8 @@ module.exports = {
         blockType,
         JSON.stringify(blockData),
         blockOrder,
+        parentBlockID,
+        branchType,
         condition1,
         condition2
       );
@@ -948,6 +943,14 @@ module.exports = {
         fields.push('blockOrder = ?');
         values.push(updates.blockOrder);
       }
+      if (updates.parentBlockID !== undefined) {
+        fields.push('parentBlockID = ?');
+        values.push(updates.parentBlockID);
+      }
+      if (updates.branchType !== undefined) {
+        fields.push('branchType = ?');
+        values.push(updates.branchType);
+      }
       if (updates.condition1 !== undefined) {
         fields.push('condition1 = ?');
         values.push(updates.condition1);
@@ -971,7 +974,9 @@ module.exports = {
 
   deleteFlowBlock(blockID) {
     try {
-      // Xóa block
+      // Xóa tất cả block con trước
+      db.prepare('DELETE FROM flow_blocks WHERE parentBlockID = ?').run(blockID);
+      // Xóa block chính
       db.prepare('DELETE FROM flow_blocks WHERE blockID = ?').run(blockID);
       return true;
     } catch (error) {
@@ -995,6 +1000,19 @@ module.exports = {
     } catch (error) {
       console.error('❌ Reorder blocks error:', error.message);
       return false;
+    }
+  },
+
+  getChildBlocks(parentBlockID) {
+    try {
+      const blocks = db.prepare('SELECT * FROM flow_blocks WHERE parentBlockID = ? ORDER BY blockOrder').all(parentBlockID);
+      return blocks.map(b => ({
+        ...b,
+        blockData: b.blockData ? JSON.parse(b.blockData) : {}
+      }));
+    } catch (error) {
+      console.error('❌ Get child blocks error:', error.message);
+      return [];
     }
   },
 
@@ -1053,18 +1071,26 @@ module.exports = {
     }
   },
 
-  /**
-   * Lấy tất cả biến của một user (không cần conversationID)
-   */
+  // Lấy tất cả biến của user (không cần conversationID) - dùng cho File Manager
   getAllVariablesByUser(userUID) {
     try {
       const variables = db.prepare(`
-        SELECT * FROM variables 
+        SELECT DISTINCT variableName, variableValue, variableType, conversationID, updatedAt
+        FROM variables 
         WHERE userUID = ?
         AND (expiresAt IS NULL OR expiresAt > ?)
-        ORDER BY conversationID, variableName
+        ORDER BY variableName ASC, updatedAt DESC
       `).all(userUID, Date.now());
-      return variables;
+      
+      // Loại bỏ trùng lặp, giữ lại giá trị mới nhất cho mỗi variableName
+      const uniqueVars = {};
+      variables.forEach(v => {
+        if (!uniqueVars[v.variableName]) {
+          uniqueVars[v.variableName] = v;
+        }
+      });
+      
+      return Object.values(uniqueVars);
     } catch (error) {
       console.error('❌ Get all variables by user error:', error.message);
       return [];
@@ -2200,769 +2226,356 @@ module.exports = {
   // ========================================
   // BLOCK CONDITIONS CRUD
   // ========================================
-  
-  /**
-   * Lấy tất cả conditions của một block
-   */
   getBlockConditions(blockID) {
-    try {
-      return db.prepare(`
-        SELECT * FROM block_conditions 
-        WHERE blockID = ? 
-        ORDER BY conditionOrder
-      `).all(blockID);
-    } catch (error) {
-      console.error('❌ Get block conditions error:', error.message);
-      return [];
-    }
+    try { return db.prepare('SELECT * FROM block_conditions WHERE blockID = ? ORDER BY conditionOrder').all(blockID); }
+    catch (error) { console.error('❌ Get block conditions error:', error.message); return []; }
   },
 
-  /**
-   * Lưu conditions cho một block (xóa cũ và thêm mới)
-   */
   saveBlockConditions(blockID, conditions) {
     try {
-      // Xóa conditions cũ
       db.prepare('DELETE FROM block_conditions WHERE blockID = ?').run(blockID);
-      
-      if (!conditions || conditions.length === 0) {
-        return true;
-      }
-      
-      // Thêm conditions mới
-      const stmt = db.prepare(`
-        INSERT INTO block_conditions (blockID, columnID, operator, conditionValue, conditionOrder)
-        VALUES (?, ?, ?, ?, ?)
-      `);
-      
+      if (!conditions || conditions.length === 0) return true;
+      const stmt = db.prepare('INSERT INTO block_conditions (blockID, columnID, operator, conditionValue, conditionOrder) VALUES (?, ?, ?, ?, ?)');
       const transaction = db.transaction(() => {
         conditions.forEach((cond, index) => {
-          stmt.run(
-            blockID,
-            cond.column || cond.columnID || '',
-            cond.operator || 'equals',
-            cond.value || cond.conditionValue || '',
-            index
-          );
+          stmt.run(blockID, cond.column || cond.columnID || '', cond.operator || 'equals', cond.value || cond.conditionValue || '', index);
         });
       });
-      
       transaction();
-      console.log(`✅ Saved ${conditions.length} conditions for block ${blockID}`);
       return true;
-    } catch (error) {
-      console.error('❌ Save block conditions error:', error.message);
-      return false;
-    }
+    } catch (error) { console.error('❌ Save block conditions error:', error.message); return false; }
   },
 
-  // ========================================
-  // BLOCK COLUMN VALUES CRUD
-  // ========================================
-  
-  /**
-   * Lấy tất cả column values của một block
-   */
   getBlockColumnValues(blockID) {
-    try {
-      return db.prepare(`
-        SELECT * FROM block_column_values 
-        WHERE blockID = ? 
-        ORDER BY valueOrder
-      `).all(blockID);
-    } catch (error) {
-      console.error('❌ Get block column values error:', error.message);
-      return [];
-    }
+    try { return db.prepare('SELECT * FROM block_column_values WHERE blockID = ? ORDER BY valueOrder').all(blockID); }
+    catch (error) { console.error('❌ Get block column values error:', error.message); return []; }
   },
 
-  /**
-   * Lưu column values cho một block (xóa cũ và thêm mới)
-   */
   saveBlockColumnValues(blockID, columnValues) {
     try {
-      // Xóa values cũ
       db.prepare('DELETE FROM block_column_values WHERE blockID = ?').run(blockID);
-      
-      if (!columnValues || columnValues.length === 0) {
-        return true;
-      }
-      
-      // Thêm values mới
-      const stmt = db.prepare(`
-        INSERT INTO block_column_values (blockID, columnID, columnValue, valueOrder)
-        VALUES (?, ?, ?, ?)
-      `);
-      
+      if (!columnValues || columnValues.length === 0) return true;
+      const stmt = db.prepare('INSERT INTO block_column_values (blockID, columnID, columnValue, valueOrder) VALUES (?, ?, ?, ?)');
       const transaction = db.transaction(() => {
         columnValues.forEach((val, index) => {
-          stmt.run(
-            blockID,
-            val.column || val.columnID || '',
-            val.value || val.columnValue || '',
-            index
-          );
+          stmt.run(blockID, val.column || val.columnID || '', val.value || val.columnValue || '', index);
         });
       });
-      
       transaction();
-      console.log(`✅ Saved ${columnValues.length} column values for block ${blockID}`);
       return true;
-    } catch (error) {
-      console.error('❌ Save block column values error:', error.message);
-      return false;
-    }
+    } catch (error) { console.error('❌ Save block column values error:', error.message); return false; }
   },
 
-  // ========================================
-  // BLOCK RESULT MAPPINGS CRUD
-  // ========================================
-  
-  /**
-   * Lấy tất cả result mappings của một block
-   */
   getBlockResultMappings(blockID) {
-    try {
-      return db.prepare(`
-        SELECT * FROM block_result_mappings 
-        WHERE blockID = ? 
-        ORDER BY mappingOrder
-      `).all(blockID);
-    } catch (error) {
-      console.error('❌ Get block result mappings error:', error.message);
-      return [];
-    }
+    try { return db.prepare('SELECT * FROM block_result_mappings WHERE blockID = ? ORDER BY mappingOrder').all(blockID); }
+    catch (error) { console.error('❌ Get block result mappings error:', error.message); return []; }
   },
 
-  /**
-   * Lưu result mappings cho một block (xóa cũ và thêm mới)
-   */
   saveBlockResultMappings(blockID, resultMappings) {
     try {
-      // Xóa mappings cũ
       db.prepare('DELETE FROM block_result_mappings WHERE blockID = ?').run(blockID);
-      
-      if (!resultMappings || resultMappings.length === 0) {
-        return true;
-      }
-      
-      // Thêm mappings mới
-      const stmt = db.prepare(`
-        INSERT INTO block_result_mappings (blockID, columnID, variableName, mappingOrder)
-        VALUES (?, ?, ?, ?)
-      `);
-      
+      if (!resultMappings || resultMappings.length === 0) return true;
+      const stmt = db.prepare('INSERT INTO block_result_mappings (blockID, columnID, variableName, mappingOrder) VALUES (?, ?, ?, ?)');
       const transaction = db.transaction(() => {
         resultMappings.forEach((mapping, index) => {
           if (mapping.column && mapping.variableName) {
-            stmt.run(
-              blockID,
-              mapping.column || mapping.columnID || '',
-              mapping.variableName || '',
-              index
-            );
+            stmt.run(blockID, mapping.column || mapping.columnID || '', mapping.variableName || '', index);
           }
         });
       });
-      
       transaction();
-      const savedCount = resultMappings.filter(m => m.column && m.variableName).length;
-      console.log(`✅ Saved ${savedCount} result mappings for block ${blockID}`);
       return true;
-    } catch (error) {
-      console.error('❌ Save block result mappings error:', error.message);
-      return false;
-    }
+    } catch (error) { console.error('❌ Save block result mappings error:', error.message); return false; }
   },
 
   // ========================================
-  // GOOGLE SHEET CONFIGS CRUD
+  // GOOGLE SHEET CONFIGS
   // ========================================
-
-  /**
-   * Lấy danh sách Google Sheet configs của user
-   */
   getGoogleSheetConfigs(userUID) {
     try {
-      const configs = db.prepare(`
-        SELECT * FROM google_sheet_configs 
-        WHERE userUID = ? 
-        ORDER BY updatedAt DESC
-      `).all(userUID);
-      
-      return configs.map(c => ({
-        id: c.configID,
-        name: c.name,
-        scriptURL: c.scriptURL,
-        sheetName: c.sheetName,
-        spreadsheetId: c.spreadsheetId,
-        apiKey: c.apiKey,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt
-      }));
-    } catch (error) {
-      console.error('❌ Get Google Sheet configs error:', error.message);
-      return [];
-    }
+      const configs = db.prepare('SELECT * FROM google_sheet_configs WHERE userUID = ? ORDER BY updatedAt DESC').all(userUID);
+      return configs.map(c => ({ id: c.configID, name: c.name, scriptURL: c.scriptURL, sheetName: c.sheetName, spreadsheetId: c.spreadsheetId, apiKey: c.apiKey, createdAt: c.createdAt, updatedAt: c.updatedAt }));
+    } catch (error) { console.error('❌ Get Google Sheet configs error:', error.message); return []; }
   },
 
-  /**
-   * Lấy một Google Sheet config theo ID
-   */
   getGoogleSheetConfigById(configId) {
     try {
-      const config = db.prepare(`
-        SELECT * FROM google_sheet_configs WHERE configID = ?
-      `).get(configId);
-      
-      if (config) {
-        return {
-          id: config.configID,
-          name: config.name,
-          scriptURL: config.scriptURL,
-          sheetName: config.sheetName,
-          spreadsheetId: config.spreadsheetId,
-          apiKey: config.apiKey,
-          createdAt: config.createdAt,
-          updatedAt: config.updatedAt
-        };
-      }
+      const config = db.prepare('SELECT * FROM google_sheet_configs WHERE configID = ?').get(configId);
+      if (config) return { id: config.configID, name: config.name, scriptURL: config.scriptURL, sheetName: config.sheetName, spreadsheetId: config.spreadsheetId, apiKey: config.apiKey, createdAt: config.createdAt, updatedAt: config.updatedAt };
       return null;
-    } catch (error) {
-      console.error('❌ Get Google Sheet config by ID error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Get Google Sheet config by ID error:', error.message); return null; }
   },
 
-  /**
-   * Lưu Google Sheet config (create hoặc update)
-   */
   saveGoogleSheetConfig(config) {
     try {
       const now = Date.now();
-      
-      // Check if config exists in database
-      let existingConfig = null;
-      if (config.id) {
-        existingConfig = db.prepare(`
-          SELECT configID FROM google_sheet_configs WHERE configID = ? AND userUID = ?
-        `).get(config.id, config.userUID);
-      }
-      
+      let existingConfig = config.id ? db.prepare('SELECT configID FROM google_sheet_configs WHERE configID = ? AND userUID = ?').get(config.id, config.userUID) : null;
       if (existingConfig) {
-        // Update existing record
-        db.prepare(`
-          UPDATE google_sheet_configs 
-          SET name = ?, scriptURL = ?, sheetName = ?, spreadsheetId = ?, apiKey = ?, updatedAt = ?
-          WHERE configID = ? AND userUID = ?
-        `).run(
-          config.name,
-          config.scriptURL,
-          config.sheetName || 'Sheet1',
-          config.spreadsheetId || null,
-          config.apiKey || null,
-          now,
-          config.id,
-          config.userUID
-        );
-        console.log(`✅ Updated Google Sheet config: ${config.name}`);
+        db.prepare('UPDATE google_sheet_configs SET name = ?, scriptURL = ?, sheetName = ?, spreadsheetId = ?, apiKey = ?, updatedAt = ? WHERE configID = ? AND userUID = ?').run(config.name, config.scriptURL, config.sheetName || 'Sheet1', config.spreadsheetId || null, config.apiKey || null, now, config.id, config.userUID);
         return this.getGoogleSheetConfigById(config.id);
       } else {
-        // Create new record
-        const result = db.prepare(`
-          INSERT INTO google_sheet_configs (userUID, name, scriptURL, sheetName, spreadsheetId, apiKey, createdAt, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          config.userUID,
-          config.name,
-          config.scriptURL,
-          config.sheetName || 'Sheet1',
-          config.spreadsheetId || null,
-          config.apiKey || null,
-          now,
-          now
-        );
-        console.log(`✅ Created Google Sheet config: ${config.name} (ID: ${result.lastInsertRowid})`);
+        const result = db.prepare('INSERT INTO google_sheet_configs (userUID, name, scriptURL, sheetName, spreadsheetId, apiKey, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(config.userUID, config.name, config.scriptURL, config.sheetName || 'Sheet1', config.spreadsheetId || null, config.apiKey || null, now, now);
         return this.getGoogleSheetConfigById(result.lastInsertRowid);
       }
-    } catch (error) {
-      console.error('❌ Save Google Sheet config error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Save Google Sheet config error:', error.message); return null; }
   },
 
-  /**
-   * Xóa Google Sheet config
-   */
   deleteGoogleSheetConfig(configId, userUID) {
-    try {
-      const result = db.prepare(`
-        DELETE FROM google_sheet_configs WHERE configID = ? AND userUID = ?
-      `).run(configId, userUID);
-      
-      if (result.changes > 0) {
-        console.log(`✅ Deleted Google Sheet config ID: ${configId}`);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('❌ Delete Google Sheet config error:', error.message);
-      return false;
-    }
+    try { return db.prepare('DELETE FROM google_sheet_configs WHERE configID = ? AND userUID = ?').run(configId, userUID).changes > 0; }
+    catch (error) { console.error('❌ Delete Google Sheet config error:', error.message); return false; }
   },
 
   // ========================================
-  // AI CONFIGS CRUD
+  // AI CONFIGS
   // ========================================
-
-  /**
-   * Lấy danh sách AI configs của user
-   */
   getAIConfigs(userUID) {
     try {
-      const configs = db.prepare(`
-        SELECT * FROM ai_configs 
-        WHERE userUID = ? 
-        ORDER BY isDefault DESC, updatedAt DESC
-      `).all(userUID);
-      
-      return configs.map(c => ({
-        id: c.configID,
-        configID: c.configID,
-        name: c.name,
-        provider: c.provider,
-        model: c.model,
-        apiKey: c.apiKey,
-        endpoint: c.endpoint,
-        temperature: c.temperature,
-        maxTokens: c.maxTokens,
-        systemPrompt: c.systemPrompt,
-        status: c.status,
-        isDefault: c.isDefault === 1,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt
-      }));
-    } catch (error) {
-      console.error('❌ Get AI configs error:', error.message);
-      return [];
-    }
+      const configs = db.prepare('SELECT * FROM ai_configs WHERE userUID = ? ORDER BY isDefault DESC, updatedAt DESC').all(userUID);
+      return configs.map(c => ({ id: c.configID, configID: c.configID, name: c.name, provider: c.provider, model: c.model, apiKey: c.apiKey, endpoint: c.endpoint, temperature: c.temperature, maxTokens: c.maxTokens, systemPrompt: c.systemPrompt, status: c.status, isDefault: c.isDefault === 1, createdAt: c.createdAt, updatedAt: c.updatedAt }));
+    } catch (error) { console.error('❌ Get AI configs error:', error.message); return []; }
   },
 
-  /**
-   * Lấy một AI config theo ID
-   */
   getAIConfigById(configId) {
     try {
-      const config = db.prepare(`
-        SELECT * FROM ai_configs WHERE configID = ?
-      `).get(configId);
-      
-      if (config) {
-        return {
-          id: config.configID,
-          configID: config.configID,
-          name: config.name,
-          provider: config.provider,
-          model: config.model,
-          apiKey: config.apiKey,
-          endpoint: config.endpoint,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-          systemPrompt: config.systemPrompt,
-          status: config.status,
-          isDefault: config.isDefault === 1,
-          createdAt: config.createdAt,
-          updatedAt: config.updatedAt
-        };
-      }
+      const config = db.prepare('SELECT * FROM ai_configs WHERE configID = ?').get(configId);
+      if (config) return { id: config.configID, configID: config.configID, name: config.name, provider: config.provider, model: config.model, apiKey: config.apiKey, endpoint: config.endpoint, temperature: config.temperature, maxTokens: config.maxTokens, systemPrompt: config.systemPrompt, status: config.status, isDefault: config.isDefault === 1, createdAt: config.createdAt, updatedAt: config.updatedAt };
       return null;
-    } catch (error) {
-      console.error('❌ Get AI config by ID error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Get AI config by ID error:', error.message); return null; }
   },
 
-  /**
-   * Lấy default AI config của user
-   */
   getDefaultAIConfig(userUID) {
     try {
-      const config = db.prepare(`
-        SELECT * FROM ai_configs WHERE userUID = ? AND isDefault = 1
-      `).get(userUID);
-      
-      if (config) {
-        return {
-          id: config.configID,
-          configID: config.configID,
-          name: config.name,
-          provider: config.provider,
-          model: config.model,
-          apiKey: config.apiKey,
-          endpoint: config.endpoint,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-          systemPrompt: config.systemPrompt,
-          status: config.status,
-          isDefault: true,
-          createdAt: config.createdAt,
-          updatedAt: config.updatedAt
-        };
-      }
-      
-      // Nếu không có default, lấy config đầu tiên
+      const config = db.prepare('SELECT * FROM ai_configs WHERE userUID = ? AND isDefault = 1').get(userUID);
+      if (config) return this.getAIConfigById(config.configID);
       return this.getAIConfigs(userUID)[0] || null;
-    } catch (error) {
-      console.error('❌ Get default AI config error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Get default AI config error:', error.message); return null; }
   },
 
-  /**
-   * Lưu AI config (create hoặc update)
-   */
   saveAIConfig(config) {
     try {
       const now = Date.now();
-      
-      // Check if config exists in database
-      let existingConfig = null;
-      if (config.id) {
-        existingConfig = db.prepare(`
-          SELECT configID FROM ai_configs WHERE configID = ? AND userUID = ?
-        `).get(config.id, config.userUID);
-      }
-      
+      let existingConfig = config.id ? db.prepare('SELECT configID FROM ai_configs WHERE configID = ? AND userUID = ?').get(config.id, config.userUID) : null;
       if (existingConfig) {
-        // Update existing record
-        db.prepare(`
-          UPDATE ai_configs 
-          SET name = ?, provider = ?, model = ?, apiKey = ?, endpoint = ?, 
-              temperature = ?, maxTokens = ?, systemPrompt = ?, status = ?, updatedAt = ?
-          WHERE configID = ? AND userUID = ?
-        `).run(
-          config.name,
-          config.provider || 'gemini',
-          config.model,
-          config.apiKey,
-          config.endpoint || null,
-          config.temperature ?? 0.7,
-          config.maxTokens || 1024,
-          config.systemPrompt || null,
-          config.status || 'unknown',
-          now,
-          config.id,
-          config.userUID
-        );
-        console.log(`✅ Updated AI config: ${config.name}`);
+        db.prepare('UPDATE ai_configs SET name = ?, provider = ?, model = ?, apiKey = ?, endpoint = ?, temperature = ?, maxTokens = ?, systemPrompt = ?, status = ?, updatedAt = ? WHERE configID = ? AND userUID = ?').run(config.name, config.provider || 'gemini', config.model, config.apiKey, config.endpoint || null, config.temperature ?? 0.7, config.maxTokens || 1024, config.systemPrompt || null, config.status || 'unknown', now, config.id, config.userUID);
         return this.getAIConfigById(config.id);
       } else {
-        // Create new record
-        const result = db.prepare(`
-          INSERT INTO ai_configs (userUID, name, provider, model, apiKey, endpoint, temperature, maxTokens, systemPrompt, status, createdAt, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          config.userUID,
-          config.name,
-          config.provider || 'gemini',
-          config.model,
-          config.apiKey,
-          config.endpoint || null,
-          config.temperature ?? 0.7,
-          config.maxTokens || 1024,
-          config.systemPrompt || null,
-          config.status || 'unknown',
-          now,
-          now
-        );
-        console.log(`✅ Created AI config: ${config.name} (ID: ${result.lastInsertRowid})`);
+        const result = db.prepare('INSERT INTO ai_configs (userUID, name, provider, model, apiKey, endpoint, temperature, maxTokens, systemPrompt, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(config.userUID, config.name, config.provider || 'gemini', config.model, config.apiKey, config.endpoint || null, config.temperature ?? 0.7, config.maxTokens || 1024, config.systemPrompt || null, config.status || 'unknown', now, now);
         return this.getAIConfigById(result.lastInsertRowid);
       }
-    } catch (error) {
-      console.error('❌ Save AI config error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Save AI config error:', error.message); return null; }
   },
 
-  /**
-   * Cập nhật status của AI config
-   */
   updateAIConfigStatus(configId, status) {
-    try {
-      db.prepare(`
-        UPDATE ai_configs SET status = ?, updatedAt = ? WHERE configID = ?
-      `).run(status, Date.now(), configId);
-      return true;
-    } catch (error) {
-      console.error('❌ Update AI config status error:', error.message);
-      return false;
-    }
+    try { db.prepare('UPDATE ai_configs SET status = ?, updatedAt = ? WHERE configID = ?').run(status, Date.now(), configId); return true; }
+    catch (error) { console.error('❌ Update AI config status error:', error.message); return false; }
   },
 
-  /**
-   * Set default AI config
-   */
   setDefaultAIConfig(userUID, configId) {
     try {
-      // Reset all defaults for user
-      db.prepare(`UPDATE ai_configs SET isDefault = 0 WHERE userUID = ?`).run(userUID);
-      
-      // Set new default
-      db.prepare(`UPDATE ai_configs SET isDefault = 1 WHERE configID = ? AND userUID = ?`).run(configId, userUID);
-      
-      console.log(`✅ Set default AI config: ${configId}`);
+      db.prepare('UPDATE ai_configs SET isDefault = 0 WHERE userUID = ?').run(userUID);
+      db.prepare('UPDATE ai_configs SET isDefault = 1 WHERE configID = ? AND userUID = ?').run(configId, userUID);
       return true;
-    } catch (error) {
-      console.error('❌ Set default AI config error:', error.message);
-      return false;
-    }
+    } catch (error) { console.error('❌ Set default AI config error:', error.message); return false; }
   },
 
-  /**
-   * Xóa AI config
-   */
   deleteAIConfig(configId, userUID) {
-    try {
-      const result = db.prepare(`
-        DELETE FROM ai_configs WHERE configID = ? AND userUID = ?
-      `).run(configId, userUID);
-      
-      if (result.changes > 0) {
-        console.log(`✅ Deleted AI config ID: ${configId}`);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('❌ Delete AI config error:', error.message);
-      return false;
-    }
+    try { return db.prepare('DELETE FROM ai_configs WHERE configID = ? AND userUID = ?').run(configId, userUID).changes > 0; }
+    catch (error) { console.error('❌ Delete AI config error:', error.message); return false; }
   },
 
   // ========================================
-  // IMAGES CRUD
+  // IMAGES
   // ========================================
-
-  /**
-   * Lấy danh sách images của user
-   */
   getImages(userUID) {
     try {
-      const images = db.prepare(`
-        SELECT * FROM images 
-        WHERE userUID = ? 
-        ORDER BY createdAt DESC
-      `).all(userUID);
-      
-      return images.map(img => ({
-        id: img.imageID,
-        imageID: img.imageID,
-        name: img.name,
-        variableName: img.variableName,
-        description: img.description,
-        fileName: img.fileName,
-        filePath: img.filePath,
-        fileSize: img.fileSize,
-        mimeType: img.mimeType,
-        width: img.width,
-        height: img.height,
-        createdAt: img.createdAt,
-        updatedAt: img.updatedAt,
-        url: `/api/images/${img.imageID}`
-      }));
-    } catch (error) {
-      console.error('❌ Get images error:', error.message);
-      return [];
-    }
+      const images = db.prepare('SELECT * FROM images WHERE userUID = ? ORDER BY createdAt DESC').all(userUID);
+      return images.map(img => ({ id: img.imageID, imageID: img.imageID, name: img.name, variableName: img.variableName, description: img.description, fileName: img.fileName, filePath: img.filePath, fileSize: img.fileSize, mimeType: img.mimeType, width: img.width, height: img.height, createdAt: img.createdAt, updatedAt: img.updatedAt, url: `/api/images/${img.imageID}` }));
+    } catch (error) { console.error('❌ Get images error:', error.message); return []; }
   },
 
-  /**
-   * Lấy một image theo ID
-   */
   getImageById(imageId) {
     try {
-      const img = db.prepare(`
-        SELECT * FROM images WHERE imageID = ?
-      `).get(imageId);
-      
-      if (img) {
-        return {
-          id: img.imageID,
-          imageID: img.imageID,
-          userUID: img.userUID,
-          name: img.name,
-          variableName: img.variableName,
-          description: img.description,
-          fileName: img.fileName,
-          filePath: img.filePath,
-          fileSize: img.fileSize,
-          mimeType: img.mimeType,
-          width: img.width,
-          height: img.height,
-          createdAt: img.createdAt,
-          updatedAt: img.updatedAt,
-          url: `/api/images/${img.imageID}`
-        };
-      }
+      const img = db.prepare('SELECT * FROM images WHERE imageID = ?').get(imageId);
+      if (img) return { id: img.imageID, imageID: img.imageID, userUID: img.userUID, name: img.name, variableName: img.variableName, description: img.description, fileName: img.fileName, filePath: img.filePath, fileSize: img.fileSize, mimeType: img.mimeType, width: img.width, height: img.height, createdAt: img.createdAt, updatedAt: img.updatedAt, url: `/api/images/${img.imageID}` };
       return null;
-    } catch (error) {
-      console.error('❌ Get image by ID error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Get image by ID error:', error.message); return null; }
   },
 
-  /**
-   * Lấy image theo variableName
-   */
   getImageByVariable(userUID, variableName) {
     try {
-      const img = db.prepare(`
-        SELECT * FROM images WHERE userUID = ? AND variableName = ?
-      `).get(userUID, variableName);
-      
-      if (img) {
-        return {
-          id: img.imageID,
-          imageID: img.imageID,
-          name: img.name,
-          variableName: img.variableName,
-          filePath: img.filePath,
-          mimeType: img.mimeType,
-          url: `/api/images/${img.imageID}`
-        };
-      }
+      const img = db.prepare('SELECT * FROM images WHERE userUID = ? AND variableName = ?').get(userUID, variableName);
+      if (img) return { id: img.imageID, imageID: img.imageID, name: img.name, variableName: img.variableName, filePath: img.filePath, mimeType: img.mimeType, url: `/api/images/${img.imageID}` };
       return null;
-    } catch (error) {
-      console.error('❌ Get image by variable error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Get image by variable error:', error.message); return null; }
   },
 
-  /**
-   * Tạo image mới
-   */
   createImage(userUID, data) {
     try {
       const now = Date.now();
-      
-      const result = db.prepare(`
-        INSERT INTO images (userUID, name, variableName, description, fileName, filePath, fileSize, mimeType, width, height, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        userUID,
-        data.name,
-        data.variableName || null,
-        data.description || null,
-        data.fileName,
-        data.filePath,
-        data.fileSize || 0,
-        data.mimeType || 'image/jpeg',
-        data.width || null,
-        data.height || null,
-        now,
-        now
-      );
-      
-      console.log(`✅ Created image: ${data.name} (ID: ${result.lastInsertRowid})`);
+      const result = db.prepare('INSERT INTO images (userUID, name, variableName, description, fileName, filePath, fileSize, mimeType, width, height, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(userUID, data.name, data.variableName || null, data.description || null, data.fileName, data.filePath, data.fileSize || 0, data.mimeType || 'image/jpeg', data.width || null, data.height || null, now, now);
       return this.getImageById(result.lastInsertRowid);
-    } catch (error) {
-      console.error('❌ Create image error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Create image error:', error.message); return null; }
   },
 
-  /**
-   * Cập nhật image
-   */
   updateImage(imageId, userUID, updates) {
     try {
-      const fields = [];
-      const values = [];
-
+      const fields = [], values = [];
       if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
       if (updates.variableName !== undefined) { fields.push('variableName = ?'); values.push(updates.variableName || null); }
       if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description); }
-
       if (fields.length === 0) return this.getImageById(imageId);
-
-      fields.push('updatedAt = ?');
-      values.push(Date.now());
-      values.push(imageId);
-      values.push(userUID);
-
+      fields.push('updatedAt = ?'); values.push(Date.now()); values.push(imageId); values.push(userUID);
       db.prepare(`UPDATE images SET ${fields.join(', ')} WHERE imageID = ? AND userUID = ?`).run(...values);
-      
-      console.log(`✅ Updated image ID: ${imageId}`);
       return this.getImageById(imageId);
-    } catch (error) {
-      console.error('❌ Update image error:', error.message);
-      return null;
-    }
+    } catch (error) { console.error('❌ Update image error:', error.message); return null; }
   },
 
-  /**
-   * Xóa image
-   */
   deleteImage(imageId, userUID) {
     try {
-      // Get image info first (for file deletion)
       const img = this.getImageById(imageId);
-      
-      const result = db.prepare(`
-        DELETE FROM images WHERE imageID = ? AND userUID = ?
-      `).run(imageId, userUID);
-      
-      if (result.changes > 0) {
-        console.log(`✅ Deleted image ID: ${imageId}`);
-        return { success: true, filePath: img?.filePath };
-      }
+      const result = db.prepare('DELETE FROM images WHERE imageID = ? AND userUID = ?').run(imageId, userUID);
+      if (result.changes > 0) return { success: true, filePath: img?.filePath };
       return { success: false };
-    } catch (error) {
-      console.error('❌ Delete image error:', error.message);
-      return { success: false };
-    }
+    } catch (error) { console.error('❌ Delete image error:', error.message); return { success: false }; }
   },
 
-  /**
-   * Xóa nhiều images
-   */
   deleteImages(imageIds, userUID) {
     try {
-      const images = [];
-      
-      // Get file paths first
-      imageIds.forEach(id => {
-        const img = this.getImageById(id);
-        if (img) images.push(img);
-      });
-      
-      // Delete from DB
+      const images = imageIds.map(id => this.getImageById(id)).filter(Boolean);
       const placeholders = imageIds.map(() => '?').join(',');
-      const result = db.prepare(`
-        DELETE FROM images WHERE imageID IN (${placeholders}) AND userUID = ?
-      `).run(...imageIds, userUID);
-      
-      console.log(`✅ Deleted ${result.changes} images`);
-      return { 
-        success: true, 
-        count: result.changes,
-        filePaths: images.map(img => img.filePath)
-      };
-    } catch (error) {
-      console.error('❌ Delete images error:', error.message);
-      return { success: false, count: 0 };
-    }
+      const result = db.prepare(`DELETE FROM images WHERE imageID IN (${placeholders}) AND userUID = ?`).run(...imageIds, userUID);
+      return { success: true, count: result.changes, filePaths: images.map(img => img.filePath) };
+    } catch (error) { console.error('❌ Delete images error:', error.message); return { success: false, count: 0 }; }
+  },
+
+  // ========================================
+  // FILES
+  // ========================================
+  getFiles(userUID, category = null) {
+    try {
+      let query = 'SELECT * FROM files WHERE userUID = ?';
+      const params = [userUID];
+      if (category) { query += ' AND category = ?'; params.push(category); }
+      query += ' ORDER BY createdAt DESC';
+      const files = db.prepare(query).all(...params);
+      return files.map(f => ({ id: f.fileID, fileID: f.fileID, userUID: f.userUID, name: f.name, variableName: f.variableName, description: f.description, fileName: f.fileName, filePath: f.filePath, fileSize: f.fileSize, mimeType: f.mimeType, fileType: f.fileType, category: f.category, createdAt: f.createdAt, updatedAt: f.updatedAt, url: `/api/files/${f.fileID}` }));
+    } catch (error) { console.error('❌ Get files error:', error.message); return []; }
+  },
+
+  getFileById(fileId) {
+    try {
+      const f = db.prepare('SELECT * FROM files WHERE fileID = ?').get(fileId);
+      if (f) return { id: f.fileID, fileID: f.fileID, userUID: f.userUID, name: f.name, variableName: f.variableName, description: f.description, fileName: f.fileName, filePath: f.filePath, fileSize: f.fileSize, mimeType: f.mimeType, fileType: f.fileType, category: f.category, createdAt: f.createdAt, updatedAt: f.updatedAt, url: `/api/files/${f.fileID}` };
+      return null;
+    } catch (error) { console.error('❌ Get file by ID error:', error.message); return null; }
+  },
+
+  getFileByVariable(userUID, variableName) {
+    try {
+      const f = db.prepare('SELECT * FROM files WHERE userUID = ? AND variableName = ?').get(userUID, variableName);
+      if (f) return { id: f.fileID, fileID: f.fileID, userUID: f.userUID, name: f.name, variableName: f.variableName, description: f.description, fileName: f.fileName, filePath: f.filePath, fileSize: f.fileSize, mimeType: f.mimeType, fileType: f.fileType, category: f.category, createdAt: f.createdAt, updatedAt: f.updatedAt, url: `/api/files/${f.fileID}` };
+      return null;
+    } catch (error) { console.error('❌ Get file by variable error:', error.message); return null; }
+  },
+
+  createFile(userUID, data) {
+    try {
+      const now = Date.now();
+      const result = db.prepare('INSERT INTO files (userUID, name, variableName, description, fileName, filePath, fileSize, mimeType, fileType, category, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(userUID, data.name, data.variableName || null, data.description || null, data.fileName, data.filePath, data.fileSize || 0, data.mimeType || 'application/octet-stream', data.fileType || 'other', data.category || 'document', now, now);
+      return this.getFileById(result.lastInsertRowid);
+    } catch (error) { console.error('❌ Create file error:', error.message); return null; }
+  },
+
+  updateFile(fileId, userUID, updates) {
+    try {
+      const fields = [], values = [];
+      if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+      if (updates.variableName !== undefined) { fields.push('variableName = ?'); values.push(updates.variableName); }
+      if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description); }
+      if (updates.category !== undefined) { fields.push('category = ?'); values.push(updates.category); }
+      if (fields.length === 0) return this.getFileById(fileId);
+      fields.push('updatedAt = ?'); values.push(Date.now()); values.push(fileId); values.push(userUID);
+      db.prepare(`UPDATE files SET ${fields.join(', ')} WHERE fileID = ? AND userUID = ?`).run(...values);
+      return this.getFileById(fileId);
+    } catch (error) { console.error('❌ Update file error:', error.message); return null; }
+  },
+
+  deleteFile(fileId, userUID) {
+    try {
+      const file = this.getFileById(fileId);
+      if (!file) return { success: false };
+      db.prepare('DELETE FROM files WHERE fileID = ? AND userUID = ?').run(fileId, userUID);
+      return { success: true, filePath: file.filePath };
+    } catch (error) { console.error('❌ Delete file error:', error.message); return { success: false }; }
+  },
+
+  deleteFiles(fileIds, userUID) {
+    try {
+      const filePaths = [];
+      for (const id of fileIds) {
+        const file = this.getFileById(id);
+        if (file && file.userUID === userUID) filePaths.push(file.filePath);
+      }
+      const placeholders = fileIds.map(() => '?').join(',');
+      db.prepare(`DELETE FROM files WHERE fileID IN (${placeholders}) AND userUID = ?`).run(...fileIds, userUID);
+      return { success: true, count: filePaths.length, filePaths };
+    } catch (error) { console.error('❌ Delete files error:', error.message); return { success: false, count: 0 }; }
+  },
+
+  // ========================================
+  // FILE TEMPLATES
+  // ========================================
+  getFileTemplates(userUID) {
+    try {
+      const templates = db.prepare('SELECT * FROM file_templates WHERE userUID = ? ORDER BY createdAt DESC').all(userUID);
+      return templates.map(t => ({ id: t.templateID, templateID: t.templateID, userUID: t.userUID, name: t.name, description: t.description, fileName: t.fileName, filePath: t.filePath, fileSize: t.fileSize, mimeType: t.mimeType, fileType: t.fileType, variables: t.variables ? JSON.parse(t.variables) : [], outputFormat: t.outputFormat, isActive: t.isActive === 1, createdAt: t.createdAt, updatedAt: t.updatedAt, url: `/api/templates/${t.templateID}` }));
+    } catch (error) { console.error('❌ Get templates error:', error.message); return []; }
+  },
+
+  getFileTemplateById(templateId) {
+    try {
+      const t = db.prepare('SELECT * FROM file_templates WHERE templateID = ?').get(templateId);
+      if (t) return { id: t.templateID, templateID: t.templateID, userUID: t.userUID, name: t.name, description: t.description, fileName: t.fileName, filePath: t.filePath, fileSize: t.fileSize, mimeType: t.mimeType, fileType: t.fileType, variables: t.variables ? JSON.parse(t.variables) : [], outputFormat: t.outputFormat, isActive: t.isActive === 1, createdAt: t.createdAt, updatedAt: t.updatedAt, url: `/api/templates/${t.templateID}` };
+      return null;
+    } catch (error) { console.error('❌ Get template by ID error:', error.message); return null; }
+  },
+
+  createFileTemplate(userUID, data) {
+    try {
+      const now = Date.now();
+      const result = db.prepare('INSERT INTO file_templates (userUID, name, description, fileName, filePath, fileSize, mimeType, fileType, variables, outputFormat, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(userUID, data.name, data.description || null, data.fileName, data.filePath, data.fileSize || 0, data.mimeType || 'application/octet-stream', data.fileType || 'other', JSON.stringify(data.variables || []), data.outputFormat || 'same', 1, now, now);
+      return this.getFileTemplateById(result.lastInsertRowid);
+    } catch (error) { console.error('❌ Create template error:', error.message); return null; }
+  },
+
+  updateFileTemplate(templateId, userUID, updates) {
+    try {
+      const fields = [], values = [];
+      if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+      if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description); }
+      if (updates.variables !== undefined) { fields.push('variables = ?'); values.push(JSON.stringify(updates.variables)); }
+      if (updates.outputFormat !== undefined) { fields.push('outputFormat = ?'); values.push(updates.outputFormat); }
+      if (updates.isActive !== undefined) { fields.push('isActive = ?'); values.push(updates.isActive ? 1 : 0); }
+      if (fields.length === 0) return this.getFileTemplateById(templateId);
+      fields.push('updatedAt = ?'); values.push(Date.now()); values.push(templateId); values.push(userUID);
+      db.prepare(`UPDATE file_templates SET ${fields.join(', ')} WHERE templateID = ? AND userUID = ?`).run(...values);
+      return this.getFileTemplateById(templateId);
+    } catch (error) { console.error('❌ Update template error:', error.message); return null; }
+  },
+
+  deleteFileTemplate(templateId, userUID) {
+    try {
+      const template = this.getFileTemplateById(templateId);
+      if (!template) return { success: false };
+      db.prepare('DELETE FROM file_templates WHERE templateID = ? AND userUID = ?').run(templateId, userUID);
+      return { success: true, filePath: template.filePath };
+    } catch (error) { console.error('❌ Delete template error:', error.message); return { success: false }; }
   },
 
   // ========================================
   // DATABASE UTILITIES
   // ========================================
-  
-  /**
-   * Lấy database instance (để sử dụng trực tiếp khi cần)
-   */
-  getDB() {
-    return db;
-  },
+  getDB() { return db; },
 
   close() {
     try {

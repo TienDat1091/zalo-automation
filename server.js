@@ -2,9 +2,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+
 const { loginZalo } = require('./loginZalo');
 const { startWebSocketServer, triggerDB } = require('./websocket');
 const { loadFriends } = require('./friends');
+
+
 
 // API state dùng chung
 const apiState = {

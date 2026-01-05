@@ -31,6 +31,7 @@
   window.googleSheetConfigs = []; // Google Sheet configs
   window.aiConfigs = []; // AI configs
   window.uploadedImages = []; // Uploaded images
+  window.uploadedFiles = []; // Uploaded files
 
   // ========================================
   // TOAST NOTIFICATION
@@ -151,6 +152,7 @@
     ws.send(JSON.stringify({ type: 'get_google_sheet_configs' })); // Load Google Sheet configs
     ws.send(JSON.stringify({ type: 'get_ai_configs' })); // Load AI configs
     ws.send(JSON.stringify({ type: 'get_images' })); // Load uploaded images
+    ws.send(JSON.stringify({ type: 'get_files' })); // Load uploaded files
   }
 
   function handleWSMessage(data) {
@@ -173,6 +175,17 @@
         renderFlowCanvas();
         console.log('✅ Loaded trigger:', state.triggerData?.triggerName, '- Blocks:', state.blocks.length);
         break;
+        
+      case 'files_list':
+          window.uploadedFiles = (data.files || []).map(function(f) {
+            var id = f.fileID || f.id;
+            return Object.assign({}, f, { 
+              id: id,
+              url: API_BASE_URL + '/api/files/' + id
+            });
+          });
+          console.log('📁 Loaded', window.uploadedFiles.length, 'files');
+          break;
 
       case 'triggers_list':
         window.allTriggers = data.triggers || [];

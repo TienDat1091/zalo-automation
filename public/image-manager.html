@@ -14,12 +14,8 @@
       padding: 20px;
     }
 
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
+    .container { max-width: 1400px; margin: 0 auto; }
 
-    /* Header */
     .header {
       background: rgba(255,255,255,0.95);
       border-radius: 16px;
@@ -36,35 +32,13 @@
       background: linear-gradient(135deg, #667eea, #764ba2);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      display: flex;
-      align-items: center;
-      gap: 12px;
     }
 
-    .header-stats {
-      display: flex;
-      gap: 24px;
-      font-size: 14px;
-      color: #666;
-    }
+    .header-stats { display: flex; gap: 24px; font-size: 14px; color: #666; }
+    .header-stats .stat { display: flex; align-items: center; gap: 6px; }
+    .header-stats .stat-value { font-weight: 600; color: #333; }
+    .header-actions { display: flex; gap: 12px; }
 
-    .header-stats .stat {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .header-stats .stat-value {
-      font-weight: 600;
-      color: #333;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 12px;
-    }
-
-    /* Buttons */
     .btn {
       padding: 12px 24px;
       border: none;
@@ -82,37 +56,13 @@
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
     }
-
     .btn-primary:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
     }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn-secondary:hover { background: #e0e0e0; }
 
-    .btn-secondary {
-      background: #f0f0f0;
-      color: #333;
-    }
-
-    .btn-secondary:hover {
-      background: #e0e0e0;
-    }
-
-    .btn-success {
-      background: linear-gradient(135deg, #11998e, #38ef7d);
-      color: white;
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, #ff416c, #ff4b2b);
-      color: white;
-    }
-
-    .btn-small {
-      padding: 8px 16px;
-      font-size: 13px;
-    }
-
-    /* Cards */
     .card {
       background: rgba(255,255,255,0.95);
       border-radius: 16px;
@@ -121,17 +71,6 @@
       box-shadow: 0 10px 40px rgba(0,0,0,0.1);
     }
 
-    .card-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: #333;
-    }
-
-    /* Upload Zone */
     .upload-zone {
       border: 3px dashed #ddd;
       border-radius: 16px;
@@ -141,34 +80,24 @@
       cursor: pointer;
       background: #fafafa;
     }
-
     .upload-zone:hover, .upload-zone.dragover {
       border-color: #667eea;
       background: #f0f4ff;
     }
+    .upload-zone .icon { font-size: 64px; margin-bottom: 16px; opacity: 0.6; }
+    .upload-zone h3 { font-size: 18px; color: #333; margin-bottom: 8px; }
+    .upload-zone p { font-size: 14px; color: #888; }
+    .upload-zone input[type="file"] { display: none; }
 
-    .upload-zone .icon {
-      font-size: 64px;
-      margin-bottom: 16px;
-      opacity: 0.6;
+    .upload-note {
+      margin-top: 12px;
+      padding: 12px;
+      background: #e8f5e9;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #2e7d32;
     }
 
-    .upload-zone h3 {
-      font-size: 18px;
-      color: #333;
-      margin-bottom: 8px;
-    }
-
-    .upload-zone p {
-      font-size: 14px;
-      color: #888;
-    }
-
-    .upload-zone input[type="file"] {
-      display: none;
-    }
-
-    /* Image Grid */
     .images-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -183,13 +112,11 @@
       transition: all 0.3s ease;
       position: relative;
     }
-
     .image-card:hover {
       border-color: #667eea;
       box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
       transform: translateY(-4px);
     }
-
     .image-card.selected {
       border-color: #11998e;
       box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.2);
@@ -198,99 +125,52 @@
     .image-card .image-preview {
       width: 100%;
       height: 160px;
-      object-fit: cover;
       background: #f5f5f5;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      cursor: zoom-in;
+      position: relative;
     }
-
     .image-card .image-preview img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      transition: transform 0.3s;
     }
+    .image-card:hover .image-preview img { transform: scale(1.05); }
 
-    .image-card .image-info {
-      padding: 12px;
-    }
-
-    .image-card .image-name {
-      font-weight: 600;
-      font-size: 14px;
-      color: #333;
-      margin-bottom: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .image-card .image-var {
-      font-family: monospace;
-      font-size: 12px;
-      background: #e8f5e9;
-      color: #2e7d32;
-      padding: 2px 8px;
+    .image-card .zoom-hint {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 4px 8px;
       border-radius: 4px;
-      display: inline-block;
-      margin-bottom: 8px;
-    }
-
-    .image-card .image-meta {
       font-size: 11px;
-      color: #888;
+      opacity: 0;
+      transition: opacity 0.2s;
     }
+    .image-card:hover .zoom-hint { opacity: 1; }
 
-    .image-card .image-actions {
-      padding: 8px 12px;
-      border-top: 1px solid #eee;
-      display: flex;
-      gap: 8px;
-    }
-
-    .image-card .image-actions button {
-      flex: 1;
-      padding: 6px;
-      border: none;
-      border-radius: 6px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .image-card .btn-copy {
-      background: #e3f2fd;
-      color: #1976d2;
-    }
-
-    .image-card .btn-copy:hover {
-      background: #bbdefb;
-    }
-
-    .image-card .btn-edit {
-      background: #fff3e0;
-      color: #ef6c00;
-    }
-
-    .image-card .btn-edit:hover {
-      background: #ffe0b2;
-    }
-
-    .image-card .btn-delete {
-      background: #ffebee;
-      color: #c62828;
-    }
-
-    .image-card .btn-delete:hover {
-      background: #ffcdd2;
-    }
-
-    /* Selection checkbox */
-    .image-card .select-checkbox {
+    .image-card .image-dimensions {
       position: absolute;
       top: 8px;
       left: 8px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    .image-card .select-checkbox {
+      position: absolute;
+      top: 8px;
+      right: 8px;
       width: 24px;
       height: 24px;
       background: white;
@@ -302,65 +182,69 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       opacity: 0;
       transition: opacity 0.2s;
+      z-index: 10;
     }
-
     .image-card:hover .select-checkbox,
-    .image-card.selected .select-checkbox {
-      opacity: 1;
-    }
+    .image-card.selected .select-checkbox { opacity: 1; }
+    .image-card.selected .select-checkbox { background: #11998e; color: white; }
 
-    .image-card.selected .select-checkbox {
-      background: #11998e;
-      color: white;
+    .image-card .image-info { padding: 12px; }
+    .image-card .image-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-
-    /* Empty State */
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: #888;
-    }
-
-    .empty-state .icon {
-      font-size: 64px;
-      margin-bottom: 16px;
-      opacity: 0.5;
-    }
-
-    .empty-state h3 {
-      font-size: 18px;
-      color: #666;
+    .image-card .image-var {
+      font-family: monospace;
+      font-size: 12px;
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-block;
       margin-bottom: 8px;
     }
+    .image-card .image-meta { font-size: 11px; color: #888; }
 
-    /* Search & Filter */
-    .toolbar {
+    .image-card .image-actions {
+      padding: 8px 12px;
+      border-top: 1px solid #eee;
       display: flex;
-      gap: 12px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
+      gap: 8px;
     }
-
-    .search-box {
+    .image-card .image-actions button {
       flex: 1;
-      min-width: 250px;
-      position: relative;
+      padding: 6px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
+    .btn-copy { background: #e3f2fd; color: #1976d2; }
+    .btn-copy:hover { background: #bbdefb; }
+    .btn-edit { background: #fff3e0; color: #ef6c00; }
+    .btn-edit:hover { background: #ffe0b2; }
+    .btn-delete { background: #ffebee; color: #c62828; }
+    .btn-delete:hover { background: #ffcdd2; }
 
+    .empty-state { text-align: center; padding: 60px 20px; color: #888; }
+    .empty-state .icon { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+
+    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .search-box { flex: 1; min-width: 250px; position: relative; }
     .search-box input {
       width: 100%;
       padding: 12px 16px 12px 44px;
       border: 2px solid #e5e7eb;
       border-radius: 10px;
       font-size: 14px;
-      transition: all 0.2s;
     }
-
-    .search-box input:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
+    .search-box input:focus { outline: none; border-color: #667eea; }
     .search-box .icon {
       position: absolute;
       left: 14px;
@@ -370,35 +254,9 @@
       opacity: 0.5;
     }
 
-    .view-toggle {
-      display: flex;
-      background: #f0f0f0;
-      border-radius: 10px;
-      padding: 4px;
-    }
-
-    .view-toggle button {
-      padding: 8px 16px;
-      border: none;
-      background: transparent;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
-    }
-
-    .view-toggle button.active {
-      background: white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    /* Modal */
     .modal-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
@@ -408,11 +266,7 @@
       visibility: hidden;
       transition: all 0.3s ease;
     }
-
-    .modal-overlay.active {
-      opacity: 1;
-      visibility: visible;
-    }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
 
     .modal {
       background: white;
@@ -424,10 +278,7 @@
       transform: scale(0.9);
       transition: transform 0.3s ease;
     }
-
-    .modal-overlay.active .modal {
-      transform: scale(1);
-    }
+    .modal-overlay.active .modal { transform: scale(1); }
 
     .modal-header {
       padding: 20px 24px;
@@ -436,34 +287,16 @@
       justify-content: space-between;
       align-items: center;
     }
-
-    .modal-header h2 {
-      font-size: 20px;
-      color: #333;
-    }
-
+    .modal-header h2 { font-size: 20px; color: #333; }
     .modal-close {
-      width: 36px;
-      height: 36px;
+      width: 36px; height: 36px;
       border: none;
       background: #f5f5f5;
       border-radius: 50%;
       cursor: pointer;
       font-size: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
     }
-
-    .modal-close:hover {
-      background: #e0e0e0;
-    }
-
-    .modal-body {
-      padding: 24px;
-    }
-
+    .modal-body { padding: 24px; }
     .modal-footer {
       padding: 16px 24px;
       border-top: 1px solid #eee;
@@ -472,45 +305,17 @@
       gap: 12px;
     }
 
-    /* Form */
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 14px;
-      font-weight: 500;
-      color: #333;
-      margin-bottom: 8px;
-    }
-
-    .form-group label .required {
-      color: #ef4444;
-    }
-
-    .form-input, .form-select, .form-textarea {
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+    .form-input {
       width: 100%;
       padding: 12px 16px;
       border: 2px solid #e5e7eb;
       border-radius: 10px;
       font-size: 14px;
-      transition: all 0.2s;
     }
-
-    .form-input:focus, .form-select:focus, .form-textarea:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .form-hint {
-      font-size: 12px;
-      color: #888;
-      margin-top: 6px;
-    }
-
-    /* Preview in modal */
+    .form-input:focus { outline: none; border-color: #667eea; }
+    .form-hint { font-size: 12px; color: #888; margin-top: 6px; }
     .preview-image {
       width: 100%;
       max-height: 200px;
@@ -520,11 +325,7 @@
       margin-bottom: 16px;
     }
 
-    /* Upload Progress */
-    .upload-progress {
-      margin-top: 20px;
-    }
-
+    .upload-progress { margin-top: 20px; }
     .progress-item {
       background: #f5f5f5;
       border-radius: 8px;
@@ -534,128 +335,141 @@
       align-items: center;
       gap: 12px;
     }
-
-    .progress-item .thumbnail {
-      width: 48px;
-      height: 48px;
-      border-radius: 6px;
-      object-fit: cover;
-    }
-
-    .progress-item .info {
-      flex: 1;
-    }
-
-    .progress-item .name {
-      font-size: 13px;
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-
-    .progress-bar {
-      height: 4px;
-      background: #e0e0e0;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .progress-bar .fill {
-      height: 100%;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      transition: width 0.3s ease;
-    }
-
-    .progress-item .status {
-      font-size: 12px;
-      color: #888;
-    }
-
+    .progress-item .thumbnail { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; }
+    .progress-item .info { flex: 1; }
+    .progress-item .name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .progress-bar { height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden; }
+    .progress-bar .fill { height: 100%; background: linear-gradient(135deg, #667eea, #764ba2); transition: width 0.3s; }
+    .progress-item .status { font-size: 12px; color: #888; }
     .progress-item.success .status { color: #10b981; }
     .progress-item.error .status { color: #ef4444; }
 
-    /* Toast */
-    .toast-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 2000;
-    }
-
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; }
     .toast {
       background: white;
       padding: 16px 24px;
       border-radius: 12px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.2);
       margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
       animation: slideIn 0.3s ease;
       min-width: 300px;
     }
-
     .toast.success { border-left: 4px solid #10b981; }
     .toast.error { border-left: 4px solid #ef4444; }
     .toast.info { border-left: 4px solid #3b82f6; }
-
     @keyframes slideIn {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
     }
 
-    /* Lightbox */
+    /* ========== LIGHTBOX WITH ZOOM ========== */
     .lightbox {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.9);
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.95);
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
       z-index: 3000;
       opacity: 0;
       visibility: hidden;
       transition: all 0.3s ease;
     }
+    .lightbox.active { opacity: 1; visibility: visible; }
 
-    .lightbox.active {
-      opacity: 1;
-      visibility: visible;
+    .lightbox-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: rgba(0,0,0,0.5);
+      color: white;
     }
-
-    .lightbox img {
-      max-width: 90%;
-      max-height: 90%;
-      object-fit: contain;
-      border-radius: 8px;
+    .lightbox-info { display: flex; align-items: center; gap: 20px; font-size: 14px; }
+    .lightbox-info .name {
+      font-weight: 600;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
+    .lightbox-info .dimensions {
+      font-family: monospace;
+      background: rgba(255,255,255,0.2);
+      padding: 4px 12px;
+      border-radius: 4px;
+    }
+    .lightbox-info .size { opacity: 0.8; }
+    .lightbox-controls { display: flex; gap: 8px; }
 
-    .lightbox-close {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 48px;
-      height: 48px;
+    .lightbox-btn {
+      width: 40px; height: 40px;
       background: rgba(255,255,255,0.1);
       border: none;
-      border-radius: 50%;
+      border-radius: 8px;
       color: white;
-      font-size: 24px;
+      font-size: 18px;
       cursor: pointer;
       transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lightbox-btn:hover { background: rgba(255,255,255,0.2); }
+
+    .lightbox-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      cursor: grab;
+    }
+    .lightbox-body.dragging { cursor: grabbing; }
+
+    .lightbox-image-container {
+      position: relative;
+      transform-origin: center center;
+      transition: transform 0.1s ease-out;
+    }
+    .lightbox-image-container img {
+      max-width: none;
+      max-height: none;
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
     }
 
-    .lightbox-close:hover {
-      background: rgba(255,255,255,0.2);
+    .lightbox-footer {
+      padding: 12px 24px;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
     }
+    .zoom-slider { display: flex; align-items: center; gap: 12px; color: white; }
+    .zoom-slider input[type="range"] {
+      width: 200px;
+      height: 4px;
+      -webkit-appearance: none;
+      background: rgba(255,255,255,0.3);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+    .zoom-slider input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      background: white;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .zoom-level { font-family: monospace; min-width: 50px; text-align: center; }
+    .lightbox-hint { color: rgba(255,255,255,0.6); font-size: 12px; }
 
-    /* Connection Badge */
     .connection-badge {
       position: fixed;
-      bottom: 20px;
-      left: 20px;
+      bottom: 20px; left: 20px;
       padding: 8px 16px;
       border-radius: 20px;
       font-size: 12px;
@@ -665,18 +479,9 @@
       gap: 8px;
       z-index: 100;
     }
+    .connection-badge.connected { background: #d1fae5; color: #059669; }
+    .connection-badge.disconnected { background: #fee2e2; color: #dc2626; }
 
-    .connection-badge.connected {
-      background: #d1fae5;
-      color: #059669;
-    }
-
-    .connection-badge.disconnected {
-      background: #fee2e2;
-      color: #dc2626;
-    }
-
-    /* Bulk Actions */
     .bulk-actions {
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
@@ -687,15 +492,7 @@
       gap: 16px;
       margin-bottom: 20px;
     }
-
-    .bulk-actions.active {
-      display: flex;
-    }
-
-    .bulk-actions .count {
-      font-weight: 600;
-    }
-
+    .bulk-actions.active { display: flex; }
     .bulk-actions button {
       padding: 8px 16px;
       border: none;
@@ -704,61 +501,31 @@
       color: white;
       font-size: 13px;
       cursor: pointer;
-      transition: all 0.2s;
     }
 
-    .bulk-actions button:hover {
-      background: rgba(255,255,255,0.3);
-    }
-
-    /* Responsive */
     @media (max-width: 768px) {
-      .header {
-        flex-direction: column;
-        gap: 16px;
-        text-align: center;
-      }
-
-      .header-stats {
-        justify-content: center;
-      }
-
-      .images-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      }
-
-      .toolbar {
-        flex-direction: column;
-      }
+      .header { flex-direction: column; gap: 16px; text-align: center; }
+      .images-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+      .lightbox-info .name { max-width: 150px; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Header -->
     <div class="header">
       <div>
         <h1>🖼️ Image Manager</h1>
         <div class="header-stats">
-          <div class="stat">
-            <span>📷 Tổng ảnh:</span>
-            <span class="stat-value" id="totalImages">0</span>
-          </div>
-          <div class="stat">
-            <span>💾 Dung lượng:</span>
-            <span class="stat-value" id="totalSize">0 KB</span>
-          </div>
+          <div class="stat"><span>📷 Tổng ảnh:</span><span class="stat-value" id="totalImages">0</span></div>
+          <div class="stat"><span>💾 Dung lượng:</span><span class="stat-value" id="totalSize">0 KB</span></div>
         </div>
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary" onclick="refreshImages()">🔄 Làm mới</button>
-        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-          ➕ Tải ảnh lên
-        </button>
+        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">➕ Tải ảnh lên</button>
       </div>
     </div>
 
-    <!-- Upload Zone -->
     <div class="card">
       <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
         <div class="icon">📤</div>
@@ -766,60 +533,26 @@
         <p>Hỗ trợ: JPG, PNG, GIF, WebP (Tối đa 10MB/ảnh)</p>
         <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFileSelect(event)">
       </div>
+      <div class="upload-note">✨ <strong>Chất lượng gốc:</strong> Ảnh được lưu nguyên bản, không nén, không resize.</div>
       <div class="upload-progress" id="uploadProgress"></div>
     </div>
 
-    <!-- Toolbar -->
     <div class="card">
       <div class="toolbar">
         <div class="search-box">
           <span class="icon">🔍</span>
           <input type="text" id="searchInput" placeholder="Tìm kiếm ảnh..." oninput="filterImages()">
         </div>
-        <div class="view-toggle">
-          <button class="active" onclick="setView('grid')">📱 Grid</button>
-          <button onclick="setView('list')">📋 List</button>
-        </div>
       </div>
-
-      <!-- Bulk Actions -->
       <div class="bulk-actions" id="bulkActions">
         <span>Đã chọn: <span class="count" id="selectedCount">0</span> ảnh</span>
         <button onclick="bulkDelete()">🗑️ Xóa</button>
         <button onclick="clearSelection()">✖️ Bỏ chọn</button>
       </div>
-
-      <!-- Images Grid -->
-      <div class="images-grid" id="imagesContainer">
-        <!-- Images will be rendered here -->
-      </div>
-    </div>
-
-    <!-- Usage Guide -->
-    <div class="card">
-      <div class="card-title">💡 Hướng dẫn sử dụng</div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-        <div style="padding: 16px; background: #f0f9ff; border-radius: 12px;">
-          <h4 style="margin-bottom: 8px;">1️⃣ Tải ảnh lên</h4>
-          <p style="font-size: 13px; color: #666;">Kéo thả hoặc click để chọn ảnh từ máy tính. Hỗ trợ upload nhiều ảnh cùng lúc.</p>
-        </div>
-        <div style="padding: 16px; background: #f0fdf4; border-radius: 12px;">
-          <h4 style="margin-bottom: 8px;">2️⃣ Đặt tên biến</h4>
-          <p style="font-size: 13px; color: #666;">Mỗi ảnh có thể đặt tên biến để dễ gọi trong Flow Builder. VD: <code>{img_welcome}</code></p>
-        </div>
-        <div style="padding: 16px; background: #fffbeb; border-radius: 12px;">
-          <h4 style="margin-bottom: 8px;">3️⃣ Sử dụng trong Block</h4>
-          <p style="font-size: 13px; color: #666;">Trong block "Gửi hình ảnh", chọn từ thư viện hoặc nhập tên biến.</p>
-        </div>
-        <div style="padding: 16px; background: #faf5ff; border-radius: 12px;">
-          <h4 style="margin-bottom: 8px;">4️⃣ Copy link</h4>
-          <p style="font-size: 13px; color: #666;">Click nút "📋 Copy" để copy URL ảnh, có thể dùng ở bất kỳ đâu.</p>
-        </div>
-      </div>
+      <div class="images-grid" id="imagesContainer"></div>
     </div>
   </div>
 
-  <!-- Edit Modal -->
   <div class="modal-overlay" id="editModal">
     <div class="modal">
       <div class="modal-header">
@@ -830,7 +563,7 @@
         <input type="hidden" id="editImageId">
         <img class="preview-image" id="editPreview" src="">
         <div class="form-group">
-          <label>Tên ảnh <span class="required">*</span></label>
+          <label>Tên ảnh</label>
           <input type="text" class="form-input" id="editName" placeholder="VD: Ảnh chào mừng">
         </div>
         <div class="form-group">
@@ -840,7 +573,7 @@
         </div>
         <div class="form-group">
           <label>Mô tả</label>
-          <textarea class="form-input" id="editDescription" rows="2" placeholder="Mô tả ngắn về ảnh..."></textarea>
+          <textarea class="form-input" id="editDescription" rows="2" placeholder="Mô tả ngắn..."></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -850,121 +583,99 @@
     </div>
   </div>
 
-  <!-- Lightbox -->
-  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
-    <button class="lightbox-close">×</button>
-    <img id="lightboxImg" src="">
+  <div class="lightbox" id="lightbox">
+    <div class="lightbox-header">
+      <div class="lightbox-info">
+        <span class="name" id="lightboxName">-</span>
+        <span class="dimensions" id="lightboxDimensions">-</span>
+        <span class="size" id="lightboxSize">-</span>
+      </div>
+      <div class="lightbox-controls">
+        <button class="lightbox-btn" onclick="zoomIn()" title="Zoom In (+)">➕</button>
+        <button class="lightbox-btn" onclick="zoomOut()" title="Zoom Out (-)">➖</button>
+        <button class="lightbox-btn" onclick="resetZoom()" title="Reset (0)">🔄</button>
+        <button class="lightbox-btn" onclick="fitToScreen()" title="Fit (F)">⬜</button>
+        <button class="lightbox-btn" onclick="viewOriginal()" title="Original (1)">1:1</button>
+        <button class="lightbox-btn" onclick="closeLightbox()" title="Close (Esc)">✕</button>
+      </div>
+    </div>
+    <div class="lightbox-body" id="lightboxBody">
+      <div class="lightbox-image-container" id="imageContainer">
+        <img id="lightboxImg" src="" draggable="false">
+      </div>
+    </div>
+    <div class="lightbox-footer">
+      <div class="zoom-slider">
+        <span>🔍</span>
+        <input type="range" id="zoomSlider" min="10" max="500" value="100" oninput="setZoom(this.value)">
+        <span class="zoom-level" id="zoomLevel">100%</span>
+      </div>
+      <div class="lightbox-hint">Scroll để zoom • Kéo để di chuyển • Double-click zoom 100%</div>
+    </div>
   </div>
 
-  <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
-
-  <!-- Connection Badge -->
   <div class="connection-badge disconnected" id="connectionBadge">
-    <span>●</span>
-    <span id="connectionText">Đang kết nối...</span>
+    <span>●</span><span id="connectionText">Đang kết nối...</span>
   </div>
 
   <script>
-    // ========================================
-    // API BASE URL - Sử dụng port 3000 cho API
-    // ========================================
     var API_BASE_URL = 'http://' + (location.hostname || 'localhost') + ':3000';
-    
-    // ========================================
-    // GLOBAL STATE
-    // ========================================
     var ws = null;
     var images = [];
     var selectedImages = new Set();
-    var currentView = 'grid';
+    var currentZoom = 100;
+    var panX = 0, panY = 0;
+    var isDragging = false;
+    var dragStartX = 0, dragStartY = 0;
 
-    // ========================================
-    // INIT
-    // ========================================
     document.addEventListener('DOMContentLoaded', function() {
       setupWebSocket();
       setupDragDrop();
+      setupLightboxEvents();
     });
 
-    // ========================================
-    // WEBSOCKET
-    // ========================================
     var WS_PORT = window.WS_PORT || 8080;
-
     function setupWebSocket() {
       try {
-        var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        var hostname = location.hostname || 'localhost';
-        var wsUrl = protocol + '//' + hostname + ':' + WS_PORT;
-        console.log('🔌 Connecting to:', wsUrl);
-        
+        var wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + (location.hostname || 'localhost') + ':' + WS_PORT;
         ws = new WebSocket(wsUrl);
-        
         ws.onopen = function() {
-          console.log('✅ WebSocket connected');
           updateConnectionBadge(true);
           ws.send(JSON.stringify({ type: 'get_images' }));
         };
-        
         ws.onmessage = function(e) {
-          try {
-            var msg = JSON.parse(e.data);
-            handleMessage(msg);
-          } catch (err) {
-            console.error('Parse error:', err);
-          }
+          try { handleMessage(JSON.parse(e.data)); } catch(err) {}
         };
-        
         ws.onclose = function() {
-          console.log('❌ WebSocket disconnected');
           updateConnectionBadge(false);
           setTimeout(setupWebSocket, 3000);
         };
-        
-        ws.onerror = function(err) {
-          console.error('❌ WebSocket error:', err);
-        };
-      } catch (e) {
-        console.error('WebSocket error:', e);
-      }
+      } catch(e) {}
     }
 
     function handleMessage(msg) {
-      switch (msg.type) {
+      switch(msg.type) {
         case 'images_list':
           images = msg.images || [];
           renderImages();
           updateStats();
-          console.log('🖼️ Loaded', images.length, 'images');
           break;
-          
         case 'image_uploaded':
           toast('✅ Đã tải lên: ' + msg.image.name, 'success');
           ws.send(JSON.stringify({ type: 'get_images' }));
           break;
-          
         case 'image_updated':
           toast('✅ Đã cập nhật!', 'success');
           closeModal('editModal');
           ws.send(JSON.stringify({ type: 'get_images' }));
           break;
-          
         case 'image_deleted':
-          toast('🗑️ Đã xóa ảnh', 'success');
-          ws.send(JSON.stringify({ type: 'get_images' }));
-          break;
-          
         case 'images_deleted':
-          toast('🗑️ Đã xóa ' + msg.count + ' ảnh', 'success');
+          toast('🗑️ Đã xóa', 'success');
           clearSelection();
           ws.send(JSON.stringify({ type: 'get_images' }));
           break;
-          
-        case 'upload_progress':
-          updateUploadProgress(msg.fileId, msg.progress, msg.status);
-          break;
-          
         case 'error':
           toast('❌ ' + msg.message, 'error');
           break;
@@ -973,111 +684,51 @@
 
     function updateConnectionBadge(connected) {
       var badge = document.getElementById('connectionBadge');
-      var text = document.getElementById('connectionText');
-      if (connected) {
-        badge.className = 'connection-badge connected';
-        text.textContent = 'Đã kết nối';
-      } else {
-        badge.className = 'connection-badge disconnected';
-        text.textContent = 'Mất kết nối';
-      }
+      badge.className = 'connection-badge ' + (connected ? 'connected' : 'disconnected');
+      document.getElementById('connectionText').textContent = connected ? 'Đã kết nối' : 'Mất kết nối';
     }
 
-    // ========================================
-    // DRAG & DROP
-    // ========================================
     function setupDragDrop() {
       var zone = document.getElementById('uploadZone');
-      
-      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
-        zone.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
+      ['dragenter','dragover','dragleave','drop'].forEach(function(e) {
+        zone.addEventListener(e, function(ev) { ev.preventDefault(); ev.stopPropagation(); });
       });
-      
-      ['dragenter', 'dragover'].forEach(function(eventName) {
-        zone.addEventListener(eventName, function() {
-          zone.classList.add('dragover');
-        }, false);
+      ['dragenter','dragover'].forEach(function(e) {
+        zone.addEventListener(e, function() { zone.classList.add('dragover'); });
       });
-      
-      ['dragleave', 'drop'].forEach(function(eventName) {
-        zone.addEventListener(eventName, function() {
-          zone.classList.remove('dragover');
-        }, false);
+      ['dragleave','drop'].forEach(function(e) {
+        zone.addEventListener(e, function() { zone.classList.remove('dragover'); });
       });
-      
-      zone.addEventListener('drop', handleDrop, false);
-    }
-
-    function preventDefaults(e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    function handleDrop(e) {
-      var files = e.dataTransfer.files;
-      handleFiles(files);
+      zone.addEventListener('drop', function(e) { handleFiles(e.dataTransfer.files); });
     }
 
     function handleFileSelect(e) {
-      var files = e.target.files;
-      handleFiles(files);
-      e.target.value = ''; // Reset input
+      handleFiles(e.target.files);
+      e.target.value = '';
     }
 
-    // ========================================
-    // FILE UPLOAD
-    // ========================================
     function handleFiles(files) {
-      var validFiles = [];
-      var progressContainer = document.getElementById('uploadProgress');
-      progressContainer.innerHTML = '';
-      
+      var progress = document.getElementById('uploadProgress');
+      progress.innerHTML = '';
       for (var i = 0; i < files.length; i++) {
         var file = files[i];
-        
-        // Validate
-        if (!file.type.startsWith('image/')) {
-          toast('❌ ' + file.name + ' không phải ảnh', 'error');
-          continue;
-        }
-        
-        if (file.size > 10 * 1024 * 1024) {
-          toast('❌ ' + file.name + ' quá lớn (>10MB)', 'error');
-          continue;
-        }
-        
-        validFiles.push(file);
-        
-        // Create progress item
-        var fileId = 'file_' + Date.now() + '_' + i;
-        var reader = new FileReader();
-        reader.onload = (function(f, fid) {
-          return function(e) {
-            progressContainer.innerHTML += `
-              <div class="progress-item" id="${fid}">
-                <img class="thumbnail" src="${e.target.result}">
-                <div class="info">
-                  <div class="name">${escapeHtml(f.name)}</div>
-                  <div class="progress-bar"><div class="fill" style="width: 0%"></div></div>
-                </div>
-                <div class="status">Đang tải...</div>
-              </div>
-            `;
-            
-            // Upload file
-            uploadFile(f, fid);
+        if (!file.type.startsWith('image/')) { toast('❌ ' + file.name + ' không phải ảnh', 'error'); continue; }
+        if (file.size > 10*1024*1024) { toast('❌ ' + file.name + ' quá lớn', 'error'); continue; }
+        var fid = 'file_' + Date.now() + '_' + i;
+        (function(f, id) {
+          var tr = new FileReader();
+          tr.onload = function(e) {
+            progress.innerHTML += '<div class="progress-item" id="'+id+'"><img class="thumbnail" src="'+e.target.result+'"><div class="info"><div class="name">'+escapeHtml(f.name)+'</div><div class="progress-bar"><div class="fill" style="width:0%"></div></div></div><div class="status">Đang tải...</div></div>';
+            uploadOriginalFile(f, id);
           };
-        })(file, fileId);
-        reader.readAsDataURL(file);
+          tr.readAsDataURL(f);
+        })(file, fid);
       }
     }
 
-    function uploadFile(file, fileId) {
+    function uploadOriginalFile(file, fileId) {
       var reader = new FileReader();
       reader.onload = function(e) {
-        var base64 = e.target.result;
-        
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({
             type: 'upload_image',
@@ -1085,311 +736,226 @@
             fileName: file.name,
             fileType: file.type,
             fileSize: file.size,
-            data: base64
+            data: e.target.result
           }));
-          
-          // Update progress UI
           updateUploadProgress(fileId, 100, 'success');
         } else {
           updateUploadProgress(fileId, 0, 'error');
-          toast('❌ Mất kết nối server', 'error');
         }
       };
       reader.readAsDataURL(file);
     }
 
-    function updateUploadProgress(fileId, progress, status) {
-      var item = document.getElementById(fileId);
+    function updateUploadProgress(fid, pct, status) {
+      var item = document.getElementById(fid);
       if (!item) return;
-      
-      var fill = item.querySelector('.progress-bar .fill');
-      var statusEl = item.querySelector('.status');
-      
-      fill.style.width = progress + '%';
-      
-      if (status === 'success') {
-        item.classList.add('success');
-        statusEl.textContent = '✅ Hoàn tất';
-        setTimeout(function() { item.remove(); }, 2000);
-      } else if (status === 'error') {
-        item.classList.add('error');
-        statusEl.textContent = '❌ Lỗi';
-      }
+      item.querySelector('.progress-bar .fill').style.width = pct + '%';
+      var st = item.querySelector('.status');
+      if (status === 'success') { item.classList.add('success'); st.textContent = '✅ Hoàn tất'; setTimeout(function(){item.remove();}, 2000); }
+      else if (status === 'error') { item.classList.add('error'); st.textContent = '❌ Lỗi'; }
+      else { st.textContent = pct + '%'; }
     }
 
-    // ========================================
-    // RENDER
-    // ========================================
     function renderImages() {
-      var container = document.getElementById('imagesContainer');
-      var searchTerm = document.getElementById('searchInput').value.toLowerCase();
-      
-      var filtered = images.filter(function(img) {
-        if (!searchTerm) return true;
-        return (img.name || '').toLowerCase().includes(searchTerm) ||
-               (img.variableName || '').toLowerCase().includes(searchTerm);
+      var c = document.getElementById('imagesContainer');
+      var s = document.getElementById('searchInput').value.toLowerCase();
+      var f = images.filter(function(i) {
+        if (!s) return true;
+        return (i.name||'').toLowerCase().includes(s) || (i.variableName||'').toLowerCase().includes(s);
       });
-      
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state" style="grid-column: 1/-1;">
-            <div class="icon">🖼️</div>
-            <h3>${images.length === 0 ? 'Chưa có ảnh nào' : 'Không tìm thấy ảnh'}</h3>
-            <p>${images.length === 0 ? 'Tải ảnh lên để bắt đầu' : 'Thử từ khóa khác'}</p>
-          </div>
-        `;
+      if (f.length === 0) {
+        c.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🖼️</div><h3>'+(images.length===0?'Chưa có ảnh':'Không tìm thấy')+'</h3></div>';
         return;
       }
-
-      container.innerHTML = filtered.map(function(img) {
-        var isSelected = selectedImages.has(img.id);
-        var imgUrl = API_BASE_URL + '/api/images/' + img.id;
-        
-        return `
-          <div class="image-card ${isSelected ? 'selected' : ''}" data-id="${img.id}">
-            <div class="select-checkbox" onclick="toggleSelect(event, ${img.id})">
-              ${isSelected ? '✓' : ''}
-            </div>
-            <div class="image-preview" onclick="openLightbox('${escapeHtml(imgUrl)}')">
-              <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(img.name)}" loading="lazy">
-            </div>
-            <div class="image-info">
-              <div class="image-name">${escapeHtml(img.name)}</div>
-              ${img.variableName ? `<div class="image-var">{${escapeHtml(img.variableName)}}</div>` : ''}
-              <div class="image-meta">
-                ${formatFileSize(img.fileSize)} • ${formatDate(img.createdAt)}
-              </div>
-            </div>
-            <div class="image-actions">
-              <button class="btn-copy" onclick="copyImageUrl(${img.id})">📋 Copy</button>
-              <button class="btn-edit" onclick="editImage(${img.id})">✏️</button>
-              <button class="btn-delete" onclick="deleteImage(${img.id})">🗑️</button>
-            </div>
-          </div>
-        `;
+      c.innerHTML = f.map(function(img) {
+        var sel = selectedImages.has(img.id);
+        var url = API_BASE_URL + '/api/images/' + img.id;
+        var dim = (img.width && img.height) ? img.width + '×' + img.height : '';
+        return '<div class="image-card'+(sel?' selected':'')+'" data-id="'+img.id+'">'+
+          '<div class="select-checkbox" onclick="toggleSelect(event,'+img.id+')">'+(sel?'✓':'')+'</div>'+
+          (dim?'<div class="image-dimensions">'+dim+'</div>':'')+
+          '<div class="image-preview" onclick="openLightbox('+img.id+')">'+
+            '<img src="'+escapeHtml(url)+'" alt="'+escapeHtml(img.name)+'" loading="lazy">'+
+            '<div class="zoom-hint">🔍 Click để zoom</div>'+
+          '</div>'+
+          '<div class="image-info">'+
+            '<div class="image-name">'+escapeHtml(img.name)+'</div>'+
+            (img.variableName?'<div class="image-var">{'+escapeHtml(img.variableName)+'}</div>':'')+
+            '<div class="image-meta">'+formatFileSize(img.fileSize)+' • '+formatDate(img.createdAt)+'</div>'+
+          '</div>'+
+          '<div class="image-actions">'+
+            '<button class="btn-copy" onclick="copyImageUrl('+img.id+')">📋 Copy</button>'+
+            '<button class="btn-edit" onclick="editImage('+img.id+')">✏️</button>'+
+            '<button class="btn-delete" onclick="deleteImage('+img.id+')">🗑️</button>'+
+          '</div>'+
+        '</div>';
       }).join('');
     }
 
     function updateStats() {
       document.getElementById('totalImages').textContent = images.length;
-      
-      var totalSize = images.reduce(function(sum, img) {
-        return sum + (img.fileSize || 0);
-      }, 0);
-      
-      document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+      document.getElementById('totalSize').textContent = formatFileSize(images.reduce(function(s,i){return s+(i.fileSize||0);},0));
     }
+    function filterImages() { renderImages(); }
 
-    function filterImages() {
-      renderImages();
-    }
-
-    function setView(view) {
-      currentView = view;
-      document.querySelectorAll('.view-toggle button').forEach(function(btn) {
-        btn.classList.remove('active');
-      });
-      event.target.classList.add('active');
-      // Could implement list view here
-    }
-
-    // ========================================
-    // SELECTION
-    // ========================================
     function toggleSelect(e, id) {
       e.stopPropagation();
-      
-      if (selectedImages.has(id)) {
-        selectedImages.delete(id);
-      } else {
-        selectedImages.add(id);
-      }
-      
+      selectedImages.has(id) ? selectedImages.delete(id) : selectedImages.add(id);
       renderImages();
       updateBulkActions();
     }
-
     function updateBulkActions() {
-      var bulkEl = document.getElementById('bulkActions');
-      var countEl = document.getElementById('selectedCount');
-      
-      if (selectedImages.size > 0) {
-        bulkEl.classList.add('active');
-        countEl.textContent = selectedImages.size;
-      } else {
-        bulkEl.classList.remove('active');
-      }
+      var b = document.getElementById('bulkActions');
+      b.classList.toggle('active', selectedImages.size > 0);
+      document.getElementById('selectedCount').textContent = selectedImages.size;
     }
-
-    function clearSelection() {
-      selectedImages.clear();
-      renderImages();
-      updateBulkActions();
-    }
-
+    function clearSelection() { selectedImages.clear(); renderImages(); updateBulkActions(); }
     function bulkDelete() {
-      if (selectedImages.size === 0) return;
-      
-      if (!confirm('Xóa ' + selectedImages.size + ' ảnh đã chọn?')) return;
-      
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'delete_images',
-          imageIds: Array.from(selectedImages)
-        }));
-      }
+      if (!selectedImages.size || !confirm('Xóa '+selectedImages.size+' ảnh?')) return;
+      if (ws) ws.send(JSON.stringify({ type:'delete_images', imageIds:Array.from(selectedImages) }));
     }
 
-    // ========================================
-    // CRUD
-    // ========================================
     function editImage(id) {
-      var img = images.find(function(i) { return i.id === id; });
+      var img = images.find(function(i){return i.id===id;});
       if (!img) return;
-      
       document.getElementById('editImageId').value = id;
       document.getElementById('editPreview').src = API_BASE_URL + '/api/images/' + id;
       document.getElementById('editName').value = img.name || '';
       document.getElementById('editVarName').value = img.variableName || '';
       document.getElementById('editDescription').value = img.description || '';
-      
       openModal('editModal');
     }
-
     function saveImageEdit() {
       var id = parseInt(document.getElementById('editImageId').value);
       var name = document.getElementById('editName').value.trim();
       var varName = document.getElementById('editVarName').value.trim();
-      var description = document.getElementById('editDescription').value.trim();
-      
-      if (!name) {
-        toast('❌ Vui lòng nhập tên ảnh', 'error');
-        return;
-      }
-      
-      // Validate variable name
-      if (varName && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(varName)) {
-        toast('❌ Tên biến không hợp lệ (chỉ chữ, số, _)', 'error');
-        return;
-      }
-      
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'update_image',
-          imageId: id,
-          name: name,
-          variableName: varName,
-          description: description
-        }));
-      }
+      if (!name) { toast('❌ Nhập tên ảnh', 'error'); return; }
+      if (ws) ws.send(JSON.stringify({
+        type: 'update_image',
+        imageId: id,
+        name: name,
+        variableName: varName,
+        description: document.getElementById('editDescription').value.trim()
+      }));
     }
-
     function deleteImage(id) {
       if (!confirm('Xóa ảnh này?')) return;
-      
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'delete_image',
-          imageId: id
-        }));
-      }
+      if (ws) ws.send(JSON.stringify({ type:'delete_image', imageId:id }));
+    }
+    function copyImageUrl(id) {
+      navigator.clipboard.writeText(API_BASE_URL + '/api/images/' + id).then(function(){toast('📋 Đã copy!','success');});
+    }
+    function refreshImages() {
+      if (ws) { ws.send(JSON.stringify({ type:'get_images' })); toast('🔄 Đang làm mới...','info'); }
     }
 
-    function copyImageUrl(id) {
-      var img = images.find(function(i) { return i.id === id; });
-      if (!img) return;
-      
-      var url = API_BASE_URL + '/api/images/' + id;
-      
-      navigator.clipboard.writeText(url).then(function() {
-        toast('📋 Đã copy URL!', 'success');
-      }).catch(function() {
-        // Fallback
-        var input = document.createElement('input');
-        input.value = url;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-        toast('📋 Đã copy URL!', 'success');
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    // ========== LIGHTBOX WITH ZOOM ==========
+    function setupLightboxEvents() {
+      var body = document.getElementById('lightboxBody');
+      body.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        setZoom(currentZoom + (e.deltaY > 0 ? -15 : 15));
+      }, { passive: false });
+      body.addEventListener('dblclick', function() {
+        currentZoom === 100 ? setZoom(200) : resetZoom();
+      });
+      body.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        isDragging = true;
+        dragStartX = e.clientX - panX;
+        dragStartY = e.clientY - panY;
+        body.classList.add('dragging');
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        panX = e.clientX - dragStartX;
+        panY = e.clientY - dragStartY;
+        updateTransform();
+      });
+      document.addEventListener('mouseup', function() {
+        isDragging = false;
+        var b = document.getElementById('lightboxBody');
+        if (b) b.classList.remove('dragging');
       });
     }
 
-    function refreshImages() {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'get_images' }));
-        toast('🔄 Đang làm mới...', 'info');
-      }
-    }
-
-    // ========================================
-    // MODAL & LIGHTBOX
-    // ========================================
-    function openModal(id) {
-      document.getElementById(id).classList.add('active');
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.remove('active');
-    }
-
-    function openLightbox(url) {
-      document.getElementById('lightboxImg').src = url;
+    function openLightbox(imageId) {
+      var img = images.find(function(i){return i.id===imageId;});
+      if (!img) return;
+      var url = API_BASE_URL + '/api/images/' + imageId;
+      document.getElementById('lightboxName').textContent = img.name || 'Untitled';
+      document.getElementById('lightboxDimensions').textContent = (img.width && img.height) ? img.width + ' × ' + img.height + ' px' : 'Loading...';
+      document.getElementById('lightboxSize').textContent = formatFileSize(img.fileSize);
+      var limg = document.getElementById('lightboxImg');
+      limg.onload = function() {
+        if (!img.width || !img.height) {
+          document.getElementById('lightboxDimensions').textContent = limg.naturalWidth + ' × ' + limg.naturalHeight + ' px';
+        }
+        fitToScreen();
+      };
+      limg.src = url;
+      currentZoom = 100; panX = 0; panY = 0;
       document.getElementById('lightbox').classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
 
     function closeLightbox() {
       document.getElementById('lightbox').classList.remove('active');
+      document.body.style.overflow = '';
     }
 
-    // ========================================
-    // HELPERS
-    // ========================================
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    function setZoom(v) {
+      currentZoom = Math.min(500, Math.max(10, v));
+      document.getElementById('zoomSlider').value = currentZoom;
+      document.getElementById('zoomLevel').textContent = Math.round(currentZoom) + '%';
+      updateTransform();
+    }
+    function zoomIn() { setZoom(currentZoom + 25); }
+    function zoomOut() { setZoom(currentZoom - 25); }
+    function resetZoom() { currentZoom = 100; panX = 0; panY = 0; setZoom(100); }
+    function fitToScreen() {
+      var img = document.getElementById('lightboxImg');
+      var body = document.getElementById('lightboxBody');
+      if (!img.naturalWidth) return;
+      var scale = Math.min((body.clientWidth-40)/img.naturalWidth, (body.clientHeight-40)/img.naturalHeight, 1) * 100;
+      panX = 0; panY = 0;
+      setZoom(scale);
+    }
+    function viewOriginal() { panX = 0; panY = 0; setZoom(100); }
+    function updateTransform() {
+      document.getElementById('imageContainer').style.transform = 'translate('+panX+'px,'+panY+'px) scale('+(currentZoom/100)+')';
     }
 
-    function formatFileSize(bytes) {
-      if (!bytes) return '0 B';
-      var k = 1024;
-      var sizes = ['B', 'KB', 'MB', 'GB'];
-      var i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    }
-
-    function formatDate(timestamp) {
-      if (!timestamp) return '';
-      var d = new Date(timestamp);
-      return d.toLocaleDateString('vi-VN');
-    }
-
-    function toast(message, type) {
-      type = type || 'info';
-      var container = document.getElementById('toastContainer');
-      var toast = document.createElement('div');
-      toast.className = 'toast ' + type;
-      toast.innerHTML = message;
-      container.appendChild(toast);
-      
-      setTimeout(function() {
-        toast.style.opacity = '0';
-        setTimeout(function() { toast.remove(); }, 300);
-      }, 3000);
-    }
-
-    // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        closeModal('editModal');
-        closeLightbox();
+      var lb = document.getElementById('lightbox').classList.contains('active');
+      if (e.key === 'Escape') { lb ? closeLightbox() : closeModal('editModal'); }
+      if (lb) {
+        if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomIn(); }
+        if (e.key === '-') { e.preventDefault(); zoomOut(); }
+        if (e.key === '0') { e.preventDefault(); resetZoom(); }
+        if (e.key === '1') { e.preventDefault(); viewOriginal(); }
+        if (e.key.toLowerCase() === 'f') { e.preventDefault(); fitToScreen(); }
       }
     });
+
+    function escapeHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+    function formatFileSize(b) {
+      if (!b) return '0 B';
+      var k = 1024, s = ['B','KB','MB','GB'], i = Math.floor(Math.log(b)/Math.log(k));
+      return (b/Math.pow(k,i)).toFixed(1) + ' ' + s[i];
+    }
+    function formatDate(t) { return t ? new Date(t).toLocaleDateString('vi-VN') : ''; }
+    function toast(m, t) {
+      var c = document.getElementById('toastContainer');
+      var d = document.createElement('div');
+      d.className = 'toast ' + (t||'info');
+      d.innerHTML = m;
+      c.appendChild(d);
+      setTimeout(function() { d.style.opacity='0'; setTimeout(function(){d.remove();},300); }, 3000);
+    }
   </script>
 </body>
 </html>

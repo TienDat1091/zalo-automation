@@ -30,6 +30,90 @@ function broadcast(apiState, data) {
 }
 
 // ============================================
+// FILE CONTENT READER - Đọc nội dung file để preview
+// ============================================
+function readFileContentForPreview(filePath, mimeType, fileType) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    return null;
+  }
+  
+  const ext = path.extname(filePath).toLowerCase();
+  
+  // Text files - đọc trực tiếp
+  if (['.txt', '.csv', '.json', '.html', '.xml', '.md', '.js', '.css', '.log'].includes(ext)) {
+    try {
+      return fs.readFileSync(filePath, 'utf-8');
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  // Word document (.docx)
+  if (ext === '.docx') {
+    try {
+      const AdmZip = require('adm-zip');
+      const zip = new AdmZip(filePath);
+      const docXml = zip.readAsText('word/document.xml');
+      
+      // Extract text từ XML
+      const textContent = docXml
+        .replace(/<w:p[^>]*>/g, '\n')
+        .replace(/<w:tab[^>]*>/g, '\t')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+      
+      return textContent || '[Không có nội dung văn bản]';
+    } catch (e) {
+      return '[Không thể đọc file Word: ' + e.message + ']';
+    }
+  }
+  
+  // Excel (.xlsx)
+  if (ext === '.xlsx' || ext === '.xls') {
+    try {
+      const XLSX = require('xlsx');
+      const workbook = XLSX.readFile(filePath);
+      let content = '';
+      
+      workbook.SheetNames.forEach((sheetName, idx) => {
+        if (idx > 0) content += '\n\n';
+        content += '=== Sheet: ' + sheetName + ' ===\n';
+        const sheet = workbook.Sheets[sheetName];
+        content += XLSX.utils.sheet_to_csv(sheet);
+      });
+      
+      return content || '[Không có dữ liệu]';
+    } catch (e) {
+      return '[Không thể đọc file Excel: ' + e.message + ']';
+    }
+  }
+  
+  // PDF
+  if (ext === '.pdf') {
+    return '[File PDF - Vui lòng tải xuống để xem nội dung]';
+  }
+  
+  // Image files
+  if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'].includes(ext)) {
+    return '[File hình ảnh - Vui lòng tải xuống để xem]';
+  }
+  
+  // Archive files
+  if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(ext)) {
+    return '[File nén - Vui lòng tải xuống để xem nội dung]';
+  }
+  
+  // Other binary files
+  return '[File nhị phân - Vui lòng tải xuống để xem]';
+}
+
+// ============================================
 // AI TEST CONNECTION
 // ============================================
 async function testAIConnection(ws, params) {
@@ -1713,28 +1797,43 @@ function startWebSocketServer(apiState) {
               fs.mkdirSync(imagesDir, { recursive: true });
             }
             
-            // Generate unique filename
-            const ext = path.extname(msg.fileName) || '.jpg';
+            // Generate unique filename - giữ nguyên extension gốc
+            const ext = path.extname(msg.fileName) || '.png';
             const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
             const filePath = path.join(imagesDir, uniqueName);
             
-            // Save file
+            // ✅ Lấy width/height của ảnh gốc bằng sharp (nếu có)
+            let width = 0, height = 0;
+            try {
+              const sharp = require('sharp');
+              const metadata = await sharp(buffer).metadata();
+              width = metadata.width || 0;
+              height = metadata.height || 0;
+              console.log(`📐 Image dimensions: ${width}x${height}`);
+            } catch (sharpErr) {
+              console.log('⚠️ Sharp not available, skipping dimension extraction');
+            }
+            
+            // ✅ Lưu file GỐC không nén
             fs.writeFileSync(filePath, buffer);
+            console.log(`💾 Saved original image: ${buffer.length} bytes`);
             
             // Extract name from filename (without extension)
             const baseName = path.basename(msg.fileName, ext);
             
-            // Save to database
+            // Save to database với width/height
             const image = triggerDB.createImage(userUID, {
               name: baseName,
               fileName: msg.fileName,
               filePath: filePath,
-              fileSize: msg.fileSize || buffer.length,
-              mimeType: msg.fileType || 'image/jpeg'
+              fileSize: buffer.length,
+              mimeType: msg.fileType || 'image/png',
+              width: width,
+              height: height
             });
             
             if (image) {
-              console.log(`✅ Created image: ${baseName} (ID: ${image.id})`);
+              console.log(`✅ Created image: ${baseName} (ID: ${image.id}, ${width}x${height})`);
               ws.send(JSON.stringify({ type: 'image_uploaded', image }));
             } else {
               ws.send(JSON.stringify({ type: 'error', message: 'Không thể lưu ảnh' }));
@@ -1810,6 +1909,381 @@ function startWebSocketServer(apiState) {
         }
 
         // ========================================
+        // GET FILES
+        // ========================================
+        else if (msg.type === 'get_files') {
+          const userUID = apiState.currentUser?.uid;
+          console.log('[WS] get_files - userUID:', userUID);
+          
+          let fileList = [];
+          if (userUID) {
+            fileList = triggerDB.getFiles(userUID);
+          } else {
+            try {
+              const stmt = triggerDB.getDB().prepare('SELECT * FROM files ORDER BY createdAt DESC');
+              fileList = stmt.all().map(f => ({
+                id: f.fileID,
+                fileID: f.fileID,
+                name: f.name,
+                variableName: f.variableName,
+                description: f.description,
+                fileName: f.fileName,
+                filePath: f.filePath,
+                fileSize: f.fileSize,
+                mimeType: f.mimeType,
+                fileType: f.fileType,
+                category: f.category,
+                createdAt: f.createdAt,
+                url: `/api/files/${f.fileID}`
+              }));
+            } catch (e) {
+              fileList = [];
+            }
+          }
+          console.log('[WS] Found files:', fileList.length);
+          ws.send(JSON.stringify({ type: 'files_list', files: fileList }));
+        }
+
+        // ========================================
+        // UPLOAD FILE
+        // ========================================
+        else if (msg.type === 'upload_file') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
+            return;
+          }
+          
+          try {
+            // Parse base64 data
+            const base64Match = msg.data.match(/^data:([^;]+);base64,(.+)$/);
+            if (!base64Match) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Invalid file data' }));
+              return;
+            }
+            
+            const mimeType = base64Match[1];
+            const base64Data = base64Match[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            // Create files directory
+            const filesDir = path.join(__dirname, 'data', 'files');
+            if (!fs.existsSync(filesDir)) {
+              fs.mkdirSync(filesDir, { recursive: true });
+            }
+            
+            // Generate unique filename
+            const ext = path.extname(msg.fileName) || getExtFromMime(mimeType);
+            const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+            const filePath = path.join(filesDir, uniqueName);
+            
+            // Save file
+            fs.writeFileSync(filePath, buffer);
+            console.log(`💾 Saved file: ${msg.fileName} (${buffer.length} bytes)`);
+            
+            // Get file type
+            const fileType = getFileTypeFromMime(mimeType);
+            
+            // Save to database
+            const file = triggerDB.createFile(userUID, {
+              name: path.basename(msg.fileName, ext),
+              fileName: msg.fileName,
+              filePath: filePath,
+              fileSize: buffer.length,
+              mimeType: mimeType,
+              fileType: fileType,
+              category: 'document'
+            });
+            
+            if (file) {
+              console.log(`✅ Created file: ${file.name} (ID: ${file.id})`);
+              ws.send(JSON.stringify({ type: 'file_uploaded', file }));
+            } else {
+              ws.send(JSON.stringify({ type: 'error', message: 'Không thể lưu file' }));
+            }
+          } catch (error) {
+            console.error('❌ Upload file error:', error.message);
+            ws.send(JSON.stringify({ type: 'error', message: 'Lỗi upload: ' + error.message }));
+          }
+        }
+
+        // ========================================
+        // UPDATE FILE
+        // ========================================
+        else if (msg.type === 'update_file') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
+            return;
+          }
+          
+          const updated = triggerDB.updateFile(msg.fileId, userUID, {
+            name: msg.name,
+            variableName: msg.variableName,
+            description: msg.description,
+            category: msg.category
+          });
+          
+          if (updated) {
+            console.log(`✅ Updated file: ${msg.fileId}`);
+            ws.send(JSON.stringify({ type: 'file_updated', file: updated }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể cập nhật file' }));
+          }
+        }
+
+        // ========================================
+        // DELETE FILE
+        // ========================================
+        else if (msg.type === 'delete_file') {
+          const userUID = apiState.currentUser?.uid;
+          const result = triggerDB.deleteFile(msg.fileId, userUID);
+          
+          if (result.success) {
+            // Delete from disk
+            if (result.filePath && fs.existsSync(result.filePath)) {
+              try {
+                fs.unlinkSync(result.filePath);
+                console.log(`🗑️ Deleted file: ${result.filePath}`);
+              } catch (e) {
+                console.error('Failed to delete file:', e.message);
+              }
+            }
+            ws.send(JSON.stringify({ type: 'file_deleted', fileId: msg.fileId }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa file' }));
+          }
+        }
+
+        // ========================================
+        // DELETE MULTIPLE FILES
+        // ========================================
+        else if (msg.type === 'delete_files') {
+          const userUID = apiState.currentUser?.uid;
+          const result = triggerDB.deleteFiles(msg.fileIds, userUID);
+          
+          if (result.success) {
+            // Delete files from disk
+            for (const fp of result.filePaths || []) {
+              if (fs.existsSync(fp)) {
+                try { fs.unlinkSync(fp); } catch (e) {}
+              }
+            }
+            ws.send(JSON.stringify({ type: 'files_deleted', count: result.count }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa files' }));
+          }
+        }
+
+        // ========================================
+        // GET FILE TEMPLATES
+        // ========================================
+        else if (msg.type === 'get_file_templates') {
+          const userUID = apiState.currentUser?.uid;
+          console.log('[WS] get_file_templates - userUID:', userUID);
+          
+          let templateList = [];
+          if (userUID) {
+            templateList = triggerDB.getFileTemplates(userUID);
+          }
+          console.log('[WS] Found templates:', templateList.length);
+          ws.send(JSON.stringify({ type: 'file_templates_list', templates: templateList }));
+        }
+
+        // ========================================
+        // CREATE FILE TEMPLATE
+        // ========================================
+        else if (msg.type === 'create_file_template') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
+            return;
+          }
+          
+          try {
+            // Parse base64 data
+            const base64Match = msg.data.match(/^data:([^;]+);base64,(.+)$/);
+            if (!base64Match) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Invalid template file' }));
+              return;
+            }
+            
+            const mimeType = base64Match[1];
+            const base64Data = base64Match[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            // Create templates directory
+            const templatesDir = path.join(__dirname, 'data', 'templates');
+            if (!fs.existsSync(templatesDir)) {
+              fs.mkdirSync(templatesDir, { recursive: true });
+            }
+            
+            // Save template file
+            const ext = path.extname(msg.fileName) || getExtFromMime(mimeType);
+            const uniqueName = `template_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+            const filePath = path.join(templatesDir, uniqueName);
+            
+            fs.writeFileSync(filePath, buffer);
+            console.log(`💾 Saved template file: ${msg.fileName}`);
+            
+            // Create template in database
+            const template = triggerDB.createFileTemplate(userUID, {
+              name: msg.name,
+              description: msg.description,
+              fileName: msg.fileName,
+              filePath: filePath,
+              fileSize: buffer.length,
+              mimeType: mimeType,
+              fileType: getFileTypeFromMime(mimeType),
+              variables: msg.variables || [],
+              outputFormat: msg.outputFormat || 'same'
+            });
+            
+            if (template) {
+              console.log(`✅ Created template: ${template.name} (ID: ${template.id})`);
+              ws.send(JSON.stringify({ type: 'template_created', template }));
+            } else {
+              ws.send(JSON.stringify({ type: 'error', message: 'Không thể tạo template' }));
+            }
+          } catch (error) {
+            console.error('❌ Create template error:', error.message);
+            ws.send(JSON.stringify({ type: 'error', message: 'Lỗi: ' + error.message }));
+          }
+        }
+
+        // ========================================
+        // UPDATE FILE TEMPLATE
+        // ========================================
+        else if (msg.type === 'update_file_template') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
+            return;
+          }
+          
+          const updated = triggerDB.updateFileTemplate(msg.templateId, userUID, {
+            name: msg.name,
+            description: msg.description,
+            variables: msg.variables,
+            outputFormat: msg.outputFormat
+          });
+          
+          if (updated) {
+            console.log(`✅ Updated template: ${msg.templateId}`);
+            ws.send(JSON.stringify({ type: 'template_updated', template: updated }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể cập nhật template' }));
+          }
+        }
+
+        // ========================================
+        // DELETE FILE TEMPLATE
+        // ========================================
+        else if (msg.type === 'delete_file_template') {
+          const userUID = apiState.currentUser?.uid;
+          const result = triggerDB.deleteFileTemplate(msg.templateId, userUID);
+          
+          if (result.success) {
+            if (result.filePath && fs.existsSync(result.filePath)) {
+              try { fs.unlinkSync(result.filePath); } catch (e) {}
+            }
+            ws.send(JSON.stringify({ type: 'template_deleted', templateId: msg.templateId }));
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể xóa template' }));
+          }
+        }
+
+        // ========================================
+        // FILE CONTENT HANDLERS - Đọc nội dung file để preview
+        // ========================================
+        
+        else if (msg.type === 'get_file_content') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'file_content', content: null, error: 'Not logged in' }));
+            return;
+          }
+          
+          try {
+            const fileId = parseInt(msg.fileId);
+            const file = triggerDB.getFileById(fileId);
+            
+            if (!file) {
+              ws.send(JSON.stringify({ type: 'file_content', content: null, error: 'File not found' }));
+              return;
+            }
+            
+            const content = readFileContentForPreview(file.filePath, file.mimeType, file.fileType);
+            ws.send(JSON.stringify({ 
+              type: 'file_content', 
+              content: content,
+              fileType: file.fileType
+            }));
+          } catch (err) {
+            console.error('❌ Get file content error:', err.message);
+            ws.send(JSON.stringify({ type: 'file_content', content: null, error: err.message }));
+          }
+        }
+
+        else if (msg.type === 'get_template_content') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'file_content', content: null, error: 'Not logged in' }));
+            return;
+          }
+          
+          try {
+            const templateId = parseInt(msg.templateId);
+            const template = triggerDB.getFileTemplateById(templateId);
+            
+            if (!template) {
+              ws.send(JSON.stringify({ type: 'file_content', content: null, error: 'Template not found' }));
+              return;
+            }
+            
+            const content = readFileContentForPreview(template.filePath, template.mimeType, template.fileType);
+            ws.send(JSON.stringify({ 
+              type: 'file_content', 
+              content: content,
+              fileType: template.fileType
+            }));
+          } catch (err) {
+            console.error('❌ Get template content error:', err.message);
+            ws.send(JSON.stringify({ type: 'file_content', content: null, error: err.message }));
+          }
+        }
+
+        // Xóa nhiều templates cùng lúc
+        else if (msg.type === 'delete_file_templates') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+          
+          const templateIds = msg.templateIds || [];
+          let deleted = 0;
+          
+          for (const id of templateIds) {
+            try {
+              const template = triggerDB.getFileTemplateById(id);
+              if (template && template.userUID === userUID) {
+                if (template.filePath && fs.existsSync(template.filePath)) {
+                  try { fs.unlinkSync(template.filePath); } catch (e) {}
+                }
+                triggerDB.deleteFileTemplate(id, userUID);
+                deleted++;
+              }
+            } catch (err) {
+              console.error('❌ Delete template error:', err.message);
+            }
+          }
+          
+          console.log(`🗑️ Deleted ${deleted} templates`);
+          ws.send(JSON.stringify({ type: 'templates_deleted', count: deleted }));
+        }
+
+        // ========================================
         // FALLBACK - Unhandled message types
         // ========================================
         else {
@@ -1823,6 +2297,7 @@ function startWebSocketServer(apiState) {
         console.error('❌ WebSocket message error:', err.message);
         console.error(err.stack);
       }
+      
     });
 
     ws.on('close', () => {

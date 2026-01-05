@@ -181,6 +181,9 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           const sourceType = data.sourceType || 'library';
           let imageUrl = '';
           let imagePath = '';
+          let imageWidth = 0;
+          let imageHeight = 0;
+          let imageSize = 0;
           const caption = substituteVariables(data.caption || '', context);
 
           console.log(`    🖼️ Send Image - sourceType: ${sourceType}, imageId: ${data.imageId}`);
@@ -192,8 +195,12 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             if (image) {
               imagePath = image.filePath;
               imageUrl = `http://localhost:3000/api/images/${image.imageID}`;
+              imageWidth = image.width || 0;
+              imageHeight = image.height || 0;
+              imageSize = image.fileSize || 0;
               console.log(`    📚 Library image: ${image.name} (ID: ${image.imageID})`);
               console.log(`    📁 File path: ${imagePath}`);
+              console.log(`    📐 Dimensions: ${imageWidth}x${imageHeight}, Size: ${imageSize} bytes`);
             } else {
               console.log(`    ⚠️ Image not found in library: ID ${data.imageId}`);
               break;
@@ -222,61 +229,71 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           // Gửi ảnh qua Zalo
           const { ThreadType } = require('zca-js');
           const fs = require('fs');
+          const path = require('path');
 
           // Ưu tiên gửi bằng file path nếu có (ảnh từ thư viện)
           if (imagePath && fs.existsSync(imagePath)) {
-            console.log(`    📤 Sending image via file path: ${imagePath}`);
+            // ✅ Quan trọng: Dùng path.resolve() để lấy absolute path đúng format
+            const resolvedPath = path.resolve(imagePath);
+            console.log(`    📤 Sending HD image via resolved path: ${resolvedPath}`);
             
             let sent = false;
             
-            // Cách 1: Gửi với msg + attachments (plural)
+            // ✅ Cách 1: Theo đúng ví dụ zca-js - attachments với msg rỗng
             try {
-              console.log(`    📤 Trying method 1: msg + attachments array...`);
+              console.log(`    📤 Method 1: attachments with empty msg (zca-js style)...`);
               await apiState.api.sendMessage(
                 { 
-                  msg: caption || ' ',  // ✅ Dùng space nếu không có caption
-                  attachments: [imagePath]
+                  msg: "",
+                  attachments: [resolvedPath]
                 }, 
                 senderId, 
                 ThreadType.User
               );
-              console.log(`    ✅ Image sent via method 1 (attachments)!`);
+              console.log(`    ✅ Image sent via method 1!`);
               sent = true;
+              
+              // Gửi caption riêng nếu có
+              if (caption) {
+                await sendMessage(apiState, senderId, caption, userUID);
+              }
             } catch (err1) {
               console.log(`    ⚠️ Method 1 failed: ${err1.message}`);
             }
             
-            // Cách 2: Gửi với attachment (singular)
+            // ✅ Cách 2: Chỉ attachments (không có msg)
             if (!sent) {
               try {
-                console.log(`    📤 Trying method 2: msg + attachment (singular)...`);
+                console.log(`    📤 Method 2: attachments only...`);
                 await apiState.api.sendMessage(
-                  { 
-                    msg: caption || ' ',
-                    attachment: [imagePath]
-                  }, 
+                  { attachments: [resolvedPath] }, 
                   senderId, 
                   ThreadType.User
                 );
-                console.log(`    ✅ Image sent via method 2 (attachment)!`);
+                console.log(`    ✅ Image sent via method 2!`);
                 sent = true;
+                
+                if (caption) {
+                  await sendMessage(apiState, senderId, caption, userUID);
+                }
               } catch (err2) {
                 console.log(`    ⚠️ Method 2 failed: ${err2.message}`);
               }
             }
             
-            // Cách 3: Chỉ gửi file path trong msg
-            if (!sent) {
+            // ✅ Cách 3: attachments với caption trong msg
+            if (!sent && caption) {
               try {
-                console.log(`    📤 Trying method 3: file path only...`);
+                console.log(`    📤 Method 3: attachments with caption...`);
                 await apiState.api.sendMessage(
                   { 
-                    msg: imagePath
+                    msg: caption,
+                    attachments: [resolvedPath]
                   }, 
                   senderId, 
                   ThreadType.User
                 );
-                console.log(`    ✅ Image sent via method 3 (path in msg)!`);
+                console.log(`    ✅ Image sent via method 3!`);
                 sent = true;
               } catch (err3) {
                 console.log(`    ⚠️ Method 3 failed: ${err3.message}`);
@@ -285,7 +302,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             
             // Fallback: Gửi URL kèm caption
             if (!sent) {
-              console.log(`    📤 All methods failed, sending URL as fallback...`);
+              console.log(`    📤 All file methods failed, sending URL as fallback...`);
               const msg = caption ? `${caption}\n🖼️ ${imageUrl}` : `🖼️ ${imageUrl}`;
               await sendMessage(apiState, senderId, msg, userUID);
               console.log(`    ✅ Image URL sent as fallback`);
@@ -306,8 +323,205 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
       }
 
       case 'send-file': {
-        if (data.fileUrl) {
-          await sendMessage(apiState, senderId, `📎 ${data.fileName || 'File'}: ${data.fileUrl}`, userUID);
+        try {
+          if (data.enabled === false) {
+            console.log(`    ⏸️ Send File block disabled`);
+            break;
+          }
+
+          const sourceType = data.sourceType || 'library';
+          let fileUrl = '';
+          let filePath = '';
+          let fileName = data.fileName || '';
+          const caption = substituteVariables(data.caption || '', context);
+
+          console.log(`    📎 Send File - sourceType: ${sourceType}, fileId: ${data.fileId}`);
+
+          // Xác định URL/Path file dựa trên sourceType
+          if (sourceType === 'library' && data.fileId) {
+            // Lấy file từ thư viện (database)
+            const file = triggerDB.getFileById(data.fileId);
+            if (file) {
+              filePath = file.filePath;
+              fileUrl = `http://localhost:3000/api/files/${file.fileID}`;
+              fileName = fileName || file.fileName || file.name;
+              console.log(`    📁 Library file: ${file.name} (ID: ${file.fileID})`);
+              console.log(`    📂 File path: ${filePath}`);
+              console.log(`    📄 File type: ${file.fileType}`);
+            } else {
+              console.log(`    ⚠️ File not found in library: ID ${data.fileId}`);
+              break;
+            }
+          } 
+          else if (sourceType === 'url' && data.fileUrl) {
+            fileUrl = substituteVariables(data.fileUrl, context);
+            console.log(`    🔗 URL file: ${fileUrl}`);
+          }
+          else if (sourceType === 'variable' && data.fileVariable) {
+            // Bước 1: Tìm trong context
+            let varValue = context[data.fileVariable] || '';
+            
+            // Bước 2: Tìm trong variables table
+            if (!varValue) {
+              const dbVar = triggerDB.getVariable(userUID, senderId, data.fileVariable);
+              varValue = dbVar?.variableValue || '';
+            }
+            
+            // Bước 3: Nếu vẫn không có, thử tìm file có variableName trùng
+            if (!varValue) {
+              const fileByVar = triggerDB.getFileByVariable(userUID, data.fileVariable);
+              if (fileByVar) {
+                filePath = fileByVar.filePath;
+                fileUrl = `http://localhost:3000/api/files/${fileByVar.fileID}`;
+                fileName = fileName || fileByVar.fileName || fileByVar.name;
+                console.log(`    📁 Found file by variableName: ${fileByVar.name} (ID: ${fileByVar.fileID})`);
+                console.log(`    📂 File path: ${filePath}`);
+              }
+            } else {
+              // varValue có thể là URL hoặc file ID
+              if (varValue.startsWith('http')) {
+                fileUrl = varValue;
+              } else if (!isNaN(parseInt(varValue))) {
+                // Có thể là file ID
+                const fileById = triggerDB.getFileById(parseInt(varValue));
+                if (fileById) {
+                  filePath = fileById.filePath;
+                  fileUrl = `http://localhost:3000/api/files/${fileById.fileID}`;
+                  fileName = fileName || fileById.fileName || fileById.name;
+                }
+              } else {
+                fileUrl = varValue;
+              }
+            }
+            
+            console.log(`    📝 Variable file: {${data.fileVariable}} = ${fileUrl || filePath || '(not found)'}`);
+          }
+
+          if (!fileUrl && !filePath) {
+            console.log(`    ⚠️ No file source specified`);
+            break;
+          }
+
+          // Gửi file qua Zalo
+          const { ThreadType } = require('zca-js');
+          const fs = require('fs');
+          const path = require('path');
+
+          // Ưu tiên gửi bằng file path nếu có (file từ thư viện)
+          if (filePath && fs.existsSync(filePath)) {
+            // ✅ Quan trọng: Dùng path.resolve() để lấy absolute path đúng format
+            const resolvedPath = path.resolve(filePath);
+            console.log(`    📤 Sending file via resolved path: ${resolvedPath}`);
+            
+            let sent = false;
+            
+            // ✅ Cách 1: Theo đúng ví dụ zca-js - attachments với msg rỗng
+            try {
+              console.log(`    📤 Method 1: attachments with empty msg (zca-js style)...`);
+              await apiState.api.sendMessage(
+                { 
+                  msg: "",
+                  attachments: [resolvedPath]
+                }, 
+                senderId, 
+                ThreadType.User
+              );
+              console.log(`    ✅ File sent via method 1!`);
+              sent = true;
+              
+              // Gửi caption riêng nếu có
+              if (caption) {
+                await sendMessage(apiState, senderId, caption, userUID);
+              }
+            } catch (err1) {
+              console.log(`    ⚠️ Method 1 failed: ${err1.message}`);
+            }
+            
+            // ✅ Cách 2: Chỉ attachments (không có msg)
+            if (!sent) {
+              try {
+                console.log(`    📤 Method 2: attachments only...`);
+                await apiState.api.sendMessage(
+                  { attachments: [resolvedPath] }, 
+                  senderId, 
+                  ThreadType.User
+                );
+                console.log(`    ✅ File sent via method 2!`);
+                sent = true;
+                
+                if (caption) {
+                  await sendMessage(apiState, senderId, caption, userUID);
+                }
+              } catch (err2) {
+                console.log(`    ⚠️ Method 2 failed: ${err2.message}`);
+              }
+            }
+            
+            // ✅ Cách 3: attachments với caption trong msg
+            if (!sent && caption) {
+              try {
+                console.log(`    📤 Method 3: attachments with caption...`);
+                await apiState.api.sendMessage(
+                  { 
+                    msg: caption,
+                    attachments: [resolvedPath]
+                  }, 
+                  senderId, 
+                  ThreadType.User
+                );
+                console.log(`    ✅ File sent via method 3!`);
+                sent = true;
+              } catch (err3) {
+                console.log(`    ⚠️ Method 3 failed: ${err3.message}`);
+              }
+            }
+
+            // ✅ Cách 4: Thử với attachment (singular) thay vì attachments
+            if (!sent) {
+              try {
+                console.log(`    📤 Method 4: attachment singular...`);
+                await apiState.api.sendMessage(
+                  { 
+                    msg: "",
+                    attachment: [resolvedPath]
+                  }, 
+                  senderId, 
+                  ThreadType.User
+                );
+                console.log(`    ✅ File sent via method 4!`);
+                sent = true;
+                
+                if (caption) {
+                  await sendMessage(apiState, senderId, caption, userUID);
+                }
+              } catch (err4) {
+                console.log(`    ⚠️ Method 4 failed: ${err4.message}`);
+              }
+            }
+            
+            // Fallback: Gửi URL download
+            if (!sent) {
+              console.log(`    📤 All methods failed, sending download URL as fallback...`);
+              const downloadUrl = `http://localhost:3000/api/files/${data.fileId}/download`;
+              const msg = caption 
+                ? `${caption}\n📎 ${fileName}: ${downloadUrl}` 
+                : `📎 ${fileName}: ${downloadUrl}`;
+              await sendMessage(apiState, senderId, msg, userUID);
+              console.log(`    ✅ File download URL sent as fallback`);
+            }
+          } 
+          else if (fileUrl) {
+            // Gửi URL file
+            console.log(`    📤 Sending file URL: ${fileUrl}`);
+            const msg = caption 
+              ? `${caption}\n📎 ${fileName || 'File'}: ${fileUrl}` 
+              : `📎 ${fileName || 'File'}: ${fileUrl}`;
+            await sendMessage(apiState, senderId, msg, userUID);
+            console.log(`    ✅ File URL sent!`);
+          }
+
+        } catch (err) {
+          console.error(`    ❌ Send File error: ${err.message}`);
         }
         break;
       }

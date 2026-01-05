@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📁 File Manager</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .header { background: rgba(255,255,255,0.95); border-radius: 16px; padding: 24px 32px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    .header h1 { font-size: 28px; background: linear-gradient(135deg, #11998e, #38ef7d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header-stats { display: flex; gap: 24px; font-size: 14px; color: #666; }
+    .header-stats .stat { display: flex; align-items: center; gap: 6px; }
+    .header-stats .stat-value { font-weight: 600; color: #333; }
+    .btn { padding: 12px 24px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4); }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn-warning { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; }
+    .btn-danger { background: linear-gradient(135deg, #ff416c, #ff4b2b); color: white; }
+    .btn-sm { padding: 8px 16px; font-size: 13px; }
+    .card { background: rgba(255,255,255,0.95); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #eee; padding-bottom: 12px; }
+    .tab { padding: 12px 24px; border: none; background: transparent; font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.2s; color: #666; }
+    .tab:hover { background: #f5f5f5; }
+    .tab.active { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .upload-zone { border: 3px dashed #ddd; border-radius: 16px; padding: 48px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.3s; }
+    .upload-zone:hover, .upload-zone.dragover { border-color: #11998e; background: #f0fff4; }
+    .upload-zone .icon { font-size: 64px; margin-bottom: 16px; opacity: 0.6; }
+    .upload-zone h3 { font-size: 18px; margin-bottom: 8px; }
+    .upload-zone p { font-size: 14px; color: #888; }
+    .upload-zone input { display: none; }
+    .files-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .file-card { background: white; border-radius: 12px; border: 2px solid #eee; overflow: hidden; transition: all 0.3s; position: relative; cursor: pointer; }
+    .file-card:hover { border-color: #11998e; box-shadow: 0 8px 30px rgba(17,153,142,0.2); transform: translateY(-4px); }
+    .file-card.selected { border-color: #f5576c; box-shadow: 0 0 0 3px rgba(245,87,108,0.2); }
+    .file-card.starred { border-color: #ffc107; }
+    .file-card .file-icon { height: 100px; display: flex; align-items: center; justify-content: center; font-size: 48px; background: linear-gradient(135deg, #f5f7fa, #e4e8eb); }
+    .file-card .file-info { padding: 16px; }
+    .file-card .file-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-card .file-var { font-family: monospace; font-size: 12px; background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
+    .file-card .file-meta { font-size: 11px; color: #888; display: flex; gap: 12px; }
+    .file-card .file-type { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase; }
+    .file-card .select-checkbox { position: absolute; top: 8px; left: 8px; width: 24px; height: 24px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); opacity: 0; transition: opacity 0.2s; }
+    .file-card:hover .select-checkbox, .file-card.selected .select-checkbox { opacity: 1; }
+    .file-card.selected .select-checkbox { background: #f5576c; color: white; }
+    .file-card .star-btn { position: absolute; top: 8px; left: 40px; width: 24px; height: 24px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); opacity: 0; transition: opacity 0.2s; border: none; font-size: 14px; }
+    .file-card:hover .star-btn, .file-card.starred .star-btn { opacity: 1; }
+    .file-card.starred .star-btn { background: #ffc107; color: white; }
+    .file-card .file-actions { padding: 8px 12px; border-top: 1px solid #eee; display: flex; gap: 8px; }
+    .file-card .file-actions button { flex: 1; padding: 8px; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+    .btn-edit { background: #fff3e0; color: #ef6c00; }
+    .btn-delete { background: #ffebee; color: #c62828; }
+    .template-card { background: white; border-radius: 12px; border: 2px solid #eee; padding: 20px; transition: all 0.3s; position: relative; }
+    .template-card:hover { border-color: #f093fb; box-shadow: 0 8px 30px rgba(240,147,251,0.2); }
+    .template-card.selected { border-color: #f5576c; box-shadow: 0 0 0 3px rgba(245,87,108,0.2); }
+    .template-card .template-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .template-card .template-name { font-weight: 600; font-size: 16px; }
+    .template-card .template-type { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+    .template-card .template-desc { font-size: 13px; color: #666; margin-bottom: 12px; }
+    .template-card .template-var-name { font-family: monospace; font-size: 12px; background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
+    .template-card .template-vars { background: #f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+    .template-card .template-vars h4 { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .template-card .var-tag { display: inline-block; background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-family: monospace; margin: 2px; }
+    .template-card .template-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .template-card .select-checkbox { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; background: #f5f5f5; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+    .template-card:hover .select-checkbox, .template-card.selected .select-checkbox { opacity: 1; }
+    .template-card.selected .select-checkbox { background: #f5576c; color: white; }
+    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .search-box { flex: 1; min-width: 250px; position: relative; }
+    .search-box input { width: 100%; padding: 12px 16px 12px 44px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; }
+    .search-box input:focus { outline: none; border-color: #11998e; }
+    .search-box .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: 0.5; }
+    .filter-select { padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; min-width: 150px; }
+    .bulk-actions { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; padding: 12px 24px; border-radius: 12px; display: none; align-items: center; gap: 16px; margin-bottom: 20px; }
+    .bulk-actions.active { display: flex; }
+    .bulk-actions button { padding: 8px 16px; border: none; border-radius: 8px; background: rgba(255,255,255,0.2); color: white; cursor: pointer; }
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+    .modal { background: white; border-radius: 16px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; transform: scale(0.9); transition: transform 0.3s; }
+    .modal-overlay.active .modal { transform: scale(1); }
+    .modal-header { padding: 20px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h2 { font-size: 20px; }
+    .modal-close { width: 36px; height: 36px; border: none; background: #f5f5f5; border-radius: 50%; cursor: pointer; font-size: 20px; }
+    .modal-body { padding: 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 12px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+    .form-input, .form-select, .form-textarea { width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; }
+    .form-input:focus, .form-select:focus { outline: none; border-color: #11998e; }
+    .form-hint { font-size: 12px; color: #888; margin-top: 6px; }
+    .var-builder { background: #f9fafb; padding: 16px; border-radius: 12px; margin-top: 16px; }
+    .var-builder h4 { font-size: 14px; margin-bottom: 12px; }
+    .var-list { margin-bottom: 12px; }
+    .var-item { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 8px; padding: 12px; background: white; border-radius: 8px; align-items: center; }
+    .var-item input, .var-item select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+    .var-item .btn-remove { background: #ffebee; color: #c62828; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+    .btn-add-var { background: #e8f5e9; color: #2e7d32; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .preview-content { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px; white-space: pre-wrap; line-height: 1.6; }
+    .preview-info { background: #f5f5f5; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .preview-info .file-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+    .preview-info .file-icon-large { font-size: 48px; }
+    .preview-info .file-details h3 { font-size: 18px; margin-bottom: 4px; }
+    .preview-info .file-details p { font-size: 13px; color: #666; }
+    .preview-info .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .preview-info .info-item { background: white; padding: 12px; border-radius: 8px; }
+    .preview-info .info-item label { font-size: 11px; color: #888; display: block; margin-bottom: 4px; }
+    .preview-info .info-item span { font-size: 14px; font-weight: 500; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #888; }
+    .empty-state .icon { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; }
+    .toast { background: white; padding: 16px 24px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); margin-bottom: 12px; animation: slideIn 0.3s; }
+    .toast.success { border-left: 4px solid #10b981; }
+    .toast.error { border-left: 4px solid #ef4444; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .connection-badge { position: fixed; bottom: 20px; left: 20px; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .connection-badge.connected { background: #d1fae5; color: #059669; }
+    .connection-badge.disconnected { background: #fee2e2; color: #dc2626; }
+    .upload-progress { margin-top: 20px; }
+    .progress-item { background: #f5f5f5; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .progress-item .file-icon-small { font-size: 24px; }
+    .progress-item .info { flex: 1; }
+    .progress-item .name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .progress-bar { height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden; }
+    .progress-bar .fill { height: 100%; background: linear-gradient(135deg, #11998e, #38ef7d); transition: width 0.3s; }
+    .progress-item.success .status { color: #10b981; }
+    .progress-item.error .status { color: #ef4444; }
+    .loading-spinner { text-align: center; padding: 40px; color: #888; }
+    .loading-spinner::after { content: ''; display: inline-block; width: 24px; height: 24px; border: 3px solid #ddd; border-top-color: #11998e; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 12px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 768px) { .header { flex-direction: column; gap: 16px; } .files-grid { grid-template-columns: 1fr; } .var-item { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>📁 File Manager</h1>
+        <div class="header-stats">
+          <div class="stat"><span>📄 Tổng file:</span><span class="stat-value" id="totalFiles">0</span></div>
+          <div class="stat"><span>⭐ Quan trọng:</span><span class="stat-value" id="starredCount">0</span></div>
+          <div class="stat"><span>💾 Dung lượng:</span><span class="stat-value" id="totalSize">0 KB</span></div>
+          <div class="stat"><span>📋 Templates:</span><span class="stat-value" id="totalTemplates">0</span></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-secondary" onclick="refreshData()">🔄 Làm mới</button>
+        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">➕ Tải file lên</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('files')">📄 Files</button>
+        <button class="tab" onclick="switchTab('templates')">📋 File mẫu (Templates)</button>
+      </div>
+      <div class="tab-content active" id="tab-files">
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div class="icon">📤</div>
+          <h3>Kéo thả file vào đây hoặc click để chọn</h3>
+          <p>Hỗ trợ: PDF, Word, Excel, PowerPoint, ZIP... (Tối đa 50MB/file)</p>
+          <input type="file" id="fileInput" multiple onchange="handleFileSelect(event)">
+        </div>
+        <div class="upload-progress" id="uploadProgress"></div>
+        <div class="toolbar" style="margin-top:24px">
+          <div class="search-box">
+            <span class="icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Tìm kiếm file..." oninput="filterFiles()">
+          </div>
+          <select class="filter-select" id="categoryFilter" onchange="filterFiles()">
+            <option value="">Tất cả loại</option>
+            <option value="starred">⭐ Quan trọng</option>
+            <option value="pdf">📄 PDF</option>
+            <option value="word">📝 Word</option>
+            <option value="excel">📊 Excel</option>
+            <option value="powerpoint">📽️ PowerPoint</option>
+            <option value="archive">📦 Archive</option>
+            <option value="other">📎 Khác</option>
+          </select>
+          <button class="btn btn-danger btn-sm" onclick="deleteAllFiles()">🗑️ Xóa tất cả</button>
+        </div>
+        <div class="bulk-actions" id="bulkActions">
+          <span>Đã chọn: <span id="selectedCount">0</span> file</span>
+          <button onclick="bulkStar()">⭐ Đánh dấu</button>
+          <button onclick="bulkDelete()">🗑️ Xóa</button>
+          <button onclick="clearSelection()">✖️ Bỏ chọn</button>
+        </div>
+        <div class="files-grid" id="filesContainer"></div>
+      </div>
+      <div class="tab-content" id="tab-templates">
+        <div style="display:flex;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+          <div>
+            <h3>📋 File mẫu với biến</h3>
+            <p style="font-size:13px;color:#888;margin-top:4px">Tạo file mẫu với biến để tự động điền thông tin</p>
+          </div>
+          <div style="display:flex;gap:12px">
+            <button class="btn btn-danger btn-sm" onclick="deleteAllTemplates()">🗑️ Xóa tất cả</button>
+            <button class="btn btn-warning" onclick="openTemplateModal()">➕ Tạo Template</button>
+          </div>
+        </div>
+        <div class="bulk-actions" id="templateBulkActions">
+          <span>Đã chọn: <span id="selectedTemplateCount">0</span> template</span>
+          <button onclick="bulkDeleteTemplates()">🗑️ Xóa</button>
+          <button onclick="clearTemplateSelection()">✖️ Bỏ chọn</button>
+        </div>
+        <div class="files-grid" id="templatesContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header"><h2>✏️ Chỉnh sửa file</h2><button class="modal-close" onclick="closeModal('editModal')">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="editFileId">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding:16px;background:#f5f5f5;border-radius:12px">
+          <span style="font-size:40px" id="editFileIcon">📄</span>
+          <div><div style="font-weight:600" id="editFileName">file.pdf</div><div style="font-size:12px;color:#888" id="editFileMeta">2.5 MB</div></div>
+        </div>
+        <div class="form-group"><label>Tên hiển thị</label><input class="form-input" id="editName" placeholder="Tên file"></div>
+        <div class="form-group"><label>Tên biến (dùng trong Flow)</label><input class="form-input" id="editVarName" placeholder="VD: hopdong"><div class="form-hint">Sử dụng: <code>{tên_biến}</code></div></div>
+        <div class="form-group"><label>Mô tả</label><textarea class="form-textarea" id="editDescription" rows="2"></textarea></div>
+        <div class="form-group"><label>Danh mục</label><select class="form-select" id="editCategory"><option value="document">📄 Tài liệu</option><option value="contract">📑 Hợp đồng</option><option value="report">📊 Báo cáo</option><option value="form">📋 Biểu mẫu</option><option value="other">📎 Khác</option></select></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('editModal')">Hủy</button><button class="btn btn-primary" onclick="saveFileEdit()">💾 Lưu</button></div>
+    </div>
+  </div>
+
+  <!-- Template Modal -->
+  <div class="modal-overlay" id="templateModal">
+    <div class="modal" style="max-width:750px">
+      <div class="modal-header"><h2 id="templateModalTitle">📋 Tạo Template mới</h2><button class="modal-close" onclick="closeModal('templateModal')">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="templateId">
+        <div class="form-group"><label>Tên template</label><input class="form-input" id="templateName" placeholder="VD: Hợp đồng thuê nhà"></div>
+        <div class="form-group"><label>Tên biến (dùng trong Flow)</label><input class="form-input" id="templateVarName" placeholder="VD: hopdong_thue"><div class="form-hint">Sử dụng trong block "Gửi file từ biến": <code>{tên_biến}</code></div></div>
+        <div class="form-group"><label>Mô tả</label><textarea class="form-textarea" id="templateDescription" rows="2"></textarea></div>
+        <div class="form-group" id="templateUploadGroup">
+          <label>File mẫu</label>
+          <div class="upload-zone" style="padding:24px" onclick="document.getElementById('templateFile').click()">
+            <div class="icon" style="font-size:32px">📄</div><p>Click để chọn file</p>
+            <input type="file" id="templateFile" style="display:none" onchange="handleTemplateFile(event)">
+          </div>
+          <div id="templateFilePreview" style="display:none;margin-top:12px"></div>
+        </div>
+        <div class="var-builder">
+          <h4>📝 Định nghĩa biến trong mẫu</h4>
+          <p style="font-size:12px;color:#888;margin-bottom:12px">Trong file, dùng <code>{tên_biến}</code>. Map với biến từ block Lắng nghe.</p>
+          <div class="var-list" id="varList"></div>
+          <button class="btn-add-var" onclick="addVariable()">➕ Thêm biến</button>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('templateModal')">Hủy</button><button class="btn btn-warning" onclick="saveTemplate()">💾 Lưu</button></div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="modal-overlay" id="previewModal">
+    <div class="modal" style="max-width:800px">
+      <div class="modal-header"><h2>👁️ Xem nội dung</h2><button class="modal-close" onclick="closeModal('previewModal')">×</button></div>
+      <div class="modal-body">
+        <div class="preview-info">
+          <div class="file-header"><span class="file-icon-large" id="previewIcon">📄</span><div class="file-details"><h3 id="previewName">file.pdf</h3><p id="previewFileName">original.pdf</p></div></div>
+          <div class="info-grid">
+            <div class="info-item"><label>Loại</label><span id="previewType">PDF</span></div>
+            <div class="info-item"><label>Kích thước</label><span id="previewSize">2.5 MB</span></div>
+            <div class="info-item"><label>Ngày tạo</label><span id="previewDate">01/01/2024</span></div>
+            <div class="info-item"><label>Tên biến</label><span id="previewVar">-</span></div>
+          </div>
+        </div>
+        <h4 style="margin-bottom:12px">📄 Nội dung:</h4>
+        <div class="preview-content" id="previewContent"><div class="loading-spinner">Đang tải...</div></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('previewModal')">Đóng</button><button class="btn btn-primary" id="previewDownloadBtn" onclick="downloadPreviewFile()">⬇️ Tải xuống</button></div>
+    </div>
+  </div>
+
+  <!-- Generate Modal -->
+  <div class="modal-overlay" id="generateModal">
+    <div class="modal" style="max-width:650px">
+      <div class="modal-header"><h2>📄 Tạo file từ Template</h2><button class="modal-close" onclick="closeModal('generateModal')">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="generateTemplateId">
+        <div class="preview-info" style="margin-bottom:20px">
+          <div class="file-header"><span class="file-icon-large" id="genTemplateIcon">📄</span><div class="file-details"><h3 id="genTemplateName">Template</h3><p id="genTemplateFileName">file.docx</p></div></div>
+        </div>
+        <div style="background:#fff3e0;padding:12px;border-radius:8px;margin-bottom:20px">
+          <strong>💡 Hướng dẫn:</strong><p style="font-size:13px;color:#666;margin-top:4px">Nhập giá trị để thay thế <code>{biến}</code> trong file.</p>
+        </div>
+        <div id="generateVarsList"></div>
+        <div id="noVarsMessage" style="display:none;text-align:center;padding:20px;color:#888"><p>Template không có biến.</p></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('generateModal')">Hủy</button><button class="btn btn-warning" onclick="downloadGeneratedTemplate()">📥 Tạo & Tải xuống</button></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+  <div class="connection-badge disconnected" id="connectionBadge"><span>●</span><span id="connectionText">Đang kết nối...</span></div>
+
+  <script>
+    var API_BASE_URL = 'http://' + (location.hostname || 'localhost') + ':3000';
+    var ws = null, files = [], templates = [], userVariables = [];
+    var selectedFiles = new Set(), selectedTemplates = new Set(), starredFiles = new Set();
+    var templateFileData = null, previewFileId = null, previewTemplateId = null;
+    var FILE_ICONS = { pdf:'📄', word:'📝', excel:'📊', powerpoint:'📽️', text:'📃', csv:'📊', archive:'📦', audio:'🎵', video:'🎬', image:'🖼️', other:'📎' };
+
+    function loadStarredFiles() { try { var s = localStorage.getItem('starredFiles'); if(s) starredFiles = new Set(JSON.parse(s)); } catch(e){} }
+    function saveStarredFiles() { localStorage.setItem('starredFiles', JSON.stringify(Array.from(starredFiles))); }
+
+    document.addEventListener('DOMContentLoaded', function() { loadStarredFiles(); setupWebSocket(); setupDragDrop(); });
+
+    var WS_PORT = window.WS_PORT || 8080;
+    function setupWebSocket() {
+      try {
+        var wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + (location.hostname || 'localhost') + ':' + WS_PORT;
+        ws = new WebSocket(wsUrl);
+        ws.onopen = function() { updateConnectionBadge(true); ws.send(JSON.stringify({type:'get_files'})); ws.send(JSON.stringify({type:'get_file_templates'})); ws.send(JSON.stringify({type:'get_all_variables'})); };
+        ws.onmessage = function(e) { try { handleMessage(JSON.parse(e.data)); } catch(err) { console.error(err); } };
+        ws.onclose = function() { updateConnectionBadge(false); setTimeout(setupWebSocket, 3000); };
+      } catch(e) { console.error(e); }
+    }
+
+    function handleMessage(msg) {
+      switch(msg.type) {
+        case 'files_list': files = msg.files || []; renderFiles(); updateStats(); break;
+        case 'file_templates_list': templates = msg.templates || []; renderTemplates(); updateStats(); break;
+        case 'variables_list': userVariables = msg.variables || []; console.log('📝 Loaded', userVariables.length, 'variables'); break;
+        case 'file_uploaded': toast('✅ Đã tải lên: ' + msg.file.name, 'success'); ws.send(JSON.stringify({type:'get_files'})); break;
+        case 'file_updated': toast('✅ Đã cập nhật!', 'success'); closeModal('editModal'); ws.send(JSON.stringify({type:'get_files'})); break;
+        case 'file_deleted': case 'files_deleted': toast('🗑️ Đã xóa', 'success'); clearSelection(); ws.send(JSON.stringify({type:'get_files'})); break;
+        case 'template_created': case 'template_updated': toast('✅ Đã lưu!', 'success'); closeModal('templateModal'); ws.send(JSON.stringify({type:'get_file_templates'})); break;
+        case 'template_deleted': case 'templates_deleted': toast('🗑️ Đã xóa', 'success'); clearTemplateSelection(); ws.send(JSON.stringify({type:'get_file_templates'})); break;
+        case 'file_content': displayFileContent(msg.content, msg.fileType); break;
+        case 'error': toast('❌ ' + msg.message, 'error'); break;
+      }
+    }
+
+    function updateConnectionBadge(c) { var b = document.getElementById('connectionBadge'); b.className = 'connection-badge ' + (c?'connected':'disconnected'); document.getElementById('connectionText').textContent = c?'Đã kết nối':'Mất kết nối'; }
+    function switchTab(tab) { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); event.target.classList.add('active'); document.getElementById('tab-'+tab).classList.add('active'); }
+    function setupDragDrop() { var z = document.getElementById('uploadZone'); ['dragenter','dragover','dragleave','drop'].forEach(e=>z.addEventListener(e,ev=>{ev.preventDefault();ev.stopPropagation();})); ['dragenter','dragover'].forEach(e=>z.addEventListener(e,()=>z.classList.add('dragover'))); ['dragleave','drop'].forEach(e=>z.addEventListener(e,()=>z.classList.remove('dragover'))); z.addEventListener('drop',e=>handleFiles(e.dataTransfer.files)); }
+    function handleFileSelect(e) { handleFiles(e.target.files); e.target.value = ''; }
+    function handleFiles(fl) { var p = document.getElementById('uploadProgress'); p.innerHTML=''; for(var i=0;i<fl.length;i++){ var f=fl[i]; if(f.size>50*1024*1024){toast('❌ '+f.name+' quá lớn','error');continue;} var fid='file_'+Date.now()+'_'+i; var icon=getFileIcon(f.type); p.innerHTML+='<div class="progress-item" id="'+fid+'"><span class="file-icon-small">'+icon+'</span><div class="info"><div class="name">'+escapeHtml(f.name)+'</div><div class="progress-bar"><div class="fill" style="width:0%"></div></div></div><div class="status">Đang tải...</div></div>'; uploadFile(f,fid); } }
+    function uploadFile(file,fid) { var r=new FileReader(); r.onload=function(e){if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:'upload_file',fileId:fid,fileName:file.name,fileType:file.type,fileSize:file.size,data:e.target.result}));updateUploadProgress(fid,100,'success');}else{updateUploadProgress(fid,0,'error');}}; r.readAsDataURL(file); }
+    function updateUploadProgress(fid,pct,st) { var item=document.getElementById(fid); if(!item)return; item.querySelector('.progress-bar .fill').style.width=pct+'%'; var s=item.querySelector('.status'); if(st==='success'){item.classList.add('success');s.textContent='✅';setTimeout(()=>item.remove(),2000);}else if(st==='error'){item.classList.add('error');s.textContent='❌';} }
+
+    function renderFiles() {
+      var c = document.getElementById('filesContainer');
+      var search = document.getElementById('searchInput').value.toLowerCase();
+      var category = document.getElementById('categoryFilter').value;
+      var filtered = files.filter(f => { if(search && !(f.name||'').toLowerCase().includes(search) && !(f.variableName||'').toLowerCase().includes(search)) return false; if(category==='starred') return starredFiles.has(f.id); if(category && f.fileType !== category) return false; return true; });
+      if(filtered.length === 0) { c.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📁</div><h3>'+(files.length===0?'Chưa có file':'Không tìm thấy')+'</h3></div>'; return; }
+      c.innerHTML = filtered.map(f => { var sel=selectedFiles.has(f.id), starred=starredFiles.has(f.id), icon=FILE_ICONS[f.fileType]||'📎';
+        return '<div class="file-card'+(sel?' selected':'')+(starred?' starred':'')+'" data-id="'+f.id+'" onclick="previewFile('+f.id+')"><div class="select-checkbox" onclick="toggleSelect(event,'+f.id+')">'+(sel?'✓':'')+'</div><button class="star-btn" onclick="toggleStar(event,'+f.id+')">'+(starred?'★':'☆')+'</button><div class="file-type">'+(f.fileType||'file').toUpperCase()+'</div><div class="file-icon">'+icon+'</div><div class="file-info"><div class="file-name">'+escapeHtml(f.name)+'</div>'+(f.variableName?'<div class="file-var">{'+escapeHtml(f.variableName)+'}</div>':'')+'<div class="file-meta"><span>'+formatFileSize(f.fileSize)+'</span><span>'+formatDate(f.createdAt)+'</span></div></div><div class="file-actions"><button class="btn-edit" onclick="editFile(event,'+f.id+')">✏️ Sửa</button><button class="btn-delete" onclick="deleteFile(event,'+f.id+')">🗑️ Xóa</button></div></div>';
+      }).join('');
+    }
+
+    function renderTemplates() {
+      var c = document.getElementById('templatesContainer');
+      if(templates.length === 0) { c.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📋</div><h3>Chưa có template</h3></div>'; return; }
+      c.innerHTML = templates.map(t => { var sel=selectedTemplates.has(t.id), icon=FILE_ICONS[t.fileType]||'📄', vars=t.variables||[];
+        return '<div class="template-card'+(sel?' selected':'')+'" data-id="'+t.id+'"><div class="select-checkbox" onclick="toggleTemplateSelect(event,'+t.id+')">'+(sel?'✓':'')+'</div><div class="template-header"><div class="template-name">'+icon+' '+escapeHtml(t.name)+'</div><span class="template-type">'+(t.fileType||'FILE').toUpperCase()+'</span></div>'+(t.variableName?'<div class="template-var-name">Biến: {'+escapeHtml(t.variableName)+'}</div>':'')+(t.description?'<div class="template-desc">'+escapeHtml(t.description)+'</div>':'')+(vars.length?'<div class="template-vars"><h4>Biến trong file ('+vars.length+')</h4>'+vars.map(v=>'<span class="var-tag">{'+v.name+'}</span>').join('')+'</div>':'')+'<div class="template-actions"><button class="btn btn-primary btn-sm" onclick="openGenerateModal('+t.id+')">📄 Tạo file</button><button class="btn btn-secondary btn-sm" onclick="previewTemplate('+t.id+')">👁️ Xem</button><button class="btn btn-secondary btn-sm" onclick="editTemplate('+t.id+')">✏️</button><button class="btn btn-secondary btn-sm" style="background:#ffebee;color:#c62828" onclick="deleteTemplate('+t.id+')">🗑️</button></div></div>';
+      }).join('');
+    }
+
+    function updateStats() { document.getElementById('totalFiles').textContent = files.length; document.getElementById('starredCount').textContent = files.filter(f=>starredFiles.has(f.id)).length; document.getElementById('totalSize').textContent = formatFileSize(files.reduce((s,f)=>s+(f.fileSize||0),0)); document.getElementById('totalTemplates').textContent = templates.length; }
+    function filterFiles() { renderFiles(); }
+    function toggleSelect(e,id) { e.stopPropagation(); selectedFiles.has(id)?selectedFiles.delete(id):selectedFiles.add(id); renderFiles(); updateBulkActions(); }
+    function toggleStar(e,id) { e.stopPropagation(); starredFiles.has(id)?starredFiles.delete(id):starredFiles.add(id); saveStarredFiles(); renderFiles(); updateStats(); }
+    function bulkStar() { selectedFiles.forEach(id=>starredFiles.add(id)); saveStarredFiles(); toast('⭐ Đã đánh dấu','success'); clearSelection(); }
+    function updateBulkActions() { var b=document.getElementById('bulkActions'); b.classList.toggle('active',selectedFiles.size>0); document.getElementById('selectedCount').textContent=selectedFiles.size; }
+    function clearSelection() { selectedFiles.clear(); renderFiles(); updateBulkActions(); }
+    function bulkDelete() { if(!selectedFiles.size||!confirm('Xóa '+selectedFiles.size+' file?'))return; if(ws)ws.send(JSON.stringify({type:'delete_files',fileIds:Array.from(selectedFiles)})); }
+    function deleteAllFiles() { if(!files.length){toast('Không có file','error');return;} if(!confirm('⚠️ Xóa TẤT CẢ '+files.length+' file?'))return; if(ws)ws.send(JSON.stringify({type:'delete_files',fileIds:files.map(f=>f.id)})); }
+    function toggleTemplateSelect(e,id) { e.stopPropagation(); selectedTemplates.has(id)?selectedTemplates.delete(id):selectedTemplates.add(id); renderTemplates(); updateTemplateBulkActions(); }
+    function updateTemplateBulkActions() { var b=document.getElementById('templateBulkActions'); b.classList.toggle('active',selectedTemplates.size>0); document.getElementById('selectedTemplateCount').textContent=selectedTemplates.size; }
+    function clearTemplateSelection() { selectedTemplates.clear(); renderTemplates(); updateTemplateBulkActions(); }
+    function bulkDeleteTemplates() { if(!selectedTemplates.size||!confirm('Xóa '+selectedTemplates.size+' template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_templates',templateIds:Array.from(selectedTemplates)})); }
+    function deleteAllTemplates() { if(!templates.length){toast('Không có template','error');return;} if(!confirm('⚠️ Xóa TẤT CẢ '+templates.length+' template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_templates',templateIds:templates.map(t=>t.id)})); }
+
+    function previewFile(id) { var f=files.find(x=>x.id===id); if(!f)return; previewFileId=id; previewTemplateId=null;
+      document.getElementById('previewIcon').textContent=FILE_ICONS[f.fileType]||'📎'; document.getElementById('previewName').textContent=f.name; document.getElementById('previewFileName').textContent=f.fileName; document.getElementById('previewType').textContent=(f.fileType||'FILE').toUpperCase(); document.getElementById('previewSize').textContent=formatFileSize(f.fileSize); document.getElementById('previewDate').textContent=formatDate(f.createdAt); document.getElementById('previewVar').textContent=f.variableName?'{'+f.variableName+'}':'-';
+      document.getElementById('previewContent').innerHTML='<div class="loading-spinner">Đang tải...</div>';
+      document.getElementById('previewDownloadBtn').textContent='⬇️ Tải xuống'; document.getElementById('previewDownloadBtn').onclick=downloadPreviewFile;
+      openModal('previewModal'); if(ws)ws.send(JSON.stringify({type:'get_file_content',fileId:id}));
+    }
+    function previewTemplate(id) { var t=templates.find(x=>x.id===id); if(!t)return; previewTemplateId=id; previewFileId=null;
+      document.getElementById('previewIcon').textContent=FILE_ICONS[t.fileType]||'📄'; document.getElementById('previewName').textContent=t.name; document.getElementById('previewFileName').textContent=t.fileName||'template'; document.getElementById('previewType').textContent=(t.fileType||'FILE').toUpperCase(); document.getElementById('previewSize').textContent=formatFileSize(t.fileSize); document.getElementById('previewDate').textContent=formatDate(t.createdAt); document.getElementById('previewVar').textContent=t.variableName?'{'+t.variableName+'}':'-';
+      document.getElementById('previewContent').innerHTML='<div class="loading-spinner">Đang tải...</div>';
+      document.getElementById('previewDownloadBtn').textContent='📄 Tạo file'; document.getElementById('previewDownloadBtn').onclick=function(){openGenerateModal(previewTemplateId);};
+      openModal('previewModal'); if(ws)ws.send(JSON.stringify({type:'get_template_content',templateId:id}));
+    }
+    function displayFileContent(content,fileType) { var el=document.getElementById('previewContent'); if(!content){el.innerHTML='<div style="text-align:center;color:#888;padding:20px">Không thể đọc file này.<br>Vui lòng tải xuống để xem.</div>';return;} el.textContent=content; }
+    function downloadPreviewFile() { if(previewFileId)window.open(API_BASE_URL+'/api/files/'+previewFileId+'/download','_blank'); }
+
+    function editFile(e,id) { e.stopPropagation(); var f=files.find(x=>x.id===id); if(!f)return;
+      document.getElementById('editFileId').value=id; document.getElementById('editFileIcon').textContent=FILE_ICONS[f.fileType]||'📎'; document.getElementById('editFileName').textContent=f.fileName; document.getElementById('editFileMeta').textContent=formatFileSize(f.fileSize)+' • '+(f.fileType||'FILE').toUpperCase();
+      document.getElementById('editName').value=f.name||''; document.getElementById('editVarName').value=f.variableName||''; document.getElementById('editDescription').value=f.description||''; document.getElementById('editCategory').value=f.category||'document'; openModal('editModal');
+    }
+    function saveFileEdit() { var id=parseInt(document.getElementById('editFileId').value), name=document.getElementById('editName').value.trim(); if(!name){toast('❌ Nhập tên','error');return;} if(ws)ws.send(JSON.stringify({type:'update_file',fileId:id,name:name,variableName:document.getElementById('editVarName').value.trim(),description:document.getElementById('editDescription').value.trim(),category:document.getElementById('editCategory').value})); }
+    function deleteFile(e,id) { e.stopPropagation(); if(!confirm('Xóa file này?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file',fileId:id})); }
+
+    function openTemplateModal() { document.getElementById('templateId').value=''; document.getElementById('templateName').value=''; document.getElementById('templateVarName').value=''; document.getElementById('templateDescription').value=''; document.getElementById('varList').innerHTML=''; document.getElementById('templateFilePreview').style.display='none'; document.getElementById('templateUploadGroup').style.display='block'; document.getElementById('templateModalTitle').textContent='📋 Tạo Template mới'; templateFileData=null; openModal('templateModal'); }
+    function handleTemplateFile(e) { var file=e.target.files[0]; if(!file)return; var r=new FileReader(); r.onload=function(ev){ templateFileData={fileName:file.name,fileType:file.type,fileSize:file.size,data:ev.target.result}; var icon=getFileIcon(file.type); document.getElementById('templateFilePreview').innerHTML='<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#e8f5e9;border-radius:8px"><span style="font-size:24px">'+icon+'</span><div><div style="font-weight:600">'+escapeHtml(file.name)+'</div><div style="font-size:12px;color:#888">'+formatFileSize(file.size)+'</div></div><span style="color:#2e7d32">✓</span></div>'; document.getElementById('templateFilePreview').style.display='block'; }; r.readAsDataURL(file); }
+    function addVariable() { var list=document.getElementById('varList'); var varOptions='<option value="">-- Chọn biến từ DB --</option>'; userVariables.forEach(function(v){ var dv=(v.variableValue||'').substring(0,30); varOptions+='<option value="'+escapeHtml(v.variableName)+'">'+escapeHtml(v.variableName)+(dv?' = "'+escapeHtml(dv)+'"':'')+'</option>'; }); list.insertAdjacentHTML('beforeend','<div class="var-item"><input type="text" placeholder="Tên biến trong file" class="var-name"><select class="var-source" onchange="handleVarSourceChange(this)">'+varOptions+'</select><button class="btn-remove" onclick="this.parentElement.remove()">✕</button></div>'); }
+    function handleVarSourceChange(sel) { var item=sel.closest('.var-item'), nameInput=item.querySelector('.var-name'); if(sel.value&&!nameInput.value)nameInput.value=sel.value; }
+    function getVariables() { var vars=[]; document.querySelectorAll('#varList .var-item').forEach(item=>{ var name=item.querySelector('.var-name').value.trim(); if(name){ var src=item.querySelector('.var-source'); vars.push({name:name,source:src.value?'variable':'manual',value:src.value||'',type:'text'}); } }); return vars; }
+    function saveTemplate() { var name=document.getElementById('templateName').value.trim(); if(!name){toast('❌ Nhập tên','error');return;} var id=document.getElementById('templateId').value; if(!id&&!templateFileData){toast('❌ Chọn file mẫu','error');return;} var data={type:id?'update_file_template':'create_file_template',name:name,variableName:document.getElementById('templateVarName').value.trim(),description:document.getElementById('templateDescription').value.trim(),variables:getVariables()}; if(id)data.templateId=parseInt(id); if(templateFileData)Object.assign(data,templateFileData); if(ws)ws.send(JSON.stringify(data)); }
+    function editTemplate(id) { var t=templates.find(x=>x.id===id); if(!t)return; document.getElementById('templateId').value=id; document.getElementById('templateName').value=t.name; document.getElementById('templateVarName').value=t.variableName||''; document.getElementById('templateDescription').value=t.description||''; document.getElementById('templateUploadGroup').style.display='none'; document.getElementById('templateModalTitle').textContent='✏️ Sửa Template';
+      var list=document.getElementById('varList'); list.innerHTML=''; var varOptions='<option value="">-- Chọn biến --</option>'; userVariables.forEach(function(v){varOptions+='<option value="'+escapeHtml(v.variableName)+'">'+escapeHtml(v.variableName)+'</option>';}); (t.variables||[]).forEach(v=>{ var so=varOptions.replace('value="'+escapeHtml(v.value)+'"','value="'+escapeHtml(v.value)+'" selected'); list.innerHTML+='<div class="var-item"><input type="text" placeholder="Tên biến" class="var-name" value="'+escapeHtml(v.name)+'"><select class="var-source" onchange="handleVarSourceChange(this)">'+so+'</select><button class="btn-remove" onclick="this.parentElement.remove()">✕</button></div>'; }); templateFileData=null; openModal('templateModal');
+    }
+    function deleteTemplate(id) { if(!confirm('Xóa template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_template',templateId:id})); }
+
+    function openGenerateModal(id) { var t=templates.find(x=>x.id===id); if(!t)return; document.getElementById('generateTemplateId').value=id;
+      document.getElementById('genTemplateIcon').textContent=FILE_ICONS[t.fileType]||'📄'; document.getElementById('genTemplateName').textContent=t.name; document.getElementById('genTemplateFileName').textContent=t.fileName||'template';
+      var vars=t.variables||[], listEl=document.getElementById('generateVarsList'), noVarsEl=document.getElementById('noVarsMessage');
+      if(vars.length===0){listEl.innerHTML='';noVarsEl.style.display='block';}else{ noVarsEl.style.display='none';
+        listEl.innerHTML=vars.map((v,idx)=>{ var dv=''; if(v.source==='variable'&&v.value){var dbVar=userVariables.find(uv=>uv.variableName===v.value);if(dbVar)dv=dbVar.variableValue||'';}else if(v.value)dv=v.value;
+          var src=v.source==='variable'&&v.value?'<span style="font-size:11px;color:#888;margin-left:8px">← {'+escapeHtml(v.value)+'}</span>':'';
+          return '<div class="form-group" style="margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px"><code style="background:#e3f2fd;padding:2px 8px;border-radius:4px">{'+escapeHtml(v.name)+'}</code>'+src+'</label><input class="form-input gen-var-input" data-var="'+escapeHtml(v.name)+'" value="'+escapeHtml(dv)+'" placeholder="Giá trị"></div>';
+        }).join('');
+      } openModal('generateModal');
+    }
+    function downloadGeneratedTemplate() { var tid=document.getElementById('generateTemplateId').value; if(!tid)return; var vars={}; document.querySelectorAll('#generateVarsList .gen-var-input').forEach(inp=>{vars[inp.getAttribute('data-var')]=inp.value;}); var params=new URLSearchParams(); Object.keys(vars).forEach(k=>{if(vars[k])params.append(k,vars[k]);}); var url=API_BASE_URL+'/api/templates/'+tid+'/generate'; if(params.toString())url+='?'+params.toString(); window.open(url,'_blank'); toast('📄 Đang tạo...','info'); closeModal('generateModal'); }
+
+    function refreshData() { if(ws){ws.send(JSON.stringify({type:'get_files'}));ws.send(JSON.stringify({type:'get_file_templates'}));ws.send(JSON.stringify({type:'get_all_variables'}));toast('🔄 Đang làm mới...','info');} }
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function getFileIcon(m) { if(!m)return'📎'; if(m.includes('pdf'))return'📄'; if(m.includes('word')||m.includes('document'))return'📝'; if(m.includes('excel')||m.includes('spreadsheet')||m.includes('sheet'))return'📊'; if(m.includes('powerpoint')||m.includes('presentation'))return'📽️'; if(m.includes('zip')||m.includes('rar')||m.includes('7z'))return'📦'; if(m.startsWith('audio/'))return'🎵'; if(m.startsWith('video/'))return'🎬'; if(m.startsWith('image/'))return'🖼️'; return'📎'; }
+    function escapeHtml(s) { return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''; }
+    function formatFileSize(b) { if(!b)return'0 B'; var k=1024,s=['B','KB','MB','GB'],i=Math.floor(Math.log(b)/Math.log(k)); return(b/Math.pow(k,i)).toFixed(1)+' '+s[i]; }
+    function formatDate(t) { return t?new Date(t).toLocaleDateString('vi-VN'):''; }
+    function toast(m,t) { var c=document.getElementById('toastContainer'),d=document.createElement('div'); d.className='toast '+(t||'info'); d.innerHTML=m; c.appendChild(d); setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),300);},3000); }
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal('editModal');closeModal('templateModal');closeModal('previewModal');closeModal('generateModal');}});
+  </script>
+</body>
+</html>

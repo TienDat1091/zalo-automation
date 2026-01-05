@@ -12,44 +12,124 @@ const path = require('path');
 let sharp;
 try {
   sharp = require('sharp');
-  console.log('✅ Sharp loaded - Image sending enabled');
+  console.log('✅ Sharp loaded - HD Image sending enabled');
 } catch (e) {
   console.warn('⚠️ Sharp not installed - Run: npm install sharp');
-  console.warn('   Image sending via file path will not work!');
+  console.warn('   Image quality may be reduced!');
 }
 
 async function imageMetadataGetter(filePath) {
-  if (!sharp) {
-    // Fallback: Read file and guess dimensions
+  const fs = require('fs');
+  
+  // Đọc file size trước
+  let fileSize = 0;
+  try {
+    const stats = await fs.promises.stat(filePath);
+    fileSize = stats.size;
+  } catch (e) {
+    console.error('❌ Cannot read file size:', e.message);
+  }
+  
+  // Nếu có sharp, lấy metadata chính xác
+  if (sharp) {
     try {
       const data = await fs.promises.readFile(filePath);
-      return {
-        width: 800,
-        height: 600,
-        size: data.length
+      const metadata = await sharp(data).metadata();
+      
+      const result = {
+        width: metadata.width || 1920,
+        height: metadata.height || 1080,
+        size: fileSize || data.length
       };
-    } catch (e) {
-      return { width: 800, height: 600, size: 0 };
+      
+      console.log(`📐 Image metadata: ${result.width}x${result.height}, ${result.size} bytes`);
+      return result;
+    } catch (err) {
+      console.error('❌ Sharp metadata error:', err.message);
     }
   }
   
+  // Fallback: Đọc header của file để lấy dimensions
   try {
     const data = await fs.promises.readFile(filePath);
-    const metadata = await sharp(data).metadata();
-    return {
-      height: metadata.height || 600,
-      width: metadata.width || 800,
-      size: metadata.size || data.length
+    const dimensions = getImageDimensions(data);
+    
+    const result = {
+      width: dimensions.width || 1920,
+      height: dimensions.height || 1080,
+      size: fileSize || data.length
     };
-  } catch (err) {
-    console.error('❌ imageMetadataGetter error:', err.message);
-    try {
-      const stats = await fs.promises.stat(filePath);
-      return { width: 800, height: 600, size: stats.size };
-    } catch (e) {
-      return { width: 800, height: 600, size: 0 };
-    }
+    
+    console.log(`📐 Image metadata (fallback): ${result.width}x${result.height}, ${result.size} bytes`);
+    return result;
+  } catch (e) {
+    console.error('❌ Fallback metadata error:', e.message);
+    return { width: 1920, height: 1080, size: fileSize };
   }
+}
+
+// Helper: Đọc dimensions từ header của ảnh (không cần sharp)
+function getImageDimensions(buffer) {
+  try {
+    // PNG: bytes 16-23 contain width and height
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+      return {
+        width: buffer.readUInt32BE(16),
+        height: buffer.readUInt32BE(20)
+      };
+    }
+    
+    // JPEG: Find SOF0 marker (0xFFC0)
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
+      let offset = 2;
+      while (offset < buffer.length) {
+        if (buffer[offset] !== 0xFF) break;
+        const marker = buffer[offset + 1];
+        
+        // SOF markers (0xC0-0xCF except 0xC4, 0xC8, 0xCC)
+        if (marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) {
+          return {
+            height: buffer.readUInt16BE(offset + 5),
+            width: buffer.readUInt16BE(offset + 7)
+          };
+        }
+        
+        const length = buffer.readUInt16BE(offset + 2);
+        offset += 2 + length;
+      }
+    }
+    
+    // GIF: bytes 6-9 contain width and height
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+      return {
+        width: buffer.readUInt16LE(6),
+        height: buffer.readUInt16LE(8)
+      };
+    }
+    
+    // WebP
+    if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+      // VP8
+      if (buffer[12] === 0x56 && buffer[13] === 0x50 && buffer[14] === 0x38 && buffer[15] === 0x20) {
+        return {
+          width: (buffer[26] | (buffer[27] << 8)) & 0x3FFF,
+          height: (buffer[28] | (buffer[29] << 8)) & 0x3FFF
+        };
+      }
+      // VP8L
+      if (buffer[12] === 0x56 && buffer[13] === 0x50 && buffer[14] === 0x38 && buffer[15] === 0x4C) {
+        const bits = buffer[21] | (buffer[22] << 8) | (buffer[23] << 16) | (buffer[24] << 24);
+        return {
+          width: (bits & 0x3FFF) + 1,
+          height: ((bits >> 14) & 0x3FFF) + 1
+        };
+      }
+    }
+  } catch (e) {
+    console.error('getImageDimensions error:', e.message);
+  }
+  
+  return { width: 0, height: 0 };
 }
 
 // ========================================
@@ -171,20 +251,56 @@ function setupMessageListener(apiState) {
             console.log(`   Best URL: ${msgObj.imageUrl}`);
           }
           // File message
-          else if (content.fileUrl || content.fileName || content.url) {
+          // File message - Xử lý đầy đủ các loại file
+          else if (content.fileUrl || content.fileName || content.url || content.href) {
             msgObj.type = 'file';
-            msgObj.content = `[File: ${content.fileName || content.title || 'unknown'}]`;
-            msgObj.fileData = {
-              fileUrl: content.fileUrl || content.url || null,
-              fileName: content.fileName || content.title || null,
-              fileSize: content.fileSize || content.totalSize || null,
-              fileType: content.fileType || content.type || null,
-              checksum: content.checksum || null
+            
+            // Xác định loại file
+            const fileName = content.fileName || content.title || 'unknown';
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            
+            // Map extension to type
+            const extTypeMap = {
+              'pdf': 'pdf',
+              'doc': 'word', 'docx': 'word',
+              'xls': 'excel', 'xlsx': 'excel', 'csv': 'excel',
+              'ppt': 'powerpoint', 'pptx': 'powerpoint',
+              'zip': 'archive', 'rar': 'archive', '7z': 'archive',
+              'mp3': 'audio', 'wav': 'audio', 'ogg': 'audio',
+              'mp4': 'video', 'avi': 'video', 'mkv': 'video', 'mov': 'video',
+              'jpg': 'image', 'jpeg': 'image', 'png': 'image', 'gif': 'image', 'webp': 'image'
             };
             
-            console.log(`📎 File từ ${senderId}: ${content.fileName || content.title}`);
-            console.log(`   URL: ${content.fileUrl || content.url || 'N/A'}`);
+            const fileType = extTypeMap[fileExt] || 'other';
+            const fileIcon = {
+              pdf: '📄', word: '📝', excel: '📊', powerpoint: '📽️',
+              archive: '📦', audio: '🎵', video: '🎬', image: '🖼️', other: '📎'
+            }[fileType];
+            
+            msgObj.content = `[${fileIcon} File: ${fileName}]`;
+            msgObj.fileData = {
+              fileUrl: content.fileUrl || content.url || content.href || null,
+              fileName: fileName,
+              fileSize: content.fileSize || content.totalSize || null,
+              fileType: fileType,
+              fileExt: fileExt,
+              checksum: content.checksum || null,
+              params: content.params || null
+            };
+            
+            console.log(`📎 File từ ${senderId}:`);
+            console.log(`   Tên: ${fileName}`);
+            console.log(`   Loại: ${fileType} (${fileExt})`);
+            console.log(`   URL: ${msgObj.fileData.fileUrl || 'N/A'}`);
             console.log(`   Size: ${content.fileSize || content.totalSize || 'N/A'}`);
+            
+            // Broadcast sự kiện nhận file
+            broadcast(apiState, {
+              type: 'file_received',
+              uid: senderId,
+              fileData: msgObj.fileData,
+              msgId: msgObj.msgId
+            });
           }
           // Sticker message
           else if (content.id || content.type === 'sticker' || content.catId || content.stickerId) {
