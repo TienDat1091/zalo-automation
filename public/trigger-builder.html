@@ -297,7 +297,7 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; height:
 <body>
   <div class="header">
     <div class="header-left">
-      <span class="back-link" onclick="goBack()">←</span>
+      <button class="btn" onclick="location.href='../public/trigger-manager.html'">Quay lại</button>
       <div class="trigger-title">
         <span class="icon">🔄</span>
         <h1 id="triggerName">Loading...</h1>
@@ -306,28 +306,28 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; height:
     </div>
     <div class="header-actions">
       <button class="btn" onclick="showVariablesModal()" title="Xem tất cả biến đã lưu">📊 Biến</button>
-      <button class="btn" onclick="location.href='/trigger-manager.html'">📋 Danh sách</button>
-      <a href="/bank-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
+      <!-- <button class="btn" onclick="location.href='../public/trigger-manager.html'">📋 Danh sách</button> -->
+      <a href="../public/bank-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
         <span>Bank Manager</span>
       </a>
-      <a href="/google-sheets-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
+      <a href="../public/google-sheets-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
         <span></span>
         <span>Sheet Manager</span>
       </a>
-       <a href="/table-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
+       <a href="../public/table-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
         <span></span>
         <span>Table Manager</span>
       </a>
-       <a href="public\image-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
+       <a href="../public/image-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
         <span></span>
         <span>Image Manager</span>
       </a>
        </a>
-       <a href="/ai-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
+       <a href="../public/ai-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
         <span></span>
         <span>AI Manager</span>
       </a>
-          <a href="file-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
+          <a href="../public/file-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
         <span></span>
         <span>File Manager</span>
       </a>
@@ -384,29 +384,29 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; height:
 
   <!-- Base & Registry -->
   <!-- Load index.js TRƯỚC (core registry) -->
-  <script src="blocks/index.js"></script>
+  <script src="../blocks/index.js"></script>
 
   <!-- Sau đó load từng block -->
-  <script src="blocks/send-message.js"></script>
-  <script src="blocks/send-image.js"></script>
-  <script src="blocks/send-file.js"></script>
-  <script src="blocks/send-friend-request.js"></script>
-  <script src="blocks/accept-friend-request.js"></script>
-  <script src="blocks/delay.js"></script>
-  <script src="blocks/run-block.js"></script>
-  <script src="blocks/condition.js"></script>
-  <script src="blocks/user-input.js"></script>
-  <script src="blocks/set-variable.js"></script>
-  <script src="blocks/clear-variable.js"></script>
-  <script src="blocks/bot-active.js"></script>
-  <script src="blocks/webhook.js"></script>
-  <script src="blocks/ai-gemini.js"></script>
-  <script src="blocks/payment-hub.js"></script>
-  <script src="blocks/table-data.js"></script>
+  <script src="../blocks/send-message.js"></script>
+  <script src="../blocks/send-image.js"></script>
+  <script src="../blocks/send-file.js"></script>
+  <script src="../blocks/send-friend-request.js"></script>
+  <script src="../blocks/accept-friend-request.js"></script>
+  <script src="../blocks/delay.js"></script>
+  <script src="../blocks/run-block.js"></script>
+  <script src="../blocks/condition.js"></script>
+  <script src="../blocks/user-input.js"></script>
+  <script src="../blocks/set-variable.js"></script>
+  <script src="../blocks/clear-variable.js"></script>
+  <script src="../blocks/bot-active.js"></script>
+  <script src="../blocks/webhook.js"></script>
+  <script src="../blocks/ai-gemini.js"></script>
+  <script src="../blocks/payment-hub.js"></script>
+  <script src="../blocks/table-data.js"></script>
   
-  <script src="blocks/google-sheet-data.js"></script>
+  <script src="../blocks/google-sheet-data.js"></script>
   <!-- UI Controller - Load CUỐI CÙNG -->
-  <script src="blocks/flow-builder-ui.js"></script>
+  <script src="../blocks/flow-builder-ui.js"></script>
   
   
 </body>

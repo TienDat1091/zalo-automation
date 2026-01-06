@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Zalo Messenger - Dual Search</title>
-  <link rel="stylesheet" href="assets/style_dashboard.css" />
+  <link rel="stylesheet" href="../assets/style_dashboard.css" />
   <style>
     /* ✅ CSS cho tin nhắn Auto Reply */
     .message.auto-reply .message-content {
@@ -576,14 +576,31 @@
         });
       }
     });
+
+
+  function formatTime(timestamp) {
+      const now = Date.now();
+      const diff = now - timestamp;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (minutes < 1) return 'Vừa xong';
+      if (minutes < 60) return `${minutes}p`;
+      if (hours < 24) return `${hours}h`;
+      if (days < 7) return `${days}d`;
+      
+      const date = new Date(timestamp);
+      return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    }
   </script>
-  <script src="IndexedDB.js"></script> 
-  <script src="emoji-picker.js"></script>
-  <script src="load_data.js"></script>
-  <script src="public/sort.js"></script>
-  <script src="public/logout.js"></script>
-  <script src="public/search.js"></script>
-  <script src="public/notifications.js"></script>
-  <script src="public/time-format.js"></script>
+  <script src="../IndexedDB.js"></script> 
+  <script src="../chat-function/"></script>
+  <script src="../chat-function/load_data.js"></script>
+  <script src="../chat-function/sort.js"></script>
+  <script src="../public/logout.js"></script>
+  <script src="../public/search.js"></script>
+  <script src="../public/notifications.js"></script>
+
 </body>
 </html>

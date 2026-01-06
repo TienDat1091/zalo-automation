@@ -148,7 +148,7 @@ async function autoSaveToIndexedDB(uid, message) {
       return;
     }
   
-    const url = `/trigger-manager.html?userUID=${currentUserUID}&dbName=ZaloChat_${currentUserUID}`;
+    const url = `../public/trigger-manager.html?userUID=${currentUserUID}&dbName=ZaloChat_${currentUserUID}`;
     window.open(url, 'storage');
   }
   

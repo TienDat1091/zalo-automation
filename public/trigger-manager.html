@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zalo Trigger Manager - SQLite v3</title>
-  <link rel="stylesheet" href="assets/style_trigger_manager.css" />
+  <link rel="stylesheet" href="../assets/style_trigger_manager.css" />
   <style>
     .notification-badge { position: absolute; top: -5px; right: -5px; background: #f44336; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
     .notification-btn { position: relative; }
@@ -90,7 +90,7 @@
 <body>
   <div class="header">
     <div class="header-left">
-      <div class="header-title"><span class="icon">🤖</span><span>Bot-Auto - Trigger Manager</span><span class="db-badge">SQLite v3</span></div>
+      <div class="header-title"><span class="icon">🤖</span><span>Bot-Auto</span></div>
       <div class="user-info-panel" id="userInfoPanel" style="display:none;">
         <div class="user-avatar" id="userAvatar">👤</div>
         <div class="user-details"><div class="user-name" id="userName">Loading...</div><div class="user-uid" id="userUID">UID: -</div></div>
@@ -107,15 +107,11 @@
         <span>📋</span><span>Lịch sử</span>
         <span class="notification-badge" id="activityBadge" style="display:none;">0</span>
       </button>
-      <a href="/dashboard.html" target="_blank" rel="noopener noreferrer" class="header-btn">
+      <a href="../public/dashboard.html" target="_blank" rel="noopener noreferrer" class="header-btn">
         <span>🏠</span>
         <span>Dashboard</span>
       </a>
-      <a href="/bank-manager.html" target="_blank" rel="noopener noreferrer" class="header-btn">
-        <span>💰</span>
-        <span>Bank Manager</span>
-      </a>
-      <button class="header-btn primary" onclick="showNewTriggerModal()"><span>➕</span><span>Tạo Trigger</span></button>
+      <!-- <button class="header-btn primary" onclick="showNewTriggerModal()"><span>➕</span><span>Tạo Trigger</span></button> -->
     </div>
   </div>
 
@@ -523,7 +519,7 @@
         showToast('❌ Trigger này không ở chế độ Flow!', 'error');
         return;
       }
-      window.open('/trigger-builder.html?trigger=' + currentTriggerId, '_blank');
+      window.open('../public/trigger-builder.html?trigger=' + currentTriggerId, '_blank');
     }
 
     // ================================================

@@ -99,7 +99,7 @@
             </select>\
             <div id="file_preview">' + filePreview + '</div>\
             <div style="margin-top:8px">\
-              <a href="/file-manager.html" target="_blank" style="color:#11998e;font-size:12px">📁 Mở File Manager</a>\
+              <a href="./public/file-manager.html" target="_blank" style="color:#11998e;font-size:12px">📁 Mở File Manager</a>\
               <button type="button" onclick="FlowBuilder.refreshFiles()" style="margin-left:12px;padding:4px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;cursor:pointer">🔄 Làm mới</button>\
             </div>\
           </div>\

@@ -2,7 +2,7 @@
 // ✅ FIX: Hỗ trợ gửi ảnh bằng imageMetadataGetter
 // ✅ FIX: Xử lý nhận ảnh từ user
 const { Zalo } = require('zca-js');
-const { processAutoReply } = require('./autoReply');
+const { processAutoReply } = require('./autoReply.js');
 const fs = require('fs');
 const path = require('path');
 

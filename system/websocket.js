@@ -1,8 +1,8 @@
 // websocket.js - WebSocket server với SQLite TriggerDB
 const WebSocket = require('ws');
-const { handleAutoReplyMessage } = require('./autoReply');
-const { loadFriends } = require('./friends');
-const triggerDB = require('./triggerDB');
+const { handleAutoReplyMessage } = require('../autoReply.js');
+const { loadFriends } = require('../chat-function/friends');
+const triggerDB = require('../triggerDB');
 const fs = require('fs');
 const path = require('path');
 
@@ -425,9 +425,9 @@ function startWebSocketServer(apiState) {
           
           ws.send(JSON.stringify({
             type: 'auto_reply_status',
-            enabled: require('./autoReply').autoReplyState.enabled,
+            enabled: require('../autoReply').autoReplyState.enabled,
             scenarios: userTriggers,
-            stats: require('./autoReply').autoReplyState.stats || { received: 0, replied: 0, skipped: 0 }
+            stats: require('../autoReply').autoReplyState.stats || { received: 0, replied: 0, skipped: 0 }
           }));
         }
 
@@ -466,7 +466,7 @@ function startWebSocketServer(apiState) {
             return;
           }
 
-          require('./autoReply').autoReplyState.enabled = msg.enabled;
+          require('../autoReply').autoReplyState.enabled = msg.enabled;
           
           broadcast(apiState, {
             type: 'auto_reply_status_changed',
@@ -519,9 +519,9 @@ function startWebSocketServer(apiState) {
               const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
               ws.send(JSON.stringify({
                 type: 'auto_reply_status',
-                enabled: require('./autoReply').autoReplyState.enabled,
+                enabled: require('../autoReply').autoReplyState.enabled,
                 scenarios: allTriggers,
-                stats: require('./autoReply').autoReplyState.stats
+                stats: require('../autoReply').autoReplyState.stats
               }));
             }, 100);
           } else {
@@ -572,9 +572,9 @@ function startWebSocketServer(apiState) {
               const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
               ws.send(JSON.stringify({
                 type: 'auto_reply_status',
-                enabled: require('./autoReply').autoReplyState.enabled,
+                enabled: require('../autoReply').autoReplyState.enabled,
                 scenarios: allTriggers,
-                stats: require('./autoReply').autoReplyState.stats
+                stats: require('../autoReply').autoReplyState.stats
               }));
             }, 100);
           } else {
@@ -618,9 +618,9 @@ function startWebSocketServer(apiState) {
               const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
               ws.send(JSON.stringify({
                 type: 'auto_reply_status',
-                enabled: require('./autoReply').autoReplyState.enabled,
+                enabled: require('../autoReply').autoReplyState.enabled,
                 scenarios: allTriggers,
-                stats: require('./autoReply').autoReplyState.stats
+                stats: require('../autoReply').autoReplyState.stats
               }));
             }, 100);
           } else {
@@ -664,9 +664,9 @@ function startWebSocketServer(apiState) {
               const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
               ws.send(JSON.stringify({
                 type: 'auto_reply_status',
-                enabled: require('./autoReply').autoReplyState.enabled,
+                enabled: require('../autoReply').autoReplyState.enabled,
                 scenarios: allTriggers,
-                stats: require('./autoReply').autoReplyState.stats
+                stats: require('../autoReply').autoReplyState.stats
               }));
             }, 100);
           }

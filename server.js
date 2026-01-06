@@ -2,12 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-
-const { loginZalo } = require('./loginZalo');
-const { startWebSocketServer, triggerDB } = require('./websocket');
-const { loadFriends } = require('./friends');
-
-
+const { loginZalo } = require('./loginZalo.js');
+const { startWebSocketServer, triggerDB } = require('./system/websocket');
+const { loadFriends } = require('./chat-function/friends');
 
 // API state dùng chung
 const apiState = {
@@ -68,30 +65,29 @@ const server = http.createServer((req, res) => {
   console.log(`📥 Request: ${req.method} ${url}`);
 
   // ============================================
-  // MAIN PAGES
+  // MAIN PAGES - ĐÃ SỬA ĐƯỜNG DẪN
   // ============================================
   
-  // Index / Login page
+  // Index / Login page - đường dẫn gốc
   if (url === '/' || url === '/index.html') {
     serveFile(path.join(__dirname, 'public', 'index.html'), 'text/html', res);
   }
   
-  // Dashboard
-  else if (url === '/dashboard.html') {
+  // Dashboard - đường dẫn /dashboard
+  else if (url === '/dashboard' || url === '/dashboard.html') {
     serveFile(path.join(__dirname, 'public', 'dashboard.html'), 'text/html', res);
   }
   
   // ============================================
   // AUTO REPLY & TRIGGER MANAGEMENT
   // ============================================
-
   
-  // NEW: Trigger Manager (main page)
+  // Trigger Manager (main page)
   else if (url === '/trigger-manager.html') {
     serveFile(path.join(__dirname, 'public', 'trigger-manager.html'), 'text/html', res);
   }
   
-  // NEW: Trigger Builder (flow design page - opens in new tab)
+  // Trigger Builder (flow design page)
   else if (url === '/trigger-builder.html') {
     serveFile(path.join(__dirname, 'public', 'trigger-builder.html'), 'text/html', res);
   }
@@ -109,7 +105,6 @@ const server = http.createServer((req, res) => {
   // ============================================
   // UTILITY PAGES
   // ============================================
-  
   
   // Storage info
   else if (url === '/storage-info.html') {
@@ -301,7 +296,15 @@ server.listen(3000, () => {
   console.log("║              🚀 ZALO MESSENGER SERVER - RUNNING                    ║");
   console.log("╠═══════════════════════════════════════════════════════════════════╣");
   console.log("");
+  console.log("🌐 HTTP Server: http://localhost:3000");
   console.log("📡 WebSocket Server: ws://localhost:8080");
+  console.log("");
+  console.log("📂 Đường dẫn trang chính:");
+  console.log("   • Trang chủ: http://localhost:3000");
+  console.log("   • Dashboard: http://localhost:3000/dashboard");
+  console.log("   • Trigger Manager: http://localhost:3000/trigger-manager.html");
+  console.log("   • Trigger Builder: http://localhost:3000/trigger-builder.html");
+  console.log("");
   console.log("✅ Server is ready to accept connections!");
   console.log("");
   
