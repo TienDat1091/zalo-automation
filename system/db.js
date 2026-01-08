@@ -298,6 +298,65 @@ function createTables(db) {
     CREATE INDEX IF NOT EXISTS idx_activity_logs_entityType ON activity_logs(entityType);
   `);
 
+  // EMAIL SENDER PROFILES
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_senders (
+      senderID INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      displayName TEXT,
+      description TEXT,
+      googleRefreshToken TEXT,
+      googleAccessToken TEXT,
+      tokenExpiresAt INTEGER,
+      isActive INTEGER DEFAULT 0,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000)
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_email_senders_email ON email_senders(email)`);
+
+  // EMAIL RECIPIENTS
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_recipients (
+      recipientID INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      company TEXT,
+      tags TEXT,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000)
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_email_recipients_email ON email_recipients(email)`);
+
+  // EMAIL LOGS
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_logs (
+      logID INTEGER PRIMARY KEY AUTOINCREMENT,
+      senderProfileID INTEGER NOT NULL,
+      senderEmail TEXT,
+      recipientEmail TEXT NOT NULL,
+      subject TEXT,
+      body TEXT,
+      status TEXT DEFAULT 'pending',
+      errorMessage TEXT,
+      sentAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      flowID INTEGER,
+      triggerID INTEGER,
+      FOREIGN KEY (senderProfileID) REFERENCES email_senders(senderID) ON DELETE CASCADE,
+      FOREIGN KEY (flowID) REFERENCES flows(flowID),
+      FOREIGN KEY (triggerID) REFERENCES triggers(triggerID)
+    )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_email_logs_senderProfileID ON email_logs(senderProfileID);
+    CREATE INDEX IF NOT EXISTS idx_email_logs_recipientEmail ON email_logs(recipientEmail);
+    CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs(status);
+    CREATE INDEX IF NOT EXISTS idx_email_logs_sentAt ON email_logs(sentAt);
+  `);
+
   console.log('✅ Database tables created/verified');
 }
 

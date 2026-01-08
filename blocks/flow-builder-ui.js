@@ -447,8 +447,10 @@
     else if (block.blockType === 'bot-active') specialClass = 'bot-block';
 
     var selected = state.selectedBlockId === block.blockID ? 'selected' : '';
+    var isEnabled = data.enabled !== false;
+    var disabledClass = !isEnabled ? 'disabled-block' : '';
 
-    var html = '<div class="flow-block ' + specialClass + ' ' + selected + '" data-block-id="' + block.blockID + '" draggable="true">';
+    var html = '<div class="flow-block ' + specialClass + ' ' + selected + ' ' + disabledClass + '" data-block-id="' + block.blockID + '" draggable="true">';
     html += '<div class="block-drag-handle">⋮⋮</div>';
     html += '<div class="block-header">';
     html += '<div class="block-header-icon" style="background:' + color + '">' + icon + '</div>';
@@ -457,6 +459,7 @@
     html += '<div class="block-subtitle">#' + block.blockID + '</div>';
     html += '</div>';
     html += '<div class="block-actions">';
+    html += '<button class="block-action-btn toggle" onclick="toggleBlockEnabled(' + block.blockID + ')" title="' + (isEnabled ? 'Vô hiệu hóa' : 'Kích hoạt') + '">' + (isEnabled ? '✅' : '❌') + '</button>';
     html += '<button class="block-action-btn" onclick="editBlock(' + block.blockID + ')" title="Chỉnh sửa">✏️</button>';
     html += '<button class="block-action-btn delete" onclick="deleteBlock(' + block.blockID + ')" title="Xóa">🗑️</button>';
     html += '</div></div>';
@@ -709,6 +712,29 @@
 
     // Re-render
     renderFlowCanvas();
+  };
+
+  window.toggleBlockEnabled = function(blockId) {
+    var block = state.blocks.find(function(b) { return b.blockID === blockId; });
+    if (!block) return;
+
+    // Parse blockData
+    var data = block.blockData;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch(e) { data = {}; }
+    }
+
+    // Toggle enabled state
+    data.enabled = data.enabled !== false ? false : true;
+    block.blockData = data;
+
+    // Save to server
+    saveBlock(block);
+
+    // Re-render
+    renderFlowCanvas();
+    
+    showToast(data.enabled ? '✅ Block được kích hoạt' : '❌ Block bị vô hiệu hóa', 'info');
   };
 
   // ========================================

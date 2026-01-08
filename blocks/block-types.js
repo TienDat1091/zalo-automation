@@ -107,6 +107,20 @@ const BLOCK_TYPES = {
       falseFlowId: null
     }
   },
+  'switch': {
+    type: 'switch',
+    name: 'Switch/Case',
+    desc: 'Chuyển nhánh theo giá trị biến',
+    icon: '🔁',
+    category: 'logic',
+    color: '#fff3e0',
+    defaultData: {
+      variableName: '',
+      cases: [],
+      defaultTriggerId: null,
+      defaultReply: ''
+    }
+  },
   
   'user-input': {
     type: 'user-input',

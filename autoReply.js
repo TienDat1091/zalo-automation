@@ -157,6 +157,13 @@ async function executeFlow(apiState, senderId, trigger, originalMessage, userUID
 
 async function executeBlock(apiState, senderId, block, context, userUID, flow, processId, num, total) {
   const data = block.blockData || {};
+  
+  // Check if block is disabled
+  if (data.enabled === false) {
+    console.log(`  [${num}/${total}] ⏸️ ${block.blockType} (ID:${block.blockID}) - DISABLED`);
+    return { success: true, skipped: true };
+  }
+  
   console.log(`  [${num}/${total}] ${block.blockType} (ID:${block.blockID})`);
   logFlowProcess(processId, 'BLOCK_START', { blockId: block.blockID, blockType: block.blockType });
 
@@ -686,6 +693,58 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
         // Sau khi chạy condition flow, tiếp tục flow hiện tại
         break;
       }
+        case 'switch': {
+          // Switch/Case block: match context variable against cases
+          const data = block.blockData || {};
+          const varName = data.variableName || '';
+          let varValue = context[varName];
+
+          if (varValue === undefined) {
+            // Try load from DB
+            try {
+              const v = triggerDB.getVariable(userUID, senderId, varName);
+              if (v) varValue = v.variableValue;
+            } catch (e) {}
+          }
+
+          const cases = data.cases || [];
+          let matched = null;
+
+          for (const c of cases) {
+            if (String(c.value) === String(varValue)) { matched = c; break; }
+          }
+
+          if (matched) {
+            const mode = matched.mode || 'reply';
+            
+            if (mode === 'flow' && matched.targetTriggerId) {
+              const trg = triggerDB.getTriggerById(matched.targetTriggerId);
+              if (trg && trg.setMode === 1) {
+                console.log(`  🔗 Switch: Running flow ${matched.targetTriggerId}`);
+                await executeFlow(apiState, senderId, trg, context.message, userUID);
+              }
+            } else if (mode === 'reply' && matched.replyMessage) {
+              console.log(`  📝 Switch: Sending reply message`);
+              await sendMessage(apiState, senderId, substituteVariables(matched.replyMessage, context), userUID);
+            }
+          } else {
+            // default case
+            const defaultMode = data.defaultMode || 'reply';
+            
+            if (defaultMode === 'flow' && data.defaultTriggerId) {
+              const trg = triggerDB.getTriggerById(data.defaultTriggerId);
+              if (trg && trg.setMode === 1) {
+                console.log(`  🔗 Switch: Running default flow ${data.defaultTriggerId}`);
+                await executeFlow(apiState, senderId, trg, context.message, userUID);
+              }
+            } else if (defaultMode === 'reply' && data.defaultReply) {
+              console.log(`  📝 Switch: Sending default reply message`);
+              await sendMessage(apiState, senderId, substituteVariables(data.defaultReply, context), userUID);
+            }
+          }
+
+          break;
+        }
 
       case 'user-input': {
         const questions = data.questions || [];
@@ -961,6 +1020,81 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
         } catch (err) {
           console.error(`    ❌ Table Data error: ${err.message}`);
           context[data.resultVariable || 'table_result'] = { success: false, error: err.message };
+        }
+        break;
+      }
+
+      case 'send-email': {
+        if (data.enabled === false) {
+          console.log(`    ⏸️ Send Email block disabled`);
+          break;
+        }
+
+        try {
+          // Get recipient email
+          let recipientEmail = '';
+          if (data.recipientType === 'variable') {
+            recipientEmail = context[data.recipientVariable] || '';
+          } else {
+            recipientEmail = data.recipientFixed || '';
+          }
+          recipientEmail = recipientEmail.toString().trim();
+
+          // Get sender profile
+          const senderProfile = triggerDB.getEmailSenderById(data.senderProfileId);
+          if (!senderProfile) {
+            console.log(`    ⚠️ Send Email: Sender profile not found (ID: ${data.senderProfileId})`);
+            break;
+          }
+
+          // Substitute variables in subject and body
+          const subject = substituteVariables(data.subject || '', context);
+          const body = substituteVariables(data.bodyContent || '', context);
+
+          if (!recipientEmail || !subject) {
+            console.log(`    ⚠️ Send Email: Missing recipient email or subject`);
+            break;
+          }
+
+          console.log(`    📧 Send Email: To: ${recipientEmail}, Subject: "${subject.substring(0, 40)}..."`);
+
+          // Log email send attempt
+          const emailLog = triggerDB.createEmailLog({
+            senderProfileID: data.senderProfileId,
+            senderEmail: senderProfile.email,
+            recipientEmail: recipientEmail,
+            subject: subject,
+            body: body,
+            status: 'pending',
+            flowID: flow?.flowID,
+            triggerID: flow?.triggerID
+          });
+
+          // TODO: Actually send email using nodemailer + Gmail API
+          // For now, just mark as pending (sent)
+          if (emailLog) {
+            triggerDB.updateEmailLogStatus(emailLog.id, 'success', null);
+            console.log(`    ✅ Email logged successfully (ID: ${emailLog.id})`);
+            
+            // Send email using Gmail API asynchronously
+            const googleOAuth = require('./system/google-oauth');
+            googleOAuth.sendEmailViaGmail(
+              senderProfile.googleAccessToken,
+              senderProfile.googleRefreshToken,
+              recipientEmail,
+              subject,
+              null,
+              body
+            ).then(() => {
+              console.log(`    ✅ Email sent successfully to ${recipientEmail}`);
+            }).catch(err => {
+              console.error(`    ❌ Email send failed: ${err.message}`);
+              triggerDB.updateEmailLogStatus(emailLog.id, 'failed', err.message);
+            });
+          }
+
+        } catch (err) {
+          console.error(`    ❌ Send Email error: ${err.message}`);
         }
         break;
       }

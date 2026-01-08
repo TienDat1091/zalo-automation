@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý Email - Zalo Automation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .tab {
+      padding: 12px 20px;
+      background: white;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+    }
+    
+    .tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5568d3;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-danger {
+      background: #f44336;
+      color: white;
+    }
+    
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+    
+    thead {
+      background: #f9f9f9;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #666;
+    }
+    
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    tr:hover {
+      background: #f9f9f9;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: #333;
+    }
+    
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-active {
+      background: #c8e6c9;
+      color: #2e7d32;
+    }
+    
+    .status-inactive {
+      background: #ffccbc;
+      color: #d84315;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    
+    .modal-header {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="container">
+      <h1>📧 Quản lý Email</h1>
+      <p style="opacity: 0.9; margin-top: 4px;">Cấu hình tài khoản gửi, danh sách người nhận và lịch sử gửi email</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('senders')">🔐 Tài khoản gửi</button>
+      <button class="tab" onclick="switchTab('recipients')">👥 Danh sách người nhận</button>
+      <button class="tab" onclick="switchTab('logs')">📋 Lịch sử gửi</button>
+    </div>
+
+    <!-- SENDERS TAB -->
+    <div id="senders" class="tab-content active">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="font-size: 16px;">Tài khoản Gmail</h2>
+          <button class="btn btn-primary" onclick="openAddSenderModal()">+ Thêm tài khoản</button>
+        </div>
+        <table id="sendersTable">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Tên hiển thị</th>
+              <th>Trạng thái</th>
+              <th>Ngày thêm</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="sendersBody"></tbody>
+        </table>
+        <div id="sendersEmpty" class="empty-state">
+          <div class="empty-state-icon">📭</div>
+          <p>Chưa có tài khoản Gmail nào</p>
+          <small>Hãy thêm tài khoản Google để gửi email</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECIPIENTS TAB -->
+    <div id="recipients" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="font-size: 16px;">Danh sách người nhận</h2>
+          <button class="btn btn-primary" onclick="openAddRecipientModal()">+ Thêm người nhận</button>
+        </div>
+        <table id="recipientsTable">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Tên</th>
+              <th>Công ty</th>
+              <th>Ngày thêm</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="recipientsBody"></tbody>
+        </table>
+        <div id="recipientsEmpty" class="empty-state">
+          <div class="empty-state-icon">👥</div>
+          <p>Chưa có người nhận nào</p>
+          <small>Hãy thêm danh sách email người nhận để dùng trong flow</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGS TAB -->
+    <div id="logs" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="font-size: 16px;">Lịch sử gửi email</h2>
+          <button class="btn btn-secondary" onclick="refreshLogs()">🔄 Làm mới</button>
+        </div>
+        <table id="logsTable">
+          <thead>
+            <tr>
+              <th>Người gửi</th>
+              <th>Người nhận</th>
+              <th>Chủ đề</th>
+              <th>Trạng thái</th>
+              <th>Thời gian</th>
+              <th>Chi tiết</th>
+            </tr>
+          </thead>
+          <tbody id="logsBody"></tbody>
+        </table>
+        <div id="logsEmpty" class="empty-state">
+          <div class="empty-state-icon">📭</div>
+          <p>Chưa có email nào được gửi</p>
+          <small>Lịch sử gửi sẽ hiển thị ở đây</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD SENDER MODAL -->
+  <div id="addSenderModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">🔐 Thêm tài khoản Gmail</div>
+      
+      <div style="background: #e3f2fd; padding: 16px; border-radius: 6px; margin-bottom: 16px; border-left: 4px solid #2196F3;">
+        <strong style="color: #1976D2;">🔒 Xác thực Google OAuth2</strong>
+        <p style="font-size: 12px; color: #555; margin-top: 8px; line-height: 1.5;">
+          Để bảo mật, vui lòng liên kết tài khoản Google thực của bạn thông qua OAuth2. <br>
+          <strong>Không thêm bằng tay!</strong> Hệ thống sẽ xác minh với Google.
+        </p>
+      </div>
+
+      <div class="form-group" id="oauthLoadingState" style="text-align: center; display: none;">
+        <p style="color: #666; font-size: 13px;">⏳ Đang tải trang xác thực Google...</p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('addSenderModal')">Hủy</button>
+        <button class="btn btn-primary" onclick="authenticateWithGoogle()" style="background: #4285F4; flex: 1;">
+          🔐 Liên kết với Google
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD RECIPIENT MODAL -->
+  <div id="addRecipientModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">👥 Thêm người nhận</div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="recipientEmail" placeholder="recipient@example.com">
+      </div>
+      <div class="form-group">
+        <label>Tên người nhận</label>
+        <input type="text" id="recipientName" placeholder="Tên người nhận">
+      </div>
+      <div class="form-group">
+        <label>Công ty</label>
+        <input type="text" id="recipientCompany" placeholder="Tên công ty (tùy chọn)">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('addRecipientModal')">Hủy</button>
+        <button class="btn btn-primary" onclick="saveRecipient()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api/email';
+    
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+      event.target.classList.add('active');
+      
+      if (tabName === 'logs') refreshLogs();
+      else if (tabName === 'senders') refreshSenders();
+      else if (tabName === 'recipients') refreshRecipients();
+    }
+    
+    function openAddSenderModal() {
+      document.getElementById('addSenderModal').classList.add('active');
+    }
+    
+    function openAddRecipientModal() {
+      document.getElementById('addRecipientModal').classList.add('active');
+    }
+    
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    // OAuth2 Authentication
+    function authenticateWithGoogle() {
+      document.getElementById('oauthLoadingState').style.display = 'block';
+      
+      fetch(API_BASE + '/auth/google/url')
+        .then(r => r.json())
+        .then(data => {
+          if (data.authUrl) {
+            // Redirect to Google OAuth consent screen
+            window.location.href = data.authUrl;
+          } else {
+            alert('❌ Lỗi: ' + (data.error || 'Không thể tạo OAuth URL'));
+            document.getElementById('oauthLoadingState').style.display = 'none';
+          }
+        })
+        .catch(e => {
+          alert('❌ Lỗi kết nối: ' + e.message);
+          document.getElementById('oauthLoadingState').style.display = 'none';
+        });
+    }
+
+    // Check for OAuth callback success
+    function checkOAuthCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get('success');
+      const email = params.get('email');
+
+      if (success === '1' && email) {
+        alert('✅ Liên kết thành công! Email: ' + email);
+        // Clear the URL
+        window.history.replaceState({}, document.title, '/email-manager.html');
+        // Refresh senders list
+        refreshSenders();
+        // Close modal
+        closeModal('addSenderModal');
+      }
+    }
+    
+    function saveSender() {
+      alert('❌ Vui lòng dùng nút "Liên kết với Google" để xác thực tài khoản');
+    }
+    
+    function saveRecipient() {
+      const email = document.getElementById('recipientEmail').value;
+      const name = document.getElementById('recipientName').value;
+      const company = document.getElementById('recipientCompany').value;
+      
+      if (!email || !name) {
+        alert('❌ Vui lòng nhập email và tên');
+        return;
+      }
+      
+      fetch(API_BASE + '/recipients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, company })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          alert('✅ Thêm người nhận thành công');
+          closeModal('addRecipientModal');
+          document.getElementById('recipientEmail').value = '';
+          document.getElementById('recipientName').value = '';
+          document.getElementById('recipientCompany').value = '';
+          refreshRecipients();
+        } else {
+          alert('❌ Lỗi: ' + data.error);
+        }
+      })
+      .catch(e => alert('❌ Lỗi: ' + e.message));
+    }
+    
+    function refreshSenders() {
+      fetch(API_BASE + '/senders')
+        .then(r => r.json())
+        .then(data => {
+          const tbody = document.getElementById('sendersBody');
+          const empty = document.getElementById('sendersEmpty');
+          
+          if (!data.senders || data.senders.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+          } else {
+            tbody.innerHTML = data.senders.map(s => `
+              <tr>
+                <td>${s.email}</td>
+                <td>${s.displayName || '-'}</td>
+                <td><span class="status-badge status-${s.isActive ? 'active' : 'inactive'}">${s.isActive ? 'Hoạt động' : 'Không hoạt động'}</span></td>
+                <td>${new Date(s.createdAt).toLocaleDateString('vi-VN')}</td>
+                <td>
+                  <button class="btn btn-secondary" onclick="deleteSender(${s.id})" style="padding:6px 12px;font-size:12px;">🗑️</button>
+                </td>
+              </tr>
+            `).join('');
+            empty.style.display = 'none';
+          }
+        })
+        .catch(e => console.error('Error:', e));
+    }
+    
+    function refreshRecipients() {
+      fetch(API_BASE + '/recipients')
+        .then(r => r.json())
+        .then(data => {
+          const tbody = document.getElementById('recipientsBody');
+          const empty = document.getElementById('recipientsEmpty');
+          
+          if (!data.recipients || data.recipients.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+          } else {
+            tbody.innerHTML = data.recipients.map(r => `
+              <tr>
+                <td>${r.email}</td>
+                <td>${r.name}</td>
+                <td>${r.company || '-'}</td>
+                <td>${new Date(r.createdAt).toLocaleDateString('vi-VN')}</td>
+                <td>
+                  <button class="btn btn-secondary" onclick="deleteRecipient(${r.id})" style="padding:6px 12px;font-size:12px;">🗑️</button>
+                </td>
+              </tr>
+            `).join('');
+            empty.style.display = 'none';
+          }
+        })
+        .catch(e => console.error('Error:', e));
+    }
+    
+    function refreshLogs() {
+      fetch(API_BASE + '/logs')
+        .then(r => r.json())
+        .then(data => {
+          const tbody = document.getElementById('logsBody');
+          const empty = document.getElementById('logsEmpty');
+          
+          if (!data.logs || data.logs.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+          } else {
+            tbody.innerHTML = data.logs.map(log => `
+              <tr>
+                <td>${log.senderEmail}</td>
+                <td>${log.recipientEmail}</td>
+                <td>${log.subject.substring(0, 30)}...</td>
+                <td><span class="status-badge status-${log.status === 'success' ? 'active' : 'inactive'}">${log.status === 'success' ? 'Thành công' : 'Lỗi'}</span></td>
+                <td>${new Date(log.sentAt).toLocaleString('vi-VN')}</td>
+                <td><button class="btn btn-secondary" onclick="viewLogDetail(${log.id})" style="padding:6px 12px;font-size:12px;">👁️</button></td>
+              </tr>
+            `).join('');
+            empty.style.display = 'none';
+          }
+        })
+        .catch(e => console.error('Error:', e));
+    }
+    
+    function deleteSender(id) {
+      if (!confirm('Xóa tài khoản này?')) return;
+      fetch(API_BASE + '/senders/' + id, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) refreshSenders();
+        });
+    }
+    
+    function deleteRecipient(id) {
+      if (!confirm('Xóa người nhận này?')) return;
+      fetch(API_BASE + '/recipients/' + id, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) refreshRecipients();
+        });
+    }
+    
+    function viewLogDetail(id) {
+      alert('Chi tiết log #' + id);
+    }
+    
+    // Load initial data
+    checkOAuthCallback();
+    refreshSenders();
+    refreshRecipients();
+  </script>
+</body>
+</html>

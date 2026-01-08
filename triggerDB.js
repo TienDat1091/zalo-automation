@@ -2117,6 +2117,223 @@ module.exports = {
   },
 
   // ========================================
+  // EMAIL MANAGEMENT
+  // ========================================
+  getAllEmailSenders() {
+    try {
+      return db.prepare(`
+        SELECT senderID as id, email, displayName, description, isActive, createdAt, updatedAt
+        FROM email_senders
+        ORDER BY createdAt DESC
+      `).all();
+    } catch (error) { console.error('❌ Get all senders error:', error.message); return []; }
+  },
+
+  getEmailSenderById(senderID) {
+    try {
+      return db.prepare(`
+        SELECT senderID as id, email, displayName, description, googleRefreshToken, googleAccessToken, 
+               tokenExpiresAt, isActive, createdAt, updatedAt
+        FROM email_senders WHERE senderID = ?
+      `).get(senderID);
+    } catch (error) { console.error('❌ Get sender error:', error.message); return null; }
+  },
+
+  getEmailSenderByEmail(email) {
+    try {
+      return db.prepare(`
+        SELECT senderID as id, email, displayName, description, googleRefreshToken, googleAccessToken,
+               tokenExpiresAt, isActive, createdAt, updatedAt
+        FROM email_senders WHERE email = ?
+      `).get(email);
+    } catch (error) { console.error('❌ Get sender by email error:', error.message); return null; }
+  },
+
+  createEmailSender(data) {
+    try {
+      const { email, displayName, description, refreshToken, accessToken } = data;
+      if (!email) throw new Error('Email is required');
+      
+      const result = db.prepare(`
+        INSERT INTO email_senders (email, displayName, description, googleRefreshToken, googleAccessToken, isActive, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(email, displayName || '', description || '', refreshToken || '', accessToken || '', 1, Date.now(), Date.now());
+      
+      return this.getEmailSenderById(result.lastInsertRowid);
+    } catch (error) { console.error('❌ Create sender error:', error.message); return null; }
+  },
+
+  updateEmailSender(senderID, updates) {
+    try {
+      const fields = [];
+      const values = [];
+      if (updates.email !== undefined) { fields.push('email = ?'); values.push(updates.email); }
+      if (updates.displayName !== undefined) { fields.push('displayName = ?'); values.push(updates.displayName); }
+      if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description); }
+      if (updates.refreshToken !== undefined) { fields.push('googleRefreshToken = ?'); values.push(updates.refreshToken); }
+      if (updates.accessToken !== undefined) { fields.push('googleAccessToken = ?'); values.push(updates.accessToken); }
+      if (updates.tokenExpiresAt !== undefined) { fields.push('tokenExpiresAt = ?'); values.push(updates.tokenExpiresAt); }
+      if (updates.isActive !== undefined) { fields.push('isActive = ?'); values.push(updates.isActive ? 1 : 0); }
+      if (fields.length === 0) return this.getEmailSenderById(senderID);
+      fields.push('updatedAt = ?'); values.push(Date.now()); values.push(senderID);
+      db.prepare(`UPDATE email_senders SET ${fields.join(', ')} WHERE senderID = ?`).run(...values);
+      return this.getEmailSenderById(senderID);
+    } catch (error) { console.error('❌ Update sender error:', error.message); return null; }
+  },
+
+  deleteEmailSender(senderID) {
+    try {
+      const result = db.prepare('DELETE FROM email_senders WHERE senderID = ?').run(senderID);
+      return result.changes > 0;
+    } catch (error) { console.error('❌ Delete sender error:', error.message); return false; }
+  },
+
+  // ========================================
+  // EMAIL RECIPIENTS
+  // ========================================
+  getAllEmailRecipients() {
+    try {
+      return db.prepare(`
+        SELECT recipientID as id, email, name, company, tags, createdAt
+        FROM email_recipients
+        ORDER BY createdAt DESC
+      `).all();
+    } catch (error) { console.error('❌ Get all recipients error:', error.message); return []; }
+  },
+
+  getEmailRecipientById(recipientID) {
+    try {
+      return db.prepare(`
+        SELECT recipientID as id, email, name, company, tags, createdAt
+        FROM email_recipients WHERE recipientID = ?
+      `).get(recipientID);
+    } catch (error) { console.error('❌ Get recipient error:', error.message); return null; }
+  },
+
+  getEmailRecipientByEmail(email) {
+    try {
+      return db.prepare(`
+        SELECT recipientID as id, email, name, company, tags, createdAt
+        FROM email_recipients WHERE email = ?
+      `).get(email);
+    } catch (error) { console.error('❌ Get recipient by email error:', error.message); return null; }
+  },
+
+  createEmailRecipient(data) {
+    try {
+      const { email, name, company, tags } = data;
+      if (!email || !name) throw new Error('Email and name are required');
+      
+      // Check if exists
+      const existing = this.getEmailRecipientByEmail(email);
+      if (existing) return existing;
+      
+      const result = db.prepare(`
+        INSERT INTO email_recipients (email, name, company, tags, createdAt)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(email, name, company || '', tags || '', Date.now());
+      
+      return this.getEmailRecipientById(result.lastInsertRowid);
+    } catch (error) { console.error('❌ Create recipient error:', error.message); return null; }
+  },
+
+  updateEmailRecipient(recipientID, updates) {
+    try {
+      const fields = [];
+      const values = [];
+      if (updates.email !== undefined) { fields.push('email = ?'); values.push(updates.email); }
+      if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+      if (updates.company !== undefined) { fields.push('company = ?'); values.push(updates.company); }
+      if (updates.tags !== undefined) { fields.push('tags = ?'); values.push(updates.tags); }
+      if (fields.length === 0) return this.getEmailRecipientById(recipientID);
+      values.push(recipientID);
+      db.prepare(`UPDATE email_recipients SET ${fields.join(', ')} WHERE recipientID = ?`).run(...values);
+      return this.getEmailRecipientById(recipientID);
+    } catch (error) { console.error('❌ Update recipient error:', error.message); return null; }
+  },
+
+  deleteEmailRecipient(recipientID) {
+    try {
+      const result = db.prepare('DELETE FROM email_recipients WHERE recipientID = ?').run(recipientID);
+      return result.changes > 0;
+    } catch (error) { console.error('❌ Delete recipient error:', error.message); return false; }
+  },
+
+  // ========================================
+  // EMAIL LOGS
+  // ========================================
+  getEmailLogs(limit = 100) {
+    try {
+      return db.prepare(`
+        SELECT logID as id, senderProfileID, senderEmail, recipientEmail, subject, status, 
+               sentAt, errorMessage, flowID, triggerID
+        FROM email_logs
+        ORDER BY sentAt DESC
+        LIMIT ?
+      `).all(limit);
+    } catch (error) { console.error('❌ Get logs error:', error.message); return []; }
+  },
+
+  getEmailLogById(logID) {
+    try {
+      return db.prepare(`
+        SELECT logID as id, senderProfileID, senderEmail, recipientEmail, subject, body, status,
+               sentAt, errorMessage, flowID, triggerID
+        FROM email_logs WHERE logID = ?
+      `).get(logID);
+    } catch (error) { console.error('❌ Get log error:', error.message); return null; }
+  },
+
+  createEmailLog(data) {
+    try {
+      const { senderProfileID, senderEmail, recipientEmail, subject, body, status, errorMessage, flowID, triggerID } = data;
+      if (!senderProfileID || !recipientEmail || !subject) throw new Error('Missing required fields');
+      
+      const result = db.prepare(`
+        INSERT INTO email_logs (senderProfileID, senderEmail, recipientEmail, subject, body, status, errorMessage, sentAt, flowID, triggerID)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(senderProfileID, senderEmail || '', recipientEmail, subject, body || '', status || 'pending', errorMessage || '', Date.now(), flowID || null, triggerID || null);
+      
+      return this.getEmailLogById(result.lastInsertRowid);
+    } catch (error) { console.error('❌ Create log error:', error.message); return null; }
+  },
+
+  updateEmailLogStatus(logID, status, errorMessage = null) {
+    try {
+      db.prepare(`
+        UPDATE email_logs SET status = ?, errorMessage = ?
+        WHERE logID = ?
+      `).run(status, errorMessage || '', logID);
+      
+      return this.getEmailLogById(logID);
+    } catch (error) { console.error('❌ Update log status error:', error.message); return null; }
+  },
+
+  getEmailLogsByRecipient(recipientEmail, limit = 50) {
+    try {
+      return db.prepare(`
+        SELECT logID as id, senderProfileID, senderEmail, recipientEmail, subject, status, sentAt
+        FROM email_logs
+        WHERE recipientEmail = ?
+        ORDER BY sentAt DESC
+        LIMIT ?
+      `).all(recipientEmail, limit);
+    } catch (error) { console.error('❌ Get logs by recipient error:', error.message); return []; }
+  },
+
+  getEmailLogsBySender(senderProfileID, limit = 50) {
+    try {
+      return db.prepare(`
+        SELECT logID as id, senderProfileID, senderEmail, recipientEmail, subject, status, sentAt
+        FROM email_logs
+        WHERE senderProfileID = ?
+        ORDER BY sentAt DESC
+        LIMIT ?
+      `).all(senderProfileID, limit);
+    } catch (error) { console.error('❌ Get logs by sender error:', error.message); return []; }
+  },
+
+  // ========================================
   // DATABASE UTILITIES
   // ========================================
   getDB() { return db; },

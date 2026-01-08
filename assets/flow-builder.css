@@ -206,6 +206,8 @@ body {
 .flow-block.dragging { opacity: 0.5; }
 .flow-block.drag-over-top { border-top: 3px solid #0084ff; }
 .flow-block.drag-over-bottom { border-bottom: 3px solid #0084ff; }
+.flow-block.disabled-block { opacity: 0.6; background: #f9f9f9; }
+.flow-block.disabled-block .block-header { background: #fafafa; }
 
 /* Block types */
 .flow-block.condition-block { border-left: 4px solid #ff9800; }
