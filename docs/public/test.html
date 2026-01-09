@@ -286,7 +286,7 @@
   <div class="search-overlay" id="searchOverlay" onclick="closeSearchResults()"></div>
 
   <script>
-    const ws = new WebSocket('ws://' + location.hostname + ':8080');
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
     let friends = [], filteredFriends = [], currentMessages = [];
     let selectedFriend = null, currentUserId = null;
     let searchTimeout = null;

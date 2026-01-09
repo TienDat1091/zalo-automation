@@ -350,7 +350,8 @@
     
     // Connect WebSocket
     function connectWebSocket() {
-      const wsUrl = 'ws://' + location.hostname + ':8080';
+      const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = wsProtocol + '//' + location.host;
       console.log('🔌 Connecting:', wsUrl);
       
       ws = new WebSocket(wsUrl);
