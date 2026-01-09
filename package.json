@@ -1,0 +1,31 @@
+{
+  "name": "zalo-websocket",
+  "version": "1.0.0",
+  "main": "docs/server.js",
+  "scripts": {
+    "start": "node docs/server.js",
+    "dev": "NODE_ENV=development node docs/server.js",
+    "test": "echo \"No tests configured\" && exit 0"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "better-sqlite3": "^12.5.0",
+    "docxtemplater": "^3.67.6",
+    "exceljs": "^4.4.0",
+    "express": "^4.22.1",
+    "googleapis": "^170.0.0",
+    "node-fetch": "^2.7.0",
+    "open": "^11.0.0",
+    "pizzip": "^3.2.0",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.34.5",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.18.3",
+    "xlsx": "^0.18.5",
+    "zca-js": "^2.0.4"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
