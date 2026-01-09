@@ -594,6 +594,26 @@
       const date = new Date(timestamp);
       return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
     }
+
+    // Open trigger manager
+    function openAutoReplyViewer() {
+      if (!currentUserId) {
+        alert('Vui lòng đăng nhập trước!');
+        return;
+      }
+      const url = `/trigger-manager.html?userUID=${currentUserId}&dbName=ZaloChat_${currentUserId}`;
+      window.open(url, '_blank');
+    }
+
+    // Open storage info
+    function openStorageInfo() {
+      if (!currentUserId) {
+        alert('Vui lòng đăng nhập trước!');
+        return;
+      }
+      const url = `/storage-info.html?userUID=${currentUserId}`;
+      window.open(url, '_blank');
+    }
   </script>
   <script src="IndexedDB.js"></script>
   <script src="chat-function/load_data.js"></script>
