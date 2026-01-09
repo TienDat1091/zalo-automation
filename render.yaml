@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: zalo-automation
+    runtime: node
+    buildCommand: cd docs && npm install
+    startCommand: cd docs && npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18
