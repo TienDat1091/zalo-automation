@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Zalo Messenger - Dual Search</title>
-  <link rel="stylesheet" href="../assets/style_dashboard.css" />
+  <link rel="stylesheet" href="assets/style_dashboard.css" />
   <style>
     /* ✅ CSS cho tin nhắn Auto Reply */
     .message.auto-reply .message-content {
@@ -147,7 +147,8 @@
     }
 
     // ========== WEBSOCKET ==========
-    const ws = new WebSocket('ws://' + location.hostname + ':8080');
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(wsProtocol + '//' + location.host);
   
     ws.onopen = () => {
       console.log('✅ WebSocket connected');
@@ -594,13 +595,12 @@
       return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
     }
   </script>
-  <script src="../IndexedDB.js"></script> 
-  <script src="../chat-function/"></script>
-  <script src="../chat-function/load_data.js"></script>
-  <script src="../chat-function/sort.js"></script>
-  <script src="../public/logout.js"></script>
-  <script src="../public/search.js"></script>
-  <script src="../public/notifications.js"></script>
+  <script src="IndexedDB.js"></script>
+  <script src="chat-function/load_data.js"></script>
+  <script src="chat-function/sort.js"></script>
+  <script src="chat-function/logout.js"></script>
+  <script src="chat-function/search.js"></script>
+  <script src="chat-function/notifications.js"></script>
 
 </body>
 </html>
