@@ -147,9 +147,9 @@ async function autoSaveToIndexedDB(uid, message) {
       alert('❌ User not logged in');
       return;
     }
-  
-    const url = `../public/trigger-manager.html?userUID=${currentUserUID}&dbName=ZaloChat_${currentUserUID}`;
-    window.open(url, 'storage');
+
+    const url = `trigger-manager.html?userUID=${currentUserUID}&dbName=ZaloChat_${currentUserUID}`;
+    window.open(url, '_blank');
   }
   
   
