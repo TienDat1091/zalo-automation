@@ -64,6 +64,21 @@ app.get('/trigger-statistics.html', (req, res) => res.sendFile(path.join(__dirna
 app.get('/storage-info.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'storage-info.html')));
 app.get('/email-manager.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'email-manager.html')));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+    database: process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite'
+  });
+});
+
+// Keep-alive ping endpoint
+app.get('/ping', (req, res) => {
+  res.json({ pong: true, time: Date.now() });
+});
+
 // QR code handler
 app.get('/qr.png', (req, res) => {
   const qrPath = path.join(__dirname, 'qr.png');
@@ -201,9 +216,22 @@ server.listen(PORT, () => {
   
   // Start WebSocket server on the same HTTP server
   startWebSocketServer(apiState, server);
-  
+
   // Start Zalo login
   loginZalo(apiState);
+
+  // Self-ping to prevent Render from spinning down (only on production)
+  if (process.env.RENDER) {
+    const SELF_URL = process.env.RENDER_EXTERNAL_URL || `https://zalo-automation.onrender.com`;
+    console.log("🏓 Keep-alive enabled - pinging every 10 minutes");
+
+    setInterval(() => {
+      fetch(`${SELF_URL}/ping`)
+        .then(res => res.json())
+        .then(() => console.log('🏓 Keep-alive ping successful'))
+        .catch(err => console.log('⚠️  Keep-alive ping failed:', err.message));
+    }, 10 * 60 * 1000); // 10 minutes
+  }
 });
 
 // Graceful shutdown
