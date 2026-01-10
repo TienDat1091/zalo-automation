@@ -91,8 +91,8 @@
       return WS_CONFIG.url;
     }
     var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var hostname = location.hostname || 'localhost';
-    return protocol + '//' + hostname + ':' + WS_CONFIG.wsPort;
+    var host = location.host || 'localhost:8080';
+    return protocol + '//' + host;
   }
 
   function setupWebSocket() {
