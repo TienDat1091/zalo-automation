@@ -312,10 +312,10 @@
 
     document.addEventListener('DOMContentLoaded', function() { loadStarredFiles(); setupWebSocket(); setupDragDrop(); });
 
-    var WS_PORT = window.WS_PORT || 8080;
+    // Use same port as HTTP server
     function setupWebSocket() {
       try {
-        var wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + (location.hostname || 'localhost') + ':' + WS_PORT;
+        var wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + (location.host || 'localhost:3000');
         ws = new WebSocket(wsUrl);
         ws.onopen = function() { updateConnectionBadge(true); ws.send(JSON.stringify({type:'get_files'})); ws.send(JSON.stringify({type:'get_file_templates'})); ws.send(JSON.stringify({type:'get_all_variables'})); };
         ws.onmessage = function(e) { try { handleMessage(JSON.parse(e.data)); } catch(err) { console.error(err); } };

@@ -608,13 +608,13 @@ function jsonResponse(data) {
     // ========================================
     // WEBSOCKET
     // ========================================
-    var WS_PORT = window.WS_PORT || 8080;
+    // Use same port as HTTP server
     
     function setupWebSocket() {
       try {
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const hostname = location.hostname || 'localhost';
-        const wsUrl = protocol + '//' + hostname + ':' + WS_PORT;
+        const wsUrl = protocol + '//' + (location.host || 'localhost:3000');
         console.log('🔌 Connecting to:', wsUrl);
         
         ws = new WebSocket(wsUrl);

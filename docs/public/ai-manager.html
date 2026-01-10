@@ -809,13 +809,13 @@
     // ========================================
     // WEBSOCKET
     // ========================================
-    var WS_PORT = window.WS_PORT || 8080;
+    // Use same port as HTTP server
 
     function setupWebSocket() {
       try {
         var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         var hostname = location.hostname || 'localhost';
-        var wsUrl = protocol + '//' + hostname + ':' + WS_PORT;
+        var wsUrl = protocol + '//' + (location.host || 'localhost:3000');
         console.log('🔌 Connecting to:', wsUrl);
         
         ws = new WebSocket(wsUrl);
