@@ -44,6 +44,7 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/chat-function', express.static(path.join(__dirname, 'chat-function')));
+app.use('/blocks', express.static(path.join(__dirname, 'blocks')));
 app.use('/IndexedDB.js', (req, res) => res.sendFile(path.join(__dirname, 'IndexedDB.js')));
 
 // Main page routes
