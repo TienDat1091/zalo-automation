@@ -20,16 +20,30 @@ function initDatabase() {
     console.log('🐘 Using PostgreSQL database');
     console.log('📡 Database URL:', process.env.DATABASE_URL ? 'Set ✓' : 'Not set ✗');
 
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    });
+    try {
+      pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: {
+          rejectUnauthorized: false
+        }
+      });
 
-    // Return PostgreSQL wrapper with better-sqlite3 compatible API
-    return createPostgresWrapper();
-  } else {
+      // Test connection
+      pool.on('error', (err) => {
+        console.error('❌ PostgreSQL pool error:', err.message);
+      });
+
+      // Return PostgreSQL wrapper with better-sqlite3 compatible API
+      return createPostgresWrapper();
+    } catch (err) {
+      console.error('❌ Failed to initialize PostgreSQL:', err.message);
+      console.log('⚠️  Falling back to SQLite');
+      // Fall through to SQLite
+    }
+  }
+
+  // SQLite fallback
+  if (true) {
     console.log('🗄️  Using SQLite database');
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -45,6 +59,22 @@ function initDatabase() {
  * Uses deasync to make async calls synchronous for compatibility
  */
 function createPostgresWrapper() {
+  let deasync;
+  try {
+    deasync = require('deasync');
+    console.log('✅ deasync loaded successfully');
+  } catch (err) {
+    console.error('❌ Failed to load deasync:', err.message);
+    console.log('⚠️  Falling back to SQLite due to deasync error');
+    // Return SQLite as fallback
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    sqliteDb = new Database(SQLITE_PATH);
+    sqliteDb.pragma('journal_mode = WAL');
+    return sqliteDb;
+  }
+
   // Helper to make async function synchronous
   const syncify = (asyncFn) => {
     return (...args) => {
@@ -57,7 +87,7 @@ function createPostgresWrapper() {
         .catch(err => { error = err; done = true; });
 
       // Busy wait (not ideal but works for simple sync compatibility)
-      require('deasync').loopWhile(() => !done);
+      deasync.loopWhile(() => !done);
 
       if (error) throw error;
       return result;
