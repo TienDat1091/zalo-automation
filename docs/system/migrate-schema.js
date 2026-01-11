@@ -401,17 +401,20 @@ async function migrateSchema() {
   } catch (error) {
     console.error('❌ Migration failed:', error);
     throw error;
-  } finally {
-    await dbWrapper.close();
   }
+  // NOTE: Do NOT close the connection here - triggerDB needs to keep using it
 }
 
-// Run if called directly
+// Run if called directly (standalone mode)
 if (require.main === module) {
   migrateSchema()
-    .then(() => process.exit(0))
-    .catch(err => {
+    .then(async () => {
+      await dbWrapper.close();
+      process.exit(0);
+    })
+    .catch(async (err) => {
       console.error(err);
+      await dbWrapper.close();
       process.exit(1);
     });
 }
