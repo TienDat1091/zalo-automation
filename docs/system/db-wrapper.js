@@ -113,7 +113,8 @@ function createPostgresWrapper() {
                 const tableName = match[1];
                 // Common primary key patterns
                 const pkName = `${tableName.replace(/s$/, '')}ID`; // Remove trailing 's' and add 'ID'
-                finalSql += ` RETURNING ${pkName}`;
+                // Use double quotes to preserve case sensitivity in PostgreSQL
+                finalSql += ` RETURNING "${pkName}"`;
               }
             }
           }
