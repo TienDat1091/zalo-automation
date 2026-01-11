@@ -1,6 +1,7 @@
-// triggerDB.js - SQLite Database cho Trigger System v4
+// triggerDB.js - Database cho Trigger System v4
 // Với Variables table và Flow Conditions support
-const dbModule = require('./system/db');
+// Support cả SQLite và PostgreSQL
+const dbWrapper = require('./system/db-wrapper');
 
 let db = null;
 
@@ -44,15 +45,19 @@ module.exports = {
   VariableType,
   InputValidation,
 
-  init() {
+  async init() {
     try {
-      db = dbModule.initDB();
-      db.pragma('journal_mode = WAL');
-      console.log('✅ SQLite database connected:', dbModule.DB_PATH || 'triggers.db');
-      dbModule.createTables(db);
+      db = await dbWrapper.init();
+      const dbType = process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite';
+      console.log(`✅ ${dbType} database connected`);
+
+      // Run migration script
+      const migrate = require('./system/migrate-schema');
+      await migrate.migrateSchema();
+
       return true;
     } catch (error) {
-      console.error('❌ SQLite init error:', error.message);
+      console.error('❌ Database init error:', error.message);
       return false;
     }
   },

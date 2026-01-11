@@ -13,6 +13,7 @@ let sqliteDb = null;
 
 /**
  * Initialize database connection
+ * Returns a database object with better-sqlite3 compatible API
  */
 function initDatabase() {
   if (USE_POSTGRES) {
@@ -21,7 +22,9 @@ function initDatabase() {
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
-    return { type: 'postgres', client: pool };
+
+    // Return PostgreSQL wrapper with better-sqlite3 compatible API
+    return createPostgresWrapper();
   } else {
     console.log('🗄️  Using SQLite database');
     if (!fs.existsSync(DATA_DIR)) {
@@ -29,8 +32,79 @@ function initDatabase() {
     }
     sqliteDb = new Database(SQLITE_PATH);
     sqliteDb.pragma('journal_mode = WAL');
-    return { type: 'sqlite', client: sqliteDb };
+    return sqliteDb; // Return SQLite directly (already has prepare() API)
   }
+}
+
+/**
+ * Create PostgreSQL wrapper with better-sqlite3 compatible API
+ */
+function createPostgresWrapper() {
+  return {
+    prepare: (sql) => {
+      // Convert ? to $1, $2, etc
+      let paramCount = 0;
+      const pgSql = sql.replace(/\?/g, () => `$${++paramCount}`);
+
+      return {
+        run: async (...params) => {
+          try {
+            // For INSERT statements, add RETURNING clause to get the ID
+            let finalSql = pgSql;
+            if (pgSql.trim().toUpperCase().startsWith('INSERT')) {
+              // Check if RETURNING clause already exists
+              if (!pgSql.toUpperCase().includes('RETURNING')) {
+                // Find the table name and primary key
+                const match = pgSql.match(/INSERT\s+INTO\s+(\w+)/i);
+                if (match) {
+                  const tableName = match[1];
+                  // Common primary key patterns
+                  const pkName = `${tableName.replace(/s$/, '')}ID`; // Remove trailing 's' and add 'ID'
+                  finalSql += ` RETURNING ${pkName}`;
+                }
+              }
+            }
+
+            const result = await pool.query(finalSql, params);
+
+            // Get lastInsertRowid from RETURNING clause or first column
+            let lastInsertRowid = null;
+            if (result.rows && result.rows.length > 0) {
+              const firstRow = result.rows[0];
+              lastInsertRowid = firstRow[Object.keys(firstRow)[0]];
+            }
+
+            return {
+              changes: result.rowCount || 0,
+              lastInsertRowid: lastInsertRowid
+            };
+          } catch (error) {
+            throw error;
+          }
+        },
+        get: async (...params) => {
+          try {
+            const result = await pool.query(pgSql, params);
+            return result.rows[0] || null;
+          } catch (error) {
+            throw error;
+          }
+        },
+        all: async (...params) => {
+          try {
+            const result = await pool.query(pgSql, params);
+            return result.rows || [];
+          } catch (error) {
+            throw error;
+          }
+        }
+      };
+    },
+    exec: async (sql) => {
+      await pool.query(sql);
+    },
+    pragma: () => {} // No-op for PostgreSQL
+  };
 }
 
 /**
@@ -114,6 +188,7 @@ async function close() {
 }
 
 module.exports = {
+  init: initDatabase,  // Alias for better naming
   initDatabase,
   query,
   exec,
