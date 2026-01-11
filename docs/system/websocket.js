@@ -1,4 +1,4 @@
-// websocket.js - WebSocket server với TriggerDB (SQLite/PostgreSQL)
+// websocket.js - WebSocket server với SQLite TriggerDB
 const WebSocket = require('ws');
 const { handleAutoReplyMessage } = require('../autoReply.js');
 const { loadFriends } = require('../chat-function/friends');
@@ -6,7 +6,10 @@ const triggerDB = require('../triggerDB');
 const fs = require('fs');
 const path = require('path');
 
-// Database will be initialized in startWebSocketServer
+// ============================================
+// INIT TRIGGER DATABASE
+// ============================================
+triggerDB.init();
 
 // ============================================
 // BROADCAST HELPER
@@ -354,12 +357,7 @@ function migrateOldData(userUID) {
 // ============================================
 // WEBSOCKET SERVER
 // ============================================
-async function startWebSocketServer(apiState, httpServer) {
-  // Initialize database first
-  console.log('🗄️  Initializing database...');
-  await triggerDB.init();
-  console.log('✅ Database initialized successfully');
-
+function startWebSocketServer(apiState, httpServer) {
   // If httpServer is provided, attach to it. Otherwise create on port 8080 (fallback)
   const wss = httpServer
     ? new WebSocket.Server({ server: httpServer })
