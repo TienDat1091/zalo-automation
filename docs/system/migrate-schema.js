@@ -19,6 +19,13 @@ async function migrateSchema() {
   const type = dbWrapper.getDatabaseType();
 
   try {
+    // For PostgreSQL, drop existing tables to fix PRIMARY KEY schema
+    if (type === 'postgres') {
+      console.log('🗑️  Dropping existing tables to recreate with correct schema...');
+      await dbWrapper.exec('DROP TABLE IF EXISTS triggers CASCADE');
+      console.log('✅ Dropped old triggers table');
+    }
+
     // Create triggers table
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS triggers (
