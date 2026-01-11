@@ -5,15 +5,24 @@
 
 const dbWrapper = require('./db-wrapper');
 
+// Helper function to generate primary key syntax
+function pk(type, columnName) {
+  if (type === 'postgres') {
+    return `${columnName} SERIAL PRIMARY KEY`;
+  } else {
+    return `${columnName} INTEGER PRIMARY KEY AUTOINCREMENT`;
+  }
+}
+
 async function migrateSchema() {
   console.log('🔄 Starting schema migration...');
-  const { type } = dbWrapper.initDatabase();
+  const type = dbWrapper.getDatabaseType();
 
   try {
     // Create triggers table
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS triggers (
-        triggerID ${type === 'postgres' ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${type === 'sqlite' ? 'AUTOINCREMENT' : ''},
+        ${pk(type, 'triggerID')},
         triggerName TEXT NOT NULL,
         triggerKey TEXT,
         triggerUserID TEXT NOT NULL,
