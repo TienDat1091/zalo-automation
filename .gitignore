@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build outputs (if any)
+dist/
+build/
+
+# IMPORTANT: Keep these files for backup system
+# Do NOT ignore:
+# - docs/data/triggers.db (SQLite database - needed for GitHub backup)
+# - docs/data/backup.json (JSON export backup)
+
+# Ignore other data files but NOT triggers.db
+docs/data/*.db-shm
+docs/data/*.db-wal
+docs/data/*.tmp
+
+# User uploaded files (images, documents) - these should be handled separately
+# docs/uploads/

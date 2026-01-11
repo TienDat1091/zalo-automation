@@ -3,8 +3,14 @@ const WebSocket = require('ws');
 const { handleAutoReplyMessage } = require('../autoReply.js');
 const { loadFriends } = require('../chat-function/friends');
 const triggerDB = require('../triggerDB');
+const backup = require('./backup');
 const fs = require('fs');
 const path = require('path');
+
+// ============================================
+// INIT BACKUP SYSTEM (Before database init)
+// ============================================
+backup.initBackup();
 
 // ============================================
 // INIT TRIGGER DATABASE
@@ -511,6 +517,9 @@ function startWebSocketServer(apiState, httpServer) {
           if (newTrigger) {
             console.log('➕ Created trigger:', newTrigger.triggerID);
 
+            // Trigger backup after create
+            setTimeout(() => backup.backupNow(), 2000);
+
             ws.send(JSON.stringify({
               type: 'trigger_created',
               trigger: newTrigger
@@ -565,6 +574,9 @@ function startWebSocketServer(apiState, httpServer) {
           if (updatedTrigger) {
             console.log('✏️ Updated trigger:', triggerID);
 
+            // Trigger backup after update
+            setTimeout(() => backup.backupNow(), 2000);
+
             ws.send(JSON.stringify({
               type: 'trigger_updated',
               trigger: updatedTrigger
@@ -610,6 +622,9 @@ function startWebSocketServer(apiState, httpServer) {
 
           if (deleted) {
             console.log('🗑️ Deleted trigger:', triggerID);
+
+            // Trigger backup after delete
+            setTimeout(() => backup.backupNow(), 2000);
 
             ws.send(JSON.stringify({
               type: 'trigger_deleted',
