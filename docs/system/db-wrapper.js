@@ -18,9 +18,13 @@ let sqliteDb = null;
 function initDatabase() {
   if (USE_POSTGRES) {
     console.log('🐘 Using PostgreSQL database');
+    console.log('📡 Database URL:', process.env.DATABASE_URL ? 'Set ✓' : 'Not set ✗');
+
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: {
+        rejectUnauthorized: false
+      }
     });
 
     // Return PostgreSQL wrapper with better-sqlite3 compatible API
