@@ -38,8 +38,28 @@ function initDatabase() {
 
 /**
  * Create PostgreSQL wrapper with better-sqlite3 compatible API
+ * Uses deasync to make async calls synchronous for compatibility
  */
 function createPostgresWrapper() {
+  // Helper to make async function synchronous
+  const syncify = (asyncFn) => {
+    return (...args) => {
+      let result;
+      let error;
+      let done = false;
+
+      asyncFn(...args)
+        .then(res => { result = res; done = true; })
+        .catch(err => { error = err; done = true; });
+
+      // Busy wait (not ideal but works for simple sync compatibility)
+      require('deasync').loopWhile(() => !done);
+
+      if (error) throw error;
+      return result;
+    };
+  };
+
   return {
     prepare: (sql) => {
       // Convert ? to $1, $2, etc
@@ -47,62 +67,50 @@ function createPostgresWrapper() {
       const pgSql = sql.replace(/\?/g, () => `$${++paramCount}`);
 
       return {
-        run: async (...params) => {
-          try {
-            // For INSERT statements, add RETURNING clause to get the ID
-            let finalSql = pgSql;
-            if (pgSql.trim().toUpperCase().startsWith('INSERT')) {
-              // Check if RETURNING clause already exists
-              if (!pgSql.toUpperCase().includes('RETURNING')) {
-                // Find the table name and primary key
-                const match = pgSql.match(/INSERT\s+INTO\s+(\w+)/i);
-                if (match) {
-                  const tableName = match[1];
-                  // Common primary key patterns
-                  const pkName = `${tableName.replace(/s$/, '')}ID`; // Remove trailing 's' and add 'ID'
-                  finalSql += ` RETURNING ${pkName}`;
-                }
+        run: syncify(async (...params) => {
+          // For INSERT statements, add RETURNING clause to get the ID
+          let finalSql = pgSql;
+          if (pgSql.trim().toUpperCase().startsWith('INSERT')) {
+            // Check if RETURNING clause already exists
+            if (!pgSql.toUpperCase().includes('RETURNING')) {
+              // Find the table name and primary key
+              const match = pgSql.match(/INSERT\s+INTO\s+(\w+)/i);
+              if (match) {
+                const tableName = match[1];
+                // Common primary key patterns
+                const pkName = `${tableName.replace(/s$/, '')}ID`; // Remove trailing 's' and add 'ID'
+                finalSql += ` RETURNING ${pkName}`;
               }
             }
-
-            const result = await pool.query(finalSql, params);
-
-            // Get lastInsertRowid from RETURNING clause or first column
-            let lastInsertRowid = null;
-            if (result.rows && result.rows.length > 0) {
-              const firstRow = result.rows[0];
-              lastInsertRowid = firstRow[Object.keys(firstRow)[0]];
-            }
-
-            return {
-              changes: result.rowCount || 0,
-              lastInsertRowid: lastInsertRowid
-            };
-          } catch (error) {
-            throw error;
           }
-        },
-        get: async (...params) => {
-          try {
-            const result = await pool.query(pgSql, params);
-            return result.rows[0] || null;
-          } catch (error) {
-            throw error;
+
+          const result = await pool.query(finalSql, params);
+
+          // Get lastInsertRowid from RETURNING clause or first column
+          let lastInsertRowid = null;
+          if (result.rows && result.rows.length > 0) {
+            const firstRow = result.rows[0];
+            lastInsertRowid = firstRow[Object.keys(firstRow)[0]];
           }
-        },
-        all: async (...params) => {
-          try {
-            const result = await pool.query(pgSql, params);
-            return result.rows || [];
-          } catch (error) {
-            throw error;
-          }
-        }
+
+          return {
+            changes: result.rowCount || 0,
+            lastInsertRowid: lastInsertRowid
+          };
+        }),
+        get: syncify(async (...params) => {
+          const result = await pool.query(pgSql, params);
+          return result.rows[0] || null;
+        }),
+        all: syncify(async (...params) => {
+          const result = await pool.query(pgSql, params);
+          return result.rows || [];
+        })
       };
     },
-    exec: async (sql) => {
+    exec: syncify(async (sql) => {
       await pool.query(sql);
-    },
+    }),
     pragma: () => {} // No-op for PostgreSQL
   };
 }
