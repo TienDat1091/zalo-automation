@@ -357,6 +357,103 @@ function createTables(db) {
     CREATE INDEX IF NOT EXISTS idx_email_logs_sentAt ON email_logs(sentAt);
   `);
 
+  // PAYMENT GATES
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS payment_gates (
+      gateID INTEGER PRIMARY KEY AUTOINCREMENT,
+      userUID TEXT NOT NULL,
+      gateName TEXT NOT NULL,
+      gateType TEXT NOT NULL DEFAULT 'momo',
+      accountNumber TEXT,
+      accountName TEXT,
+      bankCode TEXT,
+      apiKey TEXT,
+      apiSecret TEXT,
+      webhookURL TEXT,
+      qrCodeURL TEXT,
+      isActive INTEGER DEFAULT 1,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000)
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_payment_gates_userUID ON payment_gates(userUID)`);
+
+  // USER TABLES (Custom data tables)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_tables (
+      tableID INTEGER PRIMARY KEY AUTOINCREMENT,
+      userUID TEXT NOT NULL,
+      tableName TEXT NOT NULL,
+      tableDescription TEXT,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      UNIQUE(userUID, tableName)
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_user_tables_userUID ON user_tables(userUID)`);
+
+  // TABLE COLUMNS
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS table_columns (
+      columnID INTEGER PRIMARY KEY AUTOINCREMENT,
+      tableID INTEGER NOT NULL,
+      columnName TEXT NOT NULL,
+      columnType TEXT DEFAULT 'TEXT',
+      isUnique INTEGER DEFAULT 0,
+      isRequired INTEGER DEFAULT 0,
+      defaultValue TEXT,
+      columnOrder INTEGER DEFAULT 0,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      FOREIGN KEY (tableID) REFERENCES user_tables(tableID) ON DELETE CASCADE,
+      UNIQUE(tableID, columnName)
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_table_columns_tableID ON table_columns(tableID)`);
+
+  // TABLE ROWS (Data storage for custom tables)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS table_rows (
+      rowID INTEGER PRIMARY KEY AUTOINCREMENT,
+      tableID INTEGER NOT NULL,
+      rowData TEXT NOT NULL,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      FOREIGN KEY (tableID) REFERENCES user_tables(tableID) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_table_rows_tableID ON table_rows(tableID)`);
+
+  // TRANSACTIONS
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      transactionID INTEGER PRIMARY KEY AUTOINCREMENT,
+      userUID TEXT NOT NULL,
+      gateID INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      currency TEXT DEFAULT 'VND',
+      status TEXT DEFAULT 'pending',
+      transactionCode TEXT,
+      description TEXT,
+      senderName TEXT,
+      senderAccount TEXT,
+      receivedAt INTEGER,
+      processedAt INTEGER,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      FOREIGN KEY (gateID) REFERENCES payment_gates(gateID) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_transactions_userUID ON transactions(userUID);
+    CREATE INDEX IF NOT EXISTS idx_transactions_gateID ON transactions(gateID);
+    CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+    CREATE INDEX IF NOT EXISTS idx_transactions_transactionCode ON transactions(transactionCode);
+  `);
+
   console.log('✅ Database tables created/verified');
 }
 
