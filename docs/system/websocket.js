@@ -353,7 +353,7 @@ async function testCustomAPI(apiKey, model, endpoint, prompt, systemPrompt, temp
 // MIGRATE OLD JSON DATA (nếu có)
 // ============================================
 function migrateOldData(userUID) {
-  const oldFilePath = path.join(__dirname, 'data', 'triggers', `triggers_${userUID}.json`);
+  const oldFilePath = path.join(__dirname, '..', 'data', 'triggers', `triggers_${userUID}.json`);
   if (fs.existsSync(oldFilePath)) {
     console.log('🔄 Found old JSON data, migrating to SQLite...');
     triggerDB.migrateFromJSON(oldFilePath, userUID);
@@ -1815,7 +1815,7 @@ function startWebSocketServer(apiState, httpServer) {
             const buffer = Buffer.from(base64Data, 'base64');
             
             // Create images directory if not exists
-            const imagesDir = path.join(__dirname, 'data', 'images');
+            const imagesDir = path.join(__dirname, '..', 'data', 'images');
             if (!fs.existsSync(imagesDir)) {
               fs.mkdirSync(imagesDir, { recursive: true });
             }
@@ -1990,7 +1990,7 @@ function startWebSocketServer(apiState, httpServer) {
             const buffer = Buffer.from(base64Data, 'base64');
             
             // Create files directory
-            const filesDir = path.join(__dirname, 'data', 'files');
+            const filesDir = path.join(__dirname, '..', 'data', 'files');
             if (!fs.existsSync(filesDir)) {
               fs.mkdirSync(filesDir, { recursive: true });
             }
@@ -2136,7 +2136,7 @@ function startWebSocketServer(apiState, httpServer) {
             const buffer = Buffer.from(base64Data, 'base64');
             
             // Create templates directory
-            const templatesDir = path.join(__dirname, 'data', 'templates');
+            const templatesDir = path.join(__dirname, '..', 'data', 'templates');
             if (!fs.existsSync(templatesDir)) {
               fs.mkdirSync(templatesDir, { recursive: true });
             }

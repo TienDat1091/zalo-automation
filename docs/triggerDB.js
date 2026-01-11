@@ -1171,15 +1171,13 @@ module.exports = {
       console.log(`  - columns provided: ${data.columns ? data.columns.length : 0}`);
       
       const stmt = db.prepare(`
-        INSERT INTO user_tables (userUID, flowID, tableName, tableDescription, status)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO user_tables (userUID, tableName, tableDescription)
+        VALUES (?, ?, ?)
       `);
       const result = stmt.run(
         userUID,
-        data.flowID || null,
         data.tableName || 'New Table',
-        data.tableDescription || '',
-        data.status !== undefined ? (data.status ? 1 : 0) : 1
+        data.tableDescription || ''
       );
       
       const tableID = result.lastInsertRowid;
