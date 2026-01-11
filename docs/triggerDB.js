@@ -1405,7 +1405,7 @@ module.exports = {
       const stmt = db.prepare('INSERT INTO table_rows (tableID, rowOrder) VALUES (?, ?)');
       const result = stmt.run(tableID, order);
       const rowID = result.lastInsertRowid;
-      console.log(`  ✓ Row inserted with rowID: ${rowID}`);
+      console.log(`  ✓ Row inserted with rowID: ${rowID}, order: ${order}`);
 
       // Insert cell values if provided and columns exist
       if (columns.length > 0) {

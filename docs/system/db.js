@@ -418,7 +418,8 @@ function createTables(db) {
     CREATE TABLE IF NOT EXISTS table_rows (
       rowID INTEGER PRIMARY KEY AUTOINCREMENT,
       tableID INTEGER NOT NULL,
-      rowData TEXT NOT NULL,
+      rowData TEXT,
+      rowOrder INTEGER DEFAULT 0,
       createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
       updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000),
       FOREIGN KEY (tableID) REFERENCES user_tables(tableID) ON DELETE CASCADE
@@ -426,6 +427,26 @@ function createTables(db) {
   `);
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_table_rows_tableID ON table_rows(tableID)`);
+
+  // TABLE CELLS (Individual cell values for custom tables)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS table_cells (
+      cellID INTEGER PRIMARY KEY AUTOINCREMENT,
+      rowID INTEGER NOT NULL,
+      columnID INTEGER NOT NULL,
+      cellValue TEXT,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      FOREIGN KEY (rowID) REFERENCES table_rows(rowID) ON DELETE CASCADE,
+      FOREIGN KEY (columnID) REFERENCES table_columns(columnID) ON DELETE CASCADE,
+      UNIQUE(rowID, columnID)
+    )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_table_cells_rowID ON table_cells(rowID);
+    CREATE INDEX IF NOT EXISTS idx_table_cells_columnID ON table_cells(columnID);
+  `);
 
   // TRANSACTIONS
   db.exec(`
