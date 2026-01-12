@@ -90,7 +90,7 @@
 <body>
   <div class="header">
     <div class="header-left">
-      <div class="header-title"><span class="icon">🤖</span><span>Bot-Auto Testtt</span></div>
+      <div class="header-title"><span class="icon">🤖</span><span>Bot-Auto Testt</span></div>
       <div class="user-info-panel" id="userInfoPanel" style="display:none;">
         <div class="user-avatar" id="userAvatar">👤</div>
         <div class="user-details"><div class="user-name" id="userName">Loading...</div><div class="user-uid" id="userUID">UID: -</div></div>
@@ -455,14 +455,126 @@
     // ================================================
     function renderTriggerList() {
       const c = document.getElementById('triggerList');
-      if (triggers.length === 0) { c.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">📋 Chưa có trigger<br><button onclick="showNewTriggerModal()" style="margin-top:10px; padding:8px 16px; background:#667eea; color:white; border:none; border-radius:6px; cursor:pointer;">➕ Tạo mới</button></div>'; document.getElementById('triggerCount').textContent = '0'; return; }
-      const active = triggers.filter(t => t.enabled), inactive = triggers.filter(t => !t.enabled);
+
       let html = '';
+
+      // ===== BUILT-IN TRIGGERS (Special section) =====
+      html += renderBuiltInTriggers();
+
+      // ===== USER TRIGGERS =====
+      if (triggers.length === 0) {
+        html += '<div style="text-align:center; padding:40px; color:#999;">📋 Chưa có trigger<br><button onclick="showNewTriggerModal()" style="margin-top:10px; padding:8px 16px; background:#667eea; color:white; border:none; border-radius:6px; cursor:pointer;">➕ Tạo mới</button></div>';
+        c.innerHTML = html;
+        document.getElementById('triggerCount').textContent = '0';
+        return;
+      }
+
+      const active = triggers.filter(t => t.enabled), inactive = triggers.filter(t => !t.enabled);
       if (active.length > 0) { html += '<div class="trigger-group"><div class="trigger-group-title">✅ Đang hoạt động (' + active.length + ')</div>' + active.map(renderTriggerItem).join('') + '</div>'; }
       if (inactive.length > 0) { html += '<div class="trigger-group"><div class="trigger-group-title">⏸️ Tạm dừng (' + inactive.length + ')</div>' + inactive.map(renderTriggerItem).join('') + '</div>'; }
       html += '<button class="new-trigger-btn" onclick="showNewTriggerModal()">➕ Tạo trigger mới</button>';
       c.innerHTML = html;
       document.getElementById('triggerCount').textContent = triggers.length;
+    }
+
+    // Built-in triggers state
+    const builtInTriggers = {
+      autoMessage: {
+        id: 'builtin_auto_message',
+        name: 'Tự động gửi tin nhắn',
+        description: 'Tự động trả lời mọi tin nhắn theo kịch bản',
+        icon: '💬',
+        enabled: false,
+        response: ''
+      },
+      autoAcceptFriend: {
+        id: 'builtin_auto_friend',
+        name: 'Chấp nhận kết bạn',
+        description: 'Tự động đồng ý lời mời kết bạn',
+        icon: '👥',
+        enabled: false,
+        welcomeMessage: ''
+      }
+    };
+
+    function renderBuiltInTriggers() {
+      return `
+        <div class="trigger-group" style="margin-bottom: 16px; border: 2px solid #667eea; border-radius: 8px; padding: 8px;">
+          <div class="trigger-group-title" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; border-radius: 6px; margin: -8px -8px 8px -8px;">
+            ⚙️ Triggers Mặc Định
+          </div>
+          ${renderBuiltInTriggerItem(builtInTriggers.autoMessage)}
+          ${renderBuiltInTriggerItem(builtInTriggers.autoAcceptFriend)}
+        </div>
+      `;
+    }
+
+    function renderBuiltInTriggerItem(trigger) {
+      const statusColor = trigger.enabled ? '#4caf50' : '#ccc';
+      const statusText = trigger.enabled ? 'BẬT' : 'TẮT';
+      const statusIcon = trigger.enabled ? '✅' : '⭕';
+
+      return `
+        <div class="trigger-item-compact" style="background: ${trigger.enabled ? '#f0f9ff' : '#fafafa'}; border: 1px solid ${trigger.enabled ? '#b3d9ff' : '#eee'};">
+          <div class="trigger-header-row" onclick="toggleBuiltInTrigger('${trigger.id}')">
+            <div class="trigger-main-info">
+              <div class="trigger-icon-small" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 16px;">
+                ${trigger.icon}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div class="trigger-name-small">
+                  ${escapeHtml(trigger.name)}
+                  <span style="font-size: 10px; padding: 2px 6px; background: ${statusColor}; color: white; border-radius: 4px; margin-left: 6px;">${statusIcon} ${statusText}</span>
+                </div>
+                <div class="trigger-keywords-preview">${escapeHtml(trigger.description)}</div>
+              </div>
+            </div>
+            <div class="trigger-actions" onclick="event.stopPropagation()">
+              <button class="action-icon" onclick="setupBuiltInTrigger('${trigger.id}')" title="Cài đặt">⚙️</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ================================================
+    // BUILT-IN TRIGGER ACTIONS
+    // ================================================
+    function toggleBuiltInTrigger(triggerId) {
+      const trigger = triggerId === 'builtin_auto_message' ? builtInTriggers.autoMessage : builtInTriggers.autoAcceptFriend;
+
+      // Nếu chưa bật và chưa có config → yêu cầu setup
+      if (!trigger.enabled && !trigger.response && !trigger.welcomeMessage) {
+        setupBuiltInTrigger(triggerId);
+        return;
+      }
+
+      // Toggle trạng thái
+      trigger.enabled = !trigger.enabled;
+      renderTriggerList();
+
+      // Save vào backend
+      saveBuiltInTriggerState(triggerId, trigger);
+
+      showToast(trigger.enabled ? '✅ Đã bật ' + trigger.name : '⏸️ Đã tắt ' + trigger.name, 'success');
+    }
+
+    function setupBuiltInTrigger(triggerId) {
+      if (triggerId === 'builtin_auto_message') {
+        showAutoMessageSetup();
+      } else if (triggerId === 'builtin_auto_friend') {
+        showAutoFriendSetup();
+      }
+    }
+
+    function saveBuiltInTriggerState(triggerId, trigger) {
+      // Send to backend via WebSocket
+      ws.send(JSON.stringify({
+        type: 'update_builtin_trigger',
+        triggerId: triggerId,
+        enabled: trigger.enabled,
+        config: trigger
+      }));
     }
 
     function renderTriggerItem(t) {
