@@ -234,6 +234,94 @@
     </div>
   </div>
 
+  <!-- AUTO MESSAGE SETUP MODAL -->
+  <div class="modal-backdrop" id="autoMessageModal" style="display:none;">
+    <div class="modal-box" style="max-width:600px;">
+      <div class="modal-header">
+        <h2 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:24px;">💬</span>
+          Cài đặt Tự động gửi tin nhắn
+        </h2>
+      </div>
+      <div class="modal-body">
+        <div style="background:#f0f9ff; border-left:4px solid #2196f3; padding:12px; margin-bottom:16px; border-radius:4px;">
+          <div style="font-weight:600; color:#1976d2; margin-bottom:4px;">📌 Chức năng</div>
+          <div style="font-size:13px; color:#555;">Tự động trả lời <strong>MỌI</strong> tin nhắn đến từ mọi người với nội dung bạn cài đặt.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">💬 Nội dung tự động trả lời *</label>
+          <div class="response-input-wrapper">
+            <textarea class="form-input" id="autoMessageResponse" rows="6" placeholder="VD: Xin chào! Hiện tại tôi đang bận, sẽ phản hồi bạn sau.&#10;&#10;Hỗ trợ biến động:&#10;{name} - Tên người gửi&#10;{time} - Thời gian hiện tại"></textarea>
+            <button type="button" class="emoji-btn" onclick="toggleEmojiPickerForAutoMessage(event)">😊</button>
+            <div class="emoji-picker-container" id="emojiPickerAutoMessage">
+              <div class="emoji-tabs" id="emojiTabsAutoMessage"></div>
+              <div class="emoji-grid" id="emojiGridAutoMessage"></div>
+            </div>
+          </div>
+          <div style="font-size:11px; color:#999; margin-top:4px;">
+            💡 Có thể dùng biến: <code>{name}</code>, <code>{time}</code>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <input type="checkbox" id="autoMessageEnabled" style="margin-right:6px;">
+            Bật ngay sau khi lưu
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideAutoMessageModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveAutoMessageSetup()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTO ACCEPT FRIEND MODAL -->
+  <div class="modal-backdrop" id="autoFriendModal" style="display:none;">
+    <div class="modal-box" style="max-width:600px;">
+      <div class="modal-header">
+        <h2 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:24px;">👥</span>
+          Cài đặt Chấp nhận kết bạn
+        </h2>
+      </div>
+      <div class="modal-body">
+        <div style="background:#f0f9ff; border-left:4px solid #4caf50; padding:12px; margin-bottom:16px; border-radius:4px;">
+          <div style="font-weight:600; color:#388e3c; margin-bottom:4px;">📌 Chức năng</div>
+          <div style="font-size:13px; color:#555;">Tự động chấp nhận <strong>MỌI</strong> lời mời kết bạn và gửi tin nhắn chào mừng (tùy chọn).</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">💬 Tin nhắn chào mừng (tùy chọn)</label>
+          <div class="response-input-wrapper">
+            <textarea class="form-input" id="autoFriendMessage" rows="6" placeholder="VD: Chào {name}! 👋&#10;Cảm ơn bạn đã kết bạn với mình.&#10;Nếu cần hỗ trợ, hãy nhắn tin cho mình nhé!&#10;&#10;Để trống nếu không muốn gửi tin nhắn."></textarea>
+            <button type="button" class="emoji-btn" onclick="toggleEmojiPickerForAutoFriend(event)">😊</button>
+            <div class="emoji-picker-container" id="emojiPickerAutoFriend">
+              <div class="emoji-tabs" id="emojiTabsAutoFriend"></div>
+              <div class="emoji-grid" id="emojiGridAutoFriend"></div>
+            </div>
+          </div>
+          <div style="font-size:11px; color:#999; margin-top:4px;">
+            💡 Có thể dùng biến: <code>{name}</code>, <code>{time}</code>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <input type="checkbox" id="autoFriendEnabled" style="margin-right:6px;">
+            Bật ngay sau khi lưu
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideAutoFriendModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveAutoFriendSetup()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ACTIVITY WINDOW -->
   <div class="activity-backdrop" id="activityBackdrop" onclick="closeActivityWindow()"></div>
   <div class="activity-window" id="activityWindow">
@@ -638,6 +726,186 @@
       } else if (triggerId === 'builtin_auto_friend') {
         showAutoFriendSetup();
       }
+    }
+
+    // ================================================
+    // AUTO MESSAGE SETUP MODAL
+    // ================================================
+    function showAutoMessageSetup() {
+      const trigger = builtInTriggers.autoMessage;
+
+      // Populate form với dữ liệu hiện tại
+      document.getElementById('autoMessageResponse').value = trigger.response || '';
+      document.getElementById('autoMessageEnabled').checked = trigger.enabled;
+
+      // Show modal
+      document.getElementById('autoMessageModal').style.display = 'flex';
+    }
+
+    function hideAutoMessageModal() {
+      document.getElementById('autoMessageModal').style.display = 'none';
+    }
+
+    function saveAutoMessageSetup() {
+      const response = document.getElementById('autoMessageResponse').value.trim();
+      const enabled = document.getElementById('autoMessageEnabled').checked;
+
+      if (!response) {
+        showToast('❌ Vui lòng nhập nội dung trả lời!', 'error');
+        return;
+      }
+
+      if (!currentUser?.uid) {
+        showToast('❌ Chưa đăng nhập!', 'error');
+        return;
+      }
+
+      // Update state
+      builtInTriggers.autoMessage.response = response;
+      builtInTriggers.autoMessage.enabled = enabled;
+
+      // Save to database
+      saveBuiltInTriggerState('builtin_auto_message', builtInTriggers.autoMessage);
+
+      // Hide modal and update UI
+      hideAutoMessageModal();
+      renderTriggerList();
+      showToast('✅ Đã lưu cài đặt Tự động gửi tin nhắn!', 'success');
+    }
+
+    function toggleEmojiPickerForAutoMessage(event) {
+      event.stopPropagation();
+      const picker = document.getElementById('emojiPickerAutoMessage');
+      const isVisible = picker.style.display === 'block';
+
+      // Close all emoji pickers
+      document.querySelectorAll('.emoji-picker-container').forEach(p => p.style.display = 'none');
+
+      if (!isVisible) {
+        picker.style.display = 'block';
+        // Initialize emoji picker if not already done
+        if (!picker.dataset.initialized) {
+          initEmojiPickerForElement('AutoMessage');
+          picker.dataset.initialized = 'true';
+        }
+      }
+    }
+
+    // ================================================
+    // AUTO ACCEPT FRIEND SETUP MODAL
+    // ================================================
+    function showAutoFriendSetup() {
+      const trigger = builtInTriggers.autoAcceptFriend;
+
+      // Populate form với dữ liệu hiện tại
+      document.getElementById('autoFriendMessage').value = trigger.welcomeMessage || '';
+      document.getElementById('autoFriendEnabled').checked = trigger.enabled;
+
+      // Show modal
+      document.getElementById('autoFriendModal').style.display = 'flex';
+    }
+
+    function hideAutoFriendModal() {
+      document.getElementById('autoFriendModal').style.display = 'none';
+    }
+
+    function saveAutoFriendSetup() {
+      const welcomeMessage = document.getElementById('autoFriendMessage').value.trim();
+      const enabled = document.getElementById('autoFriendEnabled').checked;
+
+      if (!currentUser?.uid) {
+        showToast('❌ Chưa đăng nhập!', 'error');
+        return;
+      }
+
+      // Update state (tin nhắn chào mừng là tùy chọn)
+      builtInTriggers.autoAcceptFriend.welcomeMessage = welcomeMessage;
+      builtInTriggers.autoAcceptFriend.enabled = enabled;
+
+      // Save to database
+      saveBuiltInTriggerState('builtin_auto_friend', builtInTriggers.autoAcceptFriend);
+
+      // Hide modal and update UI
+      hideAutoFriendModal();
+      renderTriggerList();
+      showToast('✅ Đã lưu cài đặt Chấp nhận kết bạn!', 'success');
+    }
+
+    function toggleEmojiPickerForAutoFriend(event) {
+      event.stopPropagation();
+      const picker = document.getElementById('emojiPickerAutoFriend');
+      const isVisible = picker.style.display === 'block';
+
+      // Close all emoji pickers
+      document.querySelectorAll('.emoji-picker-container').forEach(p => p.style.display = 'none');
+
+      if (!isVisible) {
+        picker.style.display = 'block';
+        // Initialize emoji picker if not already done
+        if (!picker.dataset.initialized) {
+          initEmojiPickerForElement('AutoFriend');
+          picker.dataset.initialized = 'true';
+        }
+      }
+    }
+
+    function initEmojiPickerForElement(suffix) {
+      const tabsContainer = document.getElementById('emojiTabs' + suffix);
+      const gridContainer = document.getElementById('emojiGrid' + suffix);
+
+      // Render tabs
+      tabsContainer.innerHTML = Object.keys(EMOJI_DATA).map(cat =>
+        '<button class="emoji-tab ' + (cat === currentEmojiCategory ? 'active' : '') + '" onclick="switchEmojiCategory' + suffix + '(\'' + cat + '\')">' + cat + '</button>'
+      ).join('');
+
+      // Render grid
+      switchEmojiCategory(currentEmojiCategory, suffix);
+    }
+
+    function switchEmojiCategoryAutoMessage(category) {
+      switchEmojiCategory(category, 'AutoMessage');
+    }
+
+    function switchEmojiCategoryAutoFriend(category) {
+      switchEmojiCategory(category, 'AutoFriend');
+    }
+
+    function switchEmojiCategory(category, suffix) {
+      currentEmojiCategory = category;
+      const gridContainer = document.getElementById('emojiGrid' + (suffix || ''));
+      const tabsContainer = document.getElementById('emojiTabs' + (suffix || ''));
+
+      // Update tabs
+      tabsContainer.querySelectorAll('.emoji-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.textContent === category);
+      });
+
+      // Update grid
+      gridContainer.innerHTML = EMOJI_DATA[category].map(emoji =>
+        '<button class="emoji-item" onclick="insertEmoji' + (suffix || '') + '(\'' + emoji + '\')">' + emoji + '</button>'
+      ).join('');
+    }
+
+    function insertEmojiAutoMessage(emoji) {
+      const textarea = document.getElementById('autoMessageResponse');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      textarea.value = text.substring(0, start) + emoji + text.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+      textarea.focus();
+      document.getElementById('emojiPickerAutoMessage').style.display = 'none';
+    }
+
+    function insertEmojiAutoFriend(emoji) {
+      const textarea = document.getElementById('autoFriendMessage');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      textarea.value = text.substring(0, start) + emoji + text.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+      textarea.focus();
+      document.getElementById('emojiPickerAutoFriend').style.display = 'none';
     }
 
     function saveBuiltInTriggerState(triggerId, trigger) {
