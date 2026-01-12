@@ -4,8 +4,8 @@ const path = require('path');
 const express = require('express');
 
 const { loginZalo } = require('./loginZalo.js');
-const { startWebSocketServer, triggerDB } = require('./system/websocket');
-const { loadFriends } = require('./chat-function/friends');
+const { startWebSocketServer, triggerDB } = require('./system/websocket.js');
+const { loadFriends } = require('./chat-function/friends.js');
 
 // Create Express app
 const app = express();
@@ -74,6 +74,10 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
+
 // Keep-alive ping endpoint
 app.get('/ping', (req, res) => {
   res.json({ pong: true, time: Date.now() });
@@ -112,10 +116,10 @@ app.get('/api/images/:id', (req, res) => {
 });
 
 // Register File & Template API endpoints
-require('./file-function/file-api')(app, triggerDB);
+require('./file-function/file-api.js')(app, triggerDB);
 
 // Register Email API endpoints
-require('./file-function/email-api')(app, triggerDB);
+require('./file-function/email-api.js')(app, triggerDB);
 
 // 404 handler
 app.use((req, res) => {

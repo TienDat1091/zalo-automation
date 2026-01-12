@@ -9,7 +9,12 @@
       "Bash(sqlite3:*)",
       "Bash(git restore:*)",
       "Bash(ls:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(npm install)",
+      "Bash(node:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

@@ -1,0 +1,17 @@
+{
+  "watch": [
+    "server.js",
+    "system/**/*.js",
+    "blocks/**/*.js",
+    "chat-function/**/*.js",
+    "*.js"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules/",
+    "data/",
+    "public/",
+    "*.log"
+  ],
+  "delay": "1000"
+}
