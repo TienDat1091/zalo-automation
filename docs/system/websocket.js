@@ -36,6 +36,53 @@ function broadcast(apiState, data) {
 }
 
 // ============================================
+// AUTO-CREATE BUILT-IN TRIGGERS
+// ============================================
+function ensureBuiltInTriggers(userUID) {
+  if (!userUID) return;
+
+  const allTriggers = triggerDB.getTriggers(userUID);
+
+  // Check if built-in triggers exist
+  const hasAutoMessage = allTriggers.some(t => t.triggerKey === '__builtin_auto_message__');
+  const hasAutoFriend = allTriggers.some(t => t.triggerKey === '__builtin_auto_friend__');
+
+  // Create Auto Message trigger if not exists
+  if (!hasAutoMessage) {
+    console.log('📌 Creating built-in trigger: Auto Message');
+    triggerDB.createTrigger({
+      triggerName: 'Tự động gửi tin nhắn',
+      triggerKey: '__builtin_auto_message__',
+      triggerContent: 'Xin chào! Tôi sẽ phản hồi bạn sớm nhất có thể.',
+      triggerUserID: userUID,
+      enabled: false,
+      scope: 0,
+      cooldown: 30000,
+      timeStartActive: '00:00',
+      timeEndActive: '23:59',
+      setMode: 0
+    });
+  }
+
+  // Create Auto Accept Friend trigger if not exists
+  if (!hasAutoFriend) {
+    console.log('📌 Creating built-in trigger: Auto Accept Friend');
+    triggerDB.createTrigger({
+      triggerName: 'Chấp nhận kết bạn',
+      triggerKey: '__builtin_auto_friend__',
+      triggerContent: 'Chào bạn! Cảm ơn bạn đã kết bạn với mình.',
+      triggerUserID: userUID,
+      enabled: false,
+      scope: 0,
+      cooldown: 30000,
+      timeStartActive: '00:00',
+      timeEndActive: '23:59',
+      setMode: 0
+    });
+  }
+}
+
+// ============================================
 // FILE CONTENT READER - Đọc nội dung file để preview
 // ============================================
 function readFileContentForPreview(filePath, mimeType, fileType) {
@@ -400,6 +447,9 @@ function startWebSocketServer(apiState, httpServer) {
         // ============================================
         if (msg.type === 'get_current_user') {
           if (apiState.currentUser) {
+            // Ensure built-in triggers exist for this user
+            ensureBuiltInTriggers(apiState.currentUser.uid);
+
             ws.send(JSON.stringify({
               type: 'current_user',
               user: apiState.currentUser
