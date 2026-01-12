@@ -112,6 +112,7 @@
     </div>
   </div>
 
+  <script src="assets/websocket-helper.js"></script>
   <script>
     // ========== GLOBAL VARIABLES ==========
     const ITEM_HEIGHT = 74;
@@ -147,8 +148,7 @@
     }
 
     // ========== WEBSOCKET ==========
-    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(wsProtocol + '//' + location.host);
+    const ws = createWebSocket();
   
     ws.onopen = () => {
       console.log('✅ WebSocket connected');

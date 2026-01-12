@@ -33,10 +33,9 @@
     </div>
   </div>
 
+  <script src="assets/websocket-helper.js"></script>
   <script>
-    // Automatically use wss:// for HTTPS, ws:// for HTTP
-    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(wsProtocol + '//' + location.host);
+    const ws = createWebSocket();
     const qrImg = document.querySelector('#qr');
     const statusText = document.querySelector('#statusText');
     const statusBox = document.querySelector('#statusBox');
