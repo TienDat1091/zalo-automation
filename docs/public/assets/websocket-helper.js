@@ -4,7 +4,10 @@
 
   /**
    * Tạo WebSocket connection tới server Node.js (port 3000)
-   * Hoạt động cả khi truy cập qua Browser-Sync (port 3001)
+   * Hoạt động với:
+   * - Direct access: localhost:3000
+   * - Live Server: localhost:5500 (proxy to 3000)
+   * - Browser-Sync: localhost:3001 (proxy to 3000)
    *
    * @returns {WebSocket} WebSocket instance
    */
@@ -12,7 +15,7 @@
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 
     // Luôn connect tới port 3000 (Node.js server)
-    // Không dùng location.host vì nó có thể là port 3001 (Browser-Sync)
+    // Không dùng location.host vì có thể là Live Server (5500) hoặc Browser-Sync (3001)
     const wsHost = location.hostname + ':3000';
 
     console.log('🔌 Connecting WebSocket to:', wsProtocol + '//' + wsHost);
