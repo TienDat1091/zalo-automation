@@ -5,7 +5,6 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "dev:sync": "concurrently \"nodemon server.js\" \"browser-sync start --proxy localhost:3000 --port 3001 --files 'public/**/*' --no-notify\"",
     "test": "echo \"No tests configured\" && exit 0"
   },
   "dependencies": {

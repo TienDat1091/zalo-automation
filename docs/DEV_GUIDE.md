@@ -2,25 +2,7 @@
 
 ## Chạy Server với Auto-Reload
 
-### Cách 1: Auto-reload Frontend + Backend (Khuyến nghị)
-```bash
-npm run dev:sync
-```
-
-**Truy cập:** http://localhost:3001
-
-**Tự động reload khi:**
-- ✅ Sửa file HTML/CSS/JS trong `public/` → Browser tự động reload
-- ✅ Sửa file backend (server.js, websocket.js) → Server tự restart → Trang tự reload
-
-**Cách hoạt động:**
-- Nodemon watch backend files → auto restart server
-- Browser-Sync watch frontend files → auto reload browser
-- Auto-reconnect script detect server restart → auto reload page
-
----
-
-### Cách 2: Chỉ auto-restart Backend
+### Cách 1: Auto-restart Backend (Khuyến nghị)
 ```bash
 npm run dev
 ```
@@ -29,11 +11,12 @@ npm run dev
 
 **Tự động:**
 - ✅ Sửa backend → Server tự restart
-- ❌ Cần F5 thủ công để reload trang
+- ✅ WebSocket tự reconnect
+- ⚠️ Sửa frontend (HTML/CSS/JS) → Cần F5 thủ công
 
 ---
 
-### Cách 3: Chạy bình thường (Production mode)
+### Cách 2: Chạy bình thường (Production mode)
 ```bash
 npm start
 ```
@@ -49,7 +32,7 @@ Không có auto-reload, giống production.
 ### 1. Khởi động Development Server
 ```bash
 cd docs
-npm run dev:sync
+npm run dev
 ```
 
 ### 2. Sửa Code
@@ -58,7 +41,7 @@ npm run dev:sync
 ```
 Mở file: docs/public/trigger-manager.html
 Sửa code → Ctrl+S (Save)
-→ Browser tự động reload ngay lập tức ✨
+→ Refresh browser (F5) để thấy thay đổi
 ```
 
 #### Backend (Node.js):
@@ -66,12 +49,12 @@ Sửa code → Ctrl+S (Save)
 Mở file: docs/server.js hoặc docs/system/websocket.js
 Sửa code → Ctrl+S (Save)
 → Server tự động restart
-→ Browser tự động reload sau 2 giây ✨
+→ WebSocket tự động reconnect
+→ Refresh browser (F5) để reconnect
 ```
 
 ### 3. Test
-- Thay đổi hiển thị ngay trên browser
-- Không cần F5 thủ công
+- Refresh browser (F5) để thấy thay đổi
 - Console logs xuất hiện trong terminal
 
 ### 4. Commit Changes
@@ -107,16 +90,6 @@ git push origin main
 - Watch: `server.js`, `system/**/*.js`, `blocks/**/*.js`, `chat-function/**/*.js`
 - Ignore: `node_modules/`, `data/`, `public/`
 
-### Browser-Sync
-- Proxy localhost:3000 → localhost:3001
-- Auto-reload browser khi file frontend thay đổi
-- Watch: `public/**/*`
-- Inject live-reload script vào HTML
-
-### Concurrently
-- Chạy đồng thời Nodemon và Browser-Sync
-- Output logs từ cả 2 processes
-
 ---
 
 ## Troubleshooting
@@ -131,15 +104,15 @@ taskkill /PID <PID> /F
 const PORT = process.env.PORT || 3001;
 ```
 
-### Browser không auto-reload
+### WebSocket không connect
 1. Kiểm tra console có lỗi không (F12)
-2. Đảm bảo truy cập qua port 3001 (không phải 3000)
-3. Hard refresh: `Ctrl + Shift + R`
+2. Đảm bảo server đang chạy trên port 3000
+3. Check `/api/health`: http://localhost:3000/api/health
 
 ### Server không auto-restart
 1. Kiểm tra nodemon đã cài: `npm list nodemon`
 2. Kiểm tra file có trong watch list không (xem `nodemon.json`)
-3. Restart thủ công: `Ctrl+C` → `npm run dev:sync`
+3. Restart thủ công: `Ctrl+C` → `npm run dev`
 
 ### WebSocket không reconnect
 1. Kiểm tra `auto-reconnect.js` đã load: Console → Network tab
