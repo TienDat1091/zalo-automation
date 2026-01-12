@@ -60,6 +60,38 @@ async function processAutoReply(apiState, message) {
       return;
     }
 
+    // ========== CHECK BUILT-IN AUTO MESSAGE TRIGGER ==========
+    const allTriggers = triggerDB.getTriggers(userUID);
+    const autoMessageTrigger = allTriggers.find(t =>
+      t.triggerKey === '__builtin_auto_message__' &&
+      t.enabled === true
+    );
+
+    // If auto-message is enabled, reply immediately
+    if (autoMessageTrigger) {
+      const cooldownKey = `${senderId}_${autoMessageTrigger.triggerID}`;
+      const lastReplyTime = autoReplyState.cooldowns.get(cooldownKey);
+      const now = Date.now();
+
+      if (!lastReplyTime || (now - lastReplyTime) >= (autoMessageTrigger.cooldown || 30000)) {
+        let replyContent = autoMessageTrigger.triggerContent || 'Xin chào!';
+
+        // Replace variables
+        const senderName = apiState.friends?.find(f => f.userId === senderId)?.displayName || 'bạn';
+        const currentTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+        replyContent = replyContent
+          .replace(/{name}/g, senderName)
+          .replace(/{time}/g, currentTime);
+
+        await sendMessage(apiState, senderId, replyContent, userUID);
+        autoReplyState.cooldowns.set(cooldownKey, now);
+        autoReplyState.stats.replied++;
+        console.log(`✅ Auto-message trigger replied`);
+        return; // Exit after auto-message reply
+      }
+    }
+
     // ========== FIND MATCHING TRIGGER ==========
     const matchedTrigger = triggerDB.findMatchingTrigger(userUID, content, senderId, isFriend);
 
