@@ -85,6 +85,22 @@
     .activity-empty { text-align: center; padding: 40px; color: #999; }
     .mode-hint { font-size: 11px; color: #666; margin-top: 4px; padding: 8px; background: #f5f7fa; border-radius: 4px; }
     .mode-hint.flow { background: #f3e5f5; color: #7b1fa2; }
+    /* Built-in trigger modals */
+    .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 10000; }
+    .modal-backdrop.show { display: flex; }
+    .modal-box { background: white; border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid #eee; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+    .form-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; }
+    .form-input:focus { outline: none; border-color: #667eea; }
+    .btn { padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; }
+    .btn-primary { background: #667eea; color: white; }
+    .btn-primary:hover { background: #5568d3; }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn-secondary:hover { background: #e0e0e0; }
   </style>
 </head>
 <body>
@@ -702,16 +718,20 @@
     // BUILT-IN TRIGGER ACTIONS
     // ================================================
     function toggleBuiltInTrigger(triggerId) {
+      console.log('🔘 toggleBuiltInTrigger called:', triggerId);
       const trigger = triggerId === 'builtin_auto_message' ? builtInTriggers.autoMessage : builtInTriggers.autoAcceptFriend;
+      console.log('🔘 Trigger state:', trigger);
 
       // Nếu chưa bật và chưa có config → yêu cầu setup
       if (!trigger.enabled && !trigger.response && !trigger.welcomeMessage) {
+        console.log('🔘 No config, opening setup modal');
         setupBuiltInTrigger(triggerId);
         return;
       }
 
       // Toggle trạng thái
       trigger.enabled = !trigger.enabled;
+      console.log('🔘 Toggled to:', trigger.enabled);
       renderTriggerList();
 
       // Save vào backend
@@ -721,6 +741,7 @@
     }
 
     function setupBuiltInTrigger(triggerId) {
+      console.log('⚙️ setupBuiltInTrigger called:', triggerId);
       if (triggerId === 'builtin_auto_message') {
         showAutoMessageSetup();
       } else if (triggerId === 'builtin_auto_friend') {
@@ -732,6 +753,7 @@
     // AUTO MESSAGE SETUP MODAL
     // ================================================
     function showAutoMessageSetup() {
+      console.log('💬 showAutoMessageSetup called');
       const trigger = builtInTriggers.autoMessage;
 
       // Populate form với dữ liệu hiện tại
@@ -740,6 +762,7 @@
 
       // Show modal
       document.getElementById('autoMessageModal').style.display = 'flex';
+      console.log('💬 Modal should be visible now');
     }
 
     function hideAutoMessageModal() {

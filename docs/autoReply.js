@@ -61,7 +61,7 @@ async function processAutoReply(apiState, message) {
     }
 
     // ========== CHECK BUILT-IN AUTO MESSAGE TRIGGER ==========
-    const allTriggers = triggerDB.getTriggers(userUID);
+    const allTriggers = triggerDB.getTriggersByUser(userUID);
     const autoMessageTrigger = allTriggers.find(t =>
       t.triggerKey === '__builtin_auto_message__' &&
       t.enabled === true

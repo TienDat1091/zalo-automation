@@ -41,7 +41,7 @@ function broadcast(apiState, data) {
 function ensureBuiltInTriggers(userUID) {
   if (!userUID) return;
 
-  const allTriggers = triggerDB.getTriggers(userUID);
+  const allTriggers = triggerDB.getTriggersByUser(userUID);
 
   // Check if built-in triggers exist
   const hasAutoMessage = allTriggers.some(t => t.triggerKey === '__builtin_auto_message__');
