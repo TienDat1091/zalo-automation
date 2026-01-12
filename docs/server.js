@@ -83,17 +83,27 @@ app.get('/ping', (req, res) => {
   res.json({ pong: true, time: Date.now() });
 });
 
-// QR code handler
+// QR code handler - check both working directory and __dirname
 app.get('/qr.png', (req, res) => {
-  const qrPath = path.join(__dirname, 'qr.png');
-  fs.access(qrPath, fs.constants.F_OK, err => {
-    if (err) {
-      res.status(404).json({ error: 'QR code not found' });
-      return;
-    }
+  // zca-js saves qr.png to current working directory
+  const qrPathCwd = path.join(process.cwd(), 'qr.png');
+  const qrPathDocs = path.join(__dirname, 'qr.png');
+
+  // Try working directory first (when running from root: node docs/server.js)
+  if (fs.existsSync(qrPathCwd)) {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.sendFile(qrPath);
-  });
+    res.sendFile(qrPathCwd);
+    return;
+  }
+
+  // Fallback to __dirname (when running from docs: node server.js)
+  if (fs.existsSync(qrPathDocs)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.sendFile(qrPathDocs);
+    return;
+  }
+
+  res.status(404).json({ error: 'QR code not found' });
 });
 
 // API for images
@@ -101,11 +111,11 @@ app.get('/api/images/:id', (req, res) => {
   try {
     const imageId = parseInt(req.params.id);
     if (!imageId) return res.status(400).json({ error: 'Invalid image ID' });
-    
+
     const image = triggerDB.getImageById(imageId);
     if (!image) return res.status(404).json({ error: 'Image not found' });
     if (!fs.existsSync(image.filePath)) return res.status(404).json({ error: 'Image file not found on disk' });
-    
+
     res.setHeader('Content-Type', image.mimeType || 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.sendFile(image.filePath);
@@ -217,7 +227,7 @@ server.listen(PORT, () => {
   console.log("");
   console.log("✅ Server is ready to accept connections!");
   console.log("");
-  
+
   // Start WebSocket server on the same HTTP server
   startWebSocketServer(apiState, server);
 

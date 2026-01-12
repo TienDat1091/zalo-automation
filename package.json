@@ -4,7 +4,7 @@
   "main": "docs/server.js",
   "scripts": {
     "start": "node docs/server.js",
-    "dev": "NODE_ENV=development node docs/server.js",
+    "dev": "node docs/server.js",
     "test": "echo \"No tests configured\" && exit 0"
   },
   "dependencies": {

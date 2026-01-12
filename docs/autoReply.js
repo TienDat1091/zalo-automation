@@ -46,14 +46,14 @@ async function processAutoReply(apiState, message) {
     // ========== CHECK PENDING USER INPUT ==========
     const pendingKey = `${userUID}_${senderId}`;
     let pendingInput = autoReplyState.pendingInputs.get(pendingKey);
-    
+
     if (!pendingInput) {
       const dbState = triggerDB.getInputState(userUID, senderId);
       if (dbState) {
         pendingInput = dbState;
       }
     }
-    
+
     if (pendingInput) {
       console.log(`👂 Has pending input state`);
       await handleUserInputResponse(apiState, senderId, content, pendingInput, userUID);
@@ -72,8 +72,12 @@ async function processAutoReply(apiState, message) {
       const cooldownKey = `${senderId}_${autoMessageTrigger.triggerID}`;
       const lastReplyTime = autoReplyState.cooldowns.get(cooldownKey);
       const now = Date.now();
+      const cooldownMs = autoMessageTrigger.cooldown || 30000;
+      const elapsed = lastReplyTime ? (now - lastReplyTime) : cooldownMs + 1; // First time = always pass
 
-      if (!lastReplyTime || (now - lastReplyTime) >= (autoMessageTrigger.cooldown || 30000)) {
+      console.log(`🔄 Auto-message check: lastReply=${lastReplyTime ? new Date(lastReplyTime).toLocaleTimeString() : 'never'}, elapsed=${Math.floor(elapsed / 1000)}s, cooldown=${Math.floor(cooldownMs / 1000)}s`);
+
+      if (elapsed >= cooldownMs) {
         let replyContent = autoMessageTrigger.triggerContent || 'Xin chào!';
 
         // Replace variables
@@ -87,8 +91,12 @@ async function processAutoReply(apiState, message) {
         await sendMessage(apiState, senderId, replyContent, userUID);
         autoReplyState.cooldowns.set(cooldownKey, now);
         autoReplyState.stats.replied++;
-        console.log(`✅ Auto-message trigger replied`);
+        console.log(`✅ Auto-message replied! Next reply available in ${Math.floor(cooldownMs / 1000)}s`);
         return; // Exit after auto-message reply
+      } else {
+        const waitTime = Math.ceil((cooldownMs - elapsed) / 1000);
+        console.log(`⏳ Auto-message cooldown active: wait ${waitTime}s more`);
+        // Don't return here, continue to check other triggers
       }
     }
 
@@ -137,7 +145,7 @@ async function processAutoReply(apiState, message) {
 // ========================================
 async function executeFlow(apiState, senderId, trigger, originalMessage, userUID) {
   const processId = `flow_${Date.now()}`;
-  
+
   try {
     const flow = triggerDB.getFlowByTrigger(trigger.triggerID);
     if (!flow || !flow.blocks?.length) {
@@ -146,11 +154,11 @@ async function executeFlow(apiState, senderId, trigger, originalMessage, userUID
     }
 
     console.log(`🚀 [${processId}] Flow: ${flow.flowName}, ${flow.blocks.length} blocks`);
-    
+
     logFlowProcess(processId, 'FLOW_START', { flowId: flow.flowID, triggerId: trigger.triggerID });
 
     const mainBlocks = flow.blocks.filter(b => !b.parentBlockID).sort((a, b) => a.blockOrder - b.blockOrder);
-    
+
     console.log(`  🔍 Main blocks (no parent): ${mainBlocks.length}`);
 
     const context = {
@@ -189,13 +197,13 @@ async function executeFlow(apiState, senderId, trigger, originalMessage, userUID
 
 async function executeBlock(apiState, senderId, block, context, userUID, flow, processId, num, total) {
   const data = block.blockData || {};
-  
+
   // Check if block is disabled
   if (data.enabled === false) {
     console.log(`  [${num}/${total}] ⏸️ ${block.blockType} (ID:${block.blockID}) - DISABLED`);
     return { success: true, skipped: true };
   }
-  
+
   console.log(`  [${num}/${total}] ${block.blockType} (ID:${block.blockID})`);
   logFlowProcess(processId, 'BLOCK_START', { blockId: block.blockID, blockType: block.blockType });
 
@@ -244,7 +252,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
               console.log(`    ⚠️ Image not found in library: ID ${data.imageId}`);
               break;
             }
-          } 
+          }
           else if (sourceType === 'url' && data.imageUrl) {
             imageUrl = substituteVariables(data.imageUrl, context);
             console.log(`    🔗 URL image: ${imageUrl}`);
@@ -275,23 +283,23 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             // ✅ Quan trọng: Dùng path.resolve() để lấy absolute path đúng format
             const resolvedPath = path.resolve(imagePath);
             console.log(`    📤 Sending HD image via resolved path: ${resolvedPath}`);
-            
+
             let sent = false;
-            
+
             // ✅ Cách 1: Theo đúng ví dụ zca-js - attachments với msg rỗng
             try {
               console.log(`    📤 Method 1: attachments with empty msg (zca-js style)...`);
               await apiState.api.sendMessage(
-                { 
+                {
                   msg: "",
                   attachments: [resolvedPath]
-                }, 
-                senderId, 
+                },
+                senderId,
                 ThreadType.User
               );
               console.log(`    ✅ Image sent via method 1!`);
               sent = true;
-              
+
               // Gửi caption riêng nếu có
               if (caption) {
                 await sendMessage(apiState, senderId, caption, userUID);
@@ -299,19 +307,19 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             } catch (err1) {
               console.log(`    ⚠️ Method 1 failed: ${err1.message}`);
             }
-            
+
             // ✅ Cách 2: Chỉ attachments (không có msg)
             if (!sent) {
               try {
                 console.log(`    📤 Method 2: attachments only...`);
                 await apiState.api.sendMessage(
-                  { attachments: [resolvedPath] }, 
-                  senderId, 
+                  { attachments: [resolvedPath] },
+                  senderId,
                   ThreadType.User
                 );
                 console.log(`    ✅ Image sent via method 2!`);
                 sent = true;
-                
+
                 if (caption) {
                   await sendMessage(apiState, senderId, caption, userUID);
                 }
@@ -319,17 +327,17 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
                 console.log(`    ⚠️ Method 2 failed: ${err2.message}`);
               }
             }
-            
+
             // ✅ Cách 3: attachments với caption trong msg
             if (!sent && caption) {
               try {
                 console.log(`    📤 Method 3: attachments with caption...`);
                 await apiState.api.sendMessage(
-                  { 
+                  {
                     msg: caption,
                     attachments: [resolvedPath]
-                  }, 
-                  senderId, 
+                  },
+                  senderId,
                   ThreadType.User
                 );
                 console.log(`    ✅ Image sent via method 3!`);
@@ -338,7 +346,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
                 console.log(`    ⚠️ Method 3 failed: ${err3.message}`);
               }
             }
-            
+
             // Fallback: Gửi URL kèm caption
             if (!sent) {
               console.log(`    📤 All file methods failed, sending URL as fallback...`);
@@ -346,7 +354,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
               await sendMessage(apiState, senderId, msg, userUID);
               console.log(`    ✅ Image URL sent as fallback`);
             }
-          } 
+          }
           else if (imageUrl) {
             // Gửi URL ảnh
             console.log(`    📤 Sending image URL: ${imageUrl}`);
@@ -391,7 +399,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
               console.log(`    ⚠️ File not found in library: ID ${data.fileId}`);
               break;
             }
-          } 
+          }
           else if (sourceType === 'url' && data.fileUrl) {
             fileUrl = substituteVariables(data.fileUrl, context);
             console.log(`    🔗 URL file: ${fileUrl}`);
@@ -399,13 +407,13 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           else if (sourceType === 'variable' && data.fileVariable) {
             // Bước 1: Tìm trong context
             let varValue = context[data.fileVariable] || '';
-            
+
             // Bước 2: Tìm trong variables table
             if (!varValue) {
               const dbVar = triggerDB.getVariable(userUID, senderId, data.fileVariable);
               varValue = dbVar?.variableValue || '';
             }
-            
+
             // Bước 3: Nếu vẫn không có, thử tìm file có variableName trùng
             if (!varValue) {
               const fileByVar = triggerDB.getFileByVariable(userUID, data.fileVariable);
@@ -432,7 +440,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
                 fileUrl = varValue;
               }
             }
-            
+
             console.log(`    📝 Variable file: {${data.fileVariable}} = ${fileUrl || filePath || '(not found)'}`);
           }
 
@@ -451,23 +459,23 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             // ✅ Quan trọng: Dùng path.resolve() để lấy absolute path đúng format
             const resolvedPath = path.resolve(filePath);
             console.log(`    📤 Sending file via resolved path: ${resolvedPath}`);
-            
+
             let sent = false;
-            
+
             // ✅ Cách 1: Theo đúng ví dụ zca-js - attachments với msg rỗng
             try {
               console.log(`    📤 Method 1: attachments with empty msg (zca-js style)...`);
               await apiState.api.sendMessage(
-                { 
+                {
                   msg: "",
                   attachments: [resolvedPath]
-                }, 
-                senderId, 
+                },
+                senderId,
                 ThreadType.User
               );
               console.log(`    ✅ File sent via method 1!`);
               sent = true;
-              
+
               // Gửi caption riêng nếu có
               if (caption) {
                 await sendMessage(apiState, senderId, caption, userUID);
@@ -475,19 +483,19 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             } catch (err1) {
               console.log(`    ⚠️ Method 1 failed: ${err1.message}`);
             }
-            
+
             // ✅ Cách 2: Chỉ attachments (không có msg)
             if (!sent) {
               try {
                 console.log(`    📤 Method 2: attachments only...`);
                 await apiState.api.sendMessage(
-                  { attachments: [resolvedPath] }, 
-                  senderId, 
+                  { attachments: [resolvedPath] },
+                  senderId,
                   ThreadType.User
                 );
                 console.log(`    ✅ File sent via method 2!`);
                 sent = true;
-                
+
                 if (caption) {
                   await sendMessage(apiState, senderId, caption, userUID);
                 }
@@ -495,17 +503,17 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
                 console.log(`    ⚠️ Method 2 failed: ${err2.message}`);
               }
             }
-            
+
             // ✅ Cách 3: attachments với caption trong msg
             if (!sent && caption) {
               try {
                 console.log(`    📤 Method 3: attachments with caption...`);
                 await apiState.api.sendMessage(
-                  { 
+                  {
                     msg: caption,
                     attachments: [resolvedPath]
-                  }, 
-                  senderId, 
+                  },
+                  senderId,
                   ThreadType.User
                 );
                 console.log(`    ✅ File sent via method 3!`);
@@ -520,16 +528,16 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
               try {
                 console.log(`    📤 Method 4: attachment singular...`);
                 await apiState.api.sendMessage(
-                  { 
+                  {
                     msg: "",
                     attachment: [resolvedPath]
-                  }, 
-                  senderId, 
+                  },
+                  senderId,
                   ThreadType.User
                 );
                 console.log(`    ✅ File sent via method 4!`);
                 sent = true;
-                
+
                 if (caption) {
                   await sendMessage(apiState, senderId, caption, userUID);
                 }
@@ -537,23 +545,23 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
                 console.log(`    ⚠️ Method 4 failed: ${err4.message}`);
               }
             }
-            
+
             // Fallback: Gửi URL download
             if (!sent) {
               console.log(`    📤 All methods failed, sending download URL as fallback...`);
               const downloadUrl = `http://localhost:3000/api/files/${data.fileId}/download`;
-              const msg = caption 
-                ? `${caption}\n📎 ${fileName}: ${downloadUrl}` 
+              const msg = caption
+                ? `${caption}\n📎 ${fileName}: ${downloadUrl}`
                 : `📎 ${fileName}: ${downloadUrl}`;
               await sendMessage(apiState, senderId, msg, userUID);
               console.log(`    ✅ File download URL sent as fallback`);
             }
-          } 
+          }
           else if (fileUrl) {
             // Gửi URL file
             console.log(`    📤 Sending file URL: ${fileUrl}`);
-            const msg = caption 
-              ? `${caption}\n📎 ${fileName || 'File'}: ${fileUrl}` 
+            const msg = caption
+              ? `${caption}\n📎 ${fileName || 'File'}: ${fileUrl}`
               : `📎 ${fileName || 'File'}: ${fileUrl}`;
             await sendMessage(apiState, senderId, msg, userUID);
             console.log(`    ✅ File URL sent!`);
@@ -569,7 +577,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
       case 'send-friend-request': {
         try {
           let targetUserId = '';
-          
+
           // Xác định User ID cần gửi kết bạn
           if (data.targetType === 'sender') {
             // Gửi kết bạn cho người gửi tin nhắn hiện tại
@@ -585,11 +593,11 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             // Sử dụng User ID nhập thủ công
             targetUserId = data.targetUserId;
           }
-          
+
           if (targetUserId) {
             const msg = substituteVariables(data.message || 'Xin chào, hãy kết bạn với tôi!', context);
             console.log(`    👋 Sending friend request to ${targetUserId}: "${msg.substring(0, 30)}..."`);
-            
+
             if (apiState.api && apiState.api.sendFriendRequest) {
               await apiState.api.sendFriendRequest(msg, targetUserId);
               console.log(`    ✅ Friend request sent successfully`);
@@ -611,21 +619,21 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           // Block này thường được dùng khi có sự kiện friend request đến
           // Trong context có thể có requester_id
           const requesterId = context.requester_id || senderId;
-          
+
           if (data.autoAccept !== false) {
             console.log(`    🤝 Accepting friend request from ${requesterId}`);
-            
+
             if (apiState.api && apiState.api.acceptFriendRequest) {
               await apiState.api.acceptFriendRequest(requesterId);
               console.log(`    ✅ Friend request accepted`);
-              
+
               // Gửi tin nhắn chào mừng nếu được bật
               if (data.sendWelcome !== false && data.welcomeMessage) {
                 const welcomeMsg = substituteVariables(data.welcomeMessage, context);
                 await sendMessage(apiState, requesterId, welcomeMsg, userUID);
                 console.log(`    💬 Welcome message sent`);
               }
-              
+
               // Chạy flow sau khi chấp nhận
               if (data.runFlowAfter) {
                 const targetTrigger = triggerDB.getTriggerById(data.runFlowAfter);
@@ -648,7 +656,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
         // Hỗ trợ đơn vị: ms, s, m, h
         let duration = data.duration || 2000;
         const unit = data.unit || 'ms';
-        
+
         // Chuyển đổi sang milliseconds
         switch (unit) {
           case 's': duration *= 1000; break;
@@ -656,7 +664,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           case 'h': duration *= 60 * 60 * 1000; break;
           default: break; // ms - không cần chuyển đổi
         }
-        
+
         console.log(`    ⏱️ Wait ${duration}ms (${data.duration} ${unit})`);
         await sleep(duration);
         break;
@@ -677,15 +685,15 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
 
       case 'condition': {
         console.log(`    🔍 [CONDITION] Evaluating condition`);
-        
+
         // NEW DESIGN: Condition có 2 target flow - trueFlow và falseFlow
         const trueFlowId = data.trueFlowId || data.trueTriggerId;
         const falseFlowId = data.falseFlowId || data.falseTriggerId;
-        
+
         // Evaluate condition
         const result = evaluateCondition(data, context);
         console.log(`    🔀 Condition: {${data.variableName || 'N/A'}} ${data.operator || 'N/A'} "${data.compareValue || 'N/A'}" = ${result}`);
-        
+
         if (result) {
           // Condition TRUE - chạy true flow
           if (trueFlowId) {
@@ -721,62 +729,62 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             console.log(`    ℹ️ No false flow configured, continuing...`);
           }
         }
-        
+
         // Sau khi chạy condition flow, tiếp tục flow hiện tại
         break;
       }
-        case 'switch': {
-          // Switch/Case block: match context variable against cases
-          const data = block.blockData || {};
-          const varName = data.variableName || '';
-          let varValue = context[varName];
+      case 'switch': {
+        // Switch/Case block: match context variable against cases
+        const data = block.blockData || {};
+        const varName = data.variableName || '';
+        let varValue = context[varName];
 
-          if (varValue === undefined) {
-            // Try load from DB
-            try {
-              const v = triggerDB.getVariable(userUID, senderId, varName);
-              if (v) varValue = v.variableValue;
-            } catch (e) {}
-          }
-
-          const cases = data.cases || [];
-          let matched = null;
-
-          for (const c of cases) {
-            if (String(c.value) === String(varValue)) { matched = c; break; }
-          }
-
-          if (matched) {
-            const mode = matched.mode || 'reply';
-            
-            if (mode === 'flow' && matched.targetTriggerId) {
-              const trg = triggerDB.getTriggerById(matched.targetTriggerId);
-              if (trg && trg.setMode === 1) {
-                console.log(`  🔗 Switch: Running flow ${matched.targetTriggerId}`);
-                await executeFlow(apiState, senderId, trg, context.message, userUID);
-              }
-            } else if (mode === 'reply' && matched.replyMessage) {
-              console.log(`  📝 Switch: Sending reply message`);
-              await sendMessage(apiState, senderId, substituteVariables(matched.replyMessage, context), userUID);
-            }
-          } else {
-            // default case
-            const defaultMode = data.defaultMode || 'reply';
-            
-            if (defaultMode === 'flow' && data.defaultTriggerId) {
-              const trg = triggerDB.getTriggerById(data.defaultTriggerId);
-              if (trg && trg.setMode === 1) {
-                console.log(`  🔗 Switch: Running default flow ${data.defaultTriggerId}`);
-                await executeFlow(apiState, senderId, trg, context.message, userUID);
-              }
-            } else if (defaultMode === 'reply' && data.defaultReply) {
-              console.log(`  📝 Switch: Sending default reply message`);
-              await sendMessage(apiState, senderId, substituteVariables(data.defaultReply, context), userUID);
-            }
-          }
-
-          break;
+        if (varValue === undefined) {
+          // Try load from DB
+          try {
+            const v = triggerDB.getVariable(userUID, senderId, varName);
+            if (v) varValue = v.variableValue;
+          } catch (e) { }
         }
+
+        const cases = data.cases || [];
+        let matched = null;
+
+        for (const c of cases) {
+          if (String(c.value) === String(varValue)) { matched = c; break; }
+        }
+
+        if (matched) {
+          const mode = matched.mode || 'reply';
+
+          if (mode === 'flow' && matched.targetTriggerId) {
+            const trg = triggerDB.getTriggerById(matched.targetTriggerId);
+            if (trg && trg.setMode === 1) {
+              console.log(`  🔗 Switch: Running flow ${matched.targetTriggerId}`);
+              await executeFlow(apiState, senderId, trg, context.message, userUID);
+            }
+          } else if (mode === 'reply' && matched.replyMessage) {
+            console.log(`  📝 Switch: Sending reply message`);
+            await sendMessage(apiState, senderId, substituteVariables(matched.replyMessage, context), userUID);
+          }
+        } else {
+          // default case
+          const defaultMode = data.defaultMode || 'reply';
+
+          if (defaultMode === 'flow' && data.defaultTriggerId) {
+            const trg = triggerDB.getTriggerById(data.defaultTriggerId);
+            if (trg && trg.setMode === 1) {
+              console.log(`  🔗 Switch: Running default flow ${data.defaultTriggerId}`);
+              await executeFlow(apiState, senderId, trg, context.message, userUID);
+            }
+          } else if (defaultMode === 'reply' && data.defaultReply) {
+            console.log(`  📝 Switch: Sending default reply message`);
+            await sendMessage(apiState, senderId, substituteVariables(data.defaultReply, context), userUID);
+          }
+        }
+
+        break;
+      }
 
       case 'user-input': {
         const questions = data.questions || [];
@@ -814,9 +822,9 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           flowContext: { ...context },
           nextBlockOrder: block.blockOrder + 1
         };
-        
+
         autoReplyState.pendingInputs.set(pendingKey, inputState);
-        
+
         // Also save to DB for persistence
         triggerDB.setInputState(userUID, senderId, block.blockID, flow.flowID, context.trigger_id, {
           expectedType: firstQ.expectedType || 'text',
@@ -833,7 +841,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
         const action = data.action || 'toggle';
         const duration = data.duration || 0;
         let newActive;
-        
+
         const current = autoReplyState.botActiveStates.get(senderId);
         if (action === 'on') newActive = true;
         else if (action === 'off') newActive = false;
@@ -876,22 +884,22 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           try {
             const fetch = require('node-fetch');
             const opts = { method: data.method || 'GET' };
-            if (data.headers) try { opts.headers = JSON.parse(substituteVariables(data.headers, context)); } catch(e){}
-            if (data.body && ['POST','PUT'].includes(opts.method)) {
+            if (data.headers) try { opts.headers = JSON.parse(substituteVariables(data.headers, context)); } catch (e) { }
+            if (data.body && ['POST', 'PUT'].includes(opts.method)) {
               opts.body = substituteVariables(data.body, context);
               opts.headers = opts.headers || {};
               opts.headers['Content-Type'] = 'application/json';
             }
             const res = await fetch(data.url, opts);
             context.webhook_response = await res.text();
-          } catch(e) { console.error('Webhook error:', e.message); }
+          } catch (e) { console.error('Webhook error:', e.message); }
         }
         break;
       }
 
       case 'ai-gemini': {
         if (data.saveResponseTo) {
-          const resp = `[AI: ${(data.prompt||'').substring(0,20)}...]`;
+          const resp = `[AI: ${(data.prompt || '').substring(0, 20)}...]`;
           triggerDB.setVariable(userUID, senderId, data.saveResponseTo, resp, 'text', block.blockID, flow.flowID);
           context[data.saveResponseTo] = resp;
         }
@@ -924,23 +932,23 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           // Helper: Check if row matches conditions
           const checkConditions = (row) => {
             if (!conditions || conditions.length === 0) return true;
-            
+
             return conditions.every(cond => {
               const columnID = cond.column;
               const operator = cond.operator || 'equals';
               const compareValue = substituteVariables(cond.value || '', context);
-              
+
               // Find cell value for this column
               let cellValue = '';
               if (row.cells) {
                 const cell = row.cells.find(c => String(c.columnID) === String(columnID));
                 cellValue = cell?.cellValue || '';
               }
-              
+
               // Compare based on operator
               const rv = String(cellValue).toLowerCase();
               const cv = String(compareValue).toLowerCase();
-              
+
               switch (operator) {
                 case 'equals': return rv === cv;
                 case 'not_equals': return rv !== cv;
@@ -962,7 +970,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           if (action === 'find') {
             // Find rows matching conditions
             const matchedRows = rows.filter(checkConditions).slice(0, limitResults);
-            
+
             // Convert to usable format
             const results = matchedRows.map(row => {
               const rowData = { rowID: row.rowID };
@@ -983,30 +991,30 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
             const resultValue = limitResults === 1 ? (results[0] || null) : results;
             context[resultVariable] = resultValue;
             triggerDB.setVariable(userUID, senderId, resultVariable, JSON.stringify(resultValue), 'json', block.blockID, flow.flowID);
-            
+
             console.log(`    🔍 Found ${results.length} row(s), saved to {${resultVariable}}`);
           }
-          
+
           else if (action === 'add') {
             // Add new row with values
             const newRow = triggerDB.addTableRow(tableID, {});
-            
+
             if (newRow && newRow.rowID) {
               // Update cells with values
               console.log(`    📋 Context keys: ${Object.keys(context).join(', ')}`);
-              
+
               for (const cv of columnValues) {
                 const columnID = cv.column;
                 const rawValue = cv.value || '';
                 const value = substituteVariables(rawValue, context);
-                
+
                 console.log(`    📝 Column ${columnID}: "${rawValue}" → "${value}"`);
-                
+
                 if (columnID) {
                   triggerDB.updateTableCell(newRow.rowID, parseInt(columnID), value);
                 }
               }
-              
+
               context[resultVariable] = { rowID: newRow.rowID, success: true };
               console.log(`    ➕ Added new row ID: ${newRow.rowID}`);
             } else {
@@ -1014,12 +1022,12 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
               console.log(`    ❌ Failed to add row`);
             }
           }
-          
+
           else if (action === 'update') {
             // Find matching rows and update
             const matchedRows = rows.filter(checkConditions);
             let updatedCount = 0;
-            
+
             for (const row of matchedRows) {
               for (const cv of columnValues) {
                 const columnID = cv.column;
@@ -1030,21 +1038,21 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
               }
               updatedCount++;
             }
-            
+
             context[resultVariable] = { success: true, updatedCount };
             console.log(`    ✏️ Updated ${updatedCount} row(s)`);
           }
-          
+
           else if (action === 'delete') {
             // Find matching rows and delete
             const matchedRows = rows.filter(checkConditions);
             let deletedCount = 0;
-            
+
             for (const row of matchedRows) {
               const success = triggerDB.deleteTableRow(tableID, row.rowID);
               if (success) deletedCount++;
             }
-            
+
             context[resultVariable] = { success: true, deletedCount };
             console.log(`    🗑️ Deleted ${deletedCount} row(s)`);
           }
@@ -1107,7 +1115,7 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
           if (emailLog) {
             triggerDB.updateEmailLogStatus(emailLog.id, 'success', null);
             console.log(`    ✅ Email logged successfully (ID: ${emailLog.id})`);
-            
+
             // Send email using Gmail API asynchronously
             const googleOAuth = require('./system/google-oauth');
             googleOAuth.sendEmailViaGmail(
@@ -1151,10 +1159,10 @@ async function handleUserInputResponse(apiState, senderId, userMessage, inputSta
   console.log(`👂 Processing input from ${senderId}`);
 
   const pendingKey = `${userUID}_${senderId}`;
-  
+
   // Get from memory first
   let memoryState = autoReplyState.pendingInputs.get(pendingKey);
-  
+
   const questions = memoryState?.questions || [];
   const currentIndex = memoryState?.currentQuestionIndex || 0;
   const retryCount = memoryState?.retryCount || 0;
@@ -1187,20 +1195,20 @@ async function handleUserInputResponse(apiState, senderId, userMessage, inputSta
 
   if (!validation.valid) {
     console.log(`  ❌ Invalid input (expected: ${expectedType})`);
-    
+
     if (retryCount >= maxRetries) {
       console.log(`  ❌ Max retries (${maxRetries}) reached`);
       autoReplyState.pendingInputs.delete(pendingKey);
       triggerDB.clearInputState(userUID, senderId);
       return;
     }
-    
+
     // Increment retry
     if (memoryState) {
       memoryState.retryCount = retryCount + 1;
       autoReplyState.pendingInputs.set(pendingKey, memoryState);
     }
-    
+
     // Send retry message
     const msg = retryMessage || `Dữ liệu không hợp lệ (yêu cầu: ${getTypeLabel(expectedType)}). Vui lòng nhập lại:`;
     await sendMessage(apiState, senderId, msg, userUID);
@@ -1211,11 +1219,11 @@ async function handleUserInputResponse(apiState, senderId, userMessage, inputSta
   // Valid - save variable
   if (variableName) {
     console.log(`  📥 Saving variable: userUID=${userUID}, senderId=${senderId}, name=${variableName}, value=${validation.value}`);
-    triggerDB.setVariable(userUID, senderId, variableName, validation.value, expectedType, 
-      inputState.blockID || memoryState?.blockID, 
+    triggerDB.setVariable(userUID, senderId, variableName, validation.value, expectedType,
+      inputState.blockID || memoryState?.blockID,
       inputState.flowID || memoryState?.flowID);
     console.log(`  ✅ Saved: {${variableName}} = ${validation.value}`);
-    
+
     // Update context
     if (memoryState?.flowContext) {
       memoryState.flowContext[variableName] = validation.value;
@@ -1224,35 +1232,35 @@ async function handleUserInputResponse(apiState, senderId, userMessage, inputSta
 
   // Check if more questions
   const nextIndex = currentIndex + 1;
-  
+
   if (nextIndex < questions.length) {
     // More questions - send next one
     const nextQ = questions[nextIndex];
-    
+
     // Update state
     if (memoryState) {
       memoryState.currentQuestionIndex = nextIndex;
       memoryState.retryCount = 0;
       autoReplyState.pendingInputs.set(pendingKey, memoryState);
     }
-    
+
     // Send next question message
     if (nextQ.message) {
       const ctx = { ...(memoryState?.flowContext || {}) };
       const vars = triggerDB.getAllVariables(userUID, senderId);
       vars.forEach(v => { ctx[v.variableName] = v.variableValue; });
-      
+
       const msg = substituteVariables(nextQ.message, ctx);
       await sendMessage(apiState, senderId, msg, userUID);
     }
-    
+
     console.log(`  ➡️ Next question ${nextIndex + 1}/${questions.length}`);
     return;
   }
 
   // All questions done
   console.log(`  ✅ All ${questions.length} questions answered`);
-  
+
   // Clear pending state
   autoReplyState.pendingInputs.delete(pendingKey);
   triggerDB.clearInputState(userUID, senderId);
@@ -1294,20 +1302,20 @@ async function resumeFlow(apiState, senderId, inputState, userUID, lastMessage) 
   // Rebuild context
   let context = inputState.flowContext || {};
   context.message = lastMessage;
-  
+
   // Load all variables from DB
   console.log(`  📋 Loading variables for userUID=${userUID}, senderId=${senderId}`);
   const vars = triggerDB.getAllVariables(userUID, senderId);
   console.log(`  📋 Loaded ${vars.length} variables from DB:`);
   if (vars.length > 0) {
-    vars.forEach(v => { 
+    vars.forEach(v => {
       context[v.variableName] = v.variableValue;
       console.log(`    ✓ {${v.variableName}} = "${v.variableValue}"`);
     });
   } else {
     console.log(`    ⚠️ No variables found in DB!`);
   }
-  
+
   // Debug: Show all context keys
   console.log(`  📋 Context keys after loading: [${Object.keys(context).join(', ')}]`);
 
@@ -1349,8 +1357,8 @@ function validateInput(input, expectedType) {
     case 'email': return { valid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t), value: t.toLowerCase() };
     case 'yesno':
       const l = t.toLowerCase();
-      if (['yes','y','có','co','ok','1','true','đồng ý'].includes(l)) return { valid: true, value: 'yes' };
-      if (['no','n','không','khong','ko','0','false','từ chối'].includes(l)) return { valid: true, value: 'no' };
+      if (['yes', 'y', 'có', 'co', 'ok', '1', 'true', 'đồng ý'].includes(l)) return { valid: true, value: 'yes' };
+      if (['no', 'n', 'không', 'khong', 'ko', '0', 'false', 'từ chối'].includes(l)) return { valid: true, value: 'no' };
       return { valid: false, value: null };
     default: return { valid: true, value: t };
   }
@@ -1361,7 +1369,7 @@ function evaluateCondition(data, context) {
   let left = context[data.variableName] || '';
   let right = substituteVariables(data.compareValue || '', context);
   left = String(left); right = String(right);
-  
+
   switch (op) {
     case 'equals': return left === right;
     case 'notEquals': return left !== right;
@@ -1392,12 +1400,12 @@ function getSenderName(apiState, senderId) {
 async function sendMessage(apiState, senderId, content, userUID) {
   const { ThreadType } = require('zca-js');
   await apiState.api.sendMessage({ msg: content }, senderId, ThreadType.User);
-  
+
   const msg = { msgId: `auto_${Date.now()}`, content, timestamp: Date.now(), senderId: userUID, isSelf: true, isAutoReply: true };
   if (!apiState.messageStore.has(senderId)) apiState.messageStore.set(senderId, []);
   apiState.messageStore.get(senderId).push(msg);
-  
-  apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_message', uid: senderId, message: msg })); } catch(e){} });
+
+  apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_message', uid: senderId, message: msg })); } catch (e) { } });
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

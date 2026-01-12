@@ -89,9 +89,9 @@ function readFileContentForPreview(filePath, mimeType, fileType) {
   if (!filePath || !fs.existsSync(filePath)) {
     return null;
   }
-  
+
   const ext = path.extname(filePath).toLowerCase();
-  
+
   // Text files - đọc trực tiếp
   if (['.txt', '.csv', '.json', '.html', '.xml', '.md', '.js', '.css', '.log'].includes(ext)) {
     try {
@@ -100,14 +100,14 @@ function readFileContentForPreview(filePath, mimeType, fileType) {
       return null;
     }
   }
-  
+
   // Word document (.docx)
   if (ext === '.docx') {
     try {
       const AdmZip = require('adm-zip');
       const zip = new AdmZip(filePath);
       const docXml = zip.readAsText('word/document.xml');
-      
+
       // Extract text từ XML
       const textContent = docXml
         .replace(/<w:p[^>]*>/g, '\n')
@@ -120,48 +120,48 @@ function readFileContentForPreview(filePath, mimeType, fileType) {
         .replace(/&apos;/g, "'")
         .replace(/\n\s*\n/g, '\n')
         .trim();
-      
+
       return textContent || '[Không có nội dung văn bản]';
     } catch (e) {
       return '[Không thể đọc file Word: ' + e.message + ']';
     }
   }
-  
+
   // Excel (.xlsx)
   if (ext === '.xlsx' || ext === '.xls') {
     try {
       const XLSX = require('xlsx');
       const workbook = XLSX.readFile(filePath);
       let content = '';
-      
+
       workbook.SheetNames.forEach((sheetName, idx) => {
         if (idx > 0) content += '\n\n';
         content += '=== Sheet: ' + sheetName + ' ===\n';
         const sheet = workbook.Sheets[sheetName];
         content += XLSX.utils.sheet_to_csv(sheet);
       });
-      
+
       return content || '[Không có dữ liệu]';
     } catch (e) {
       return '[Không thể đọc file Excel: ' + e.message + ']';
     }
   }
-  
+
   // PDF
   if (ext === '.pdf') {
     return '[File PDF - Vui lòng tải xuống để xem nội dung]';
   }
-  
+
   // Image files
   if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'].includes(ext)) {
     return '[File hình ảnh - Vui lòng tải xuống để xem]';
   }
-  
+
   // Archive files
   if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(ext)) {
     return '[File nén - Vui lòng tải xuống để xem nội dung]';
   }
-  
+
   // Other binary files
   return '[File nhị phân - Vui lòng tải xuống để xem]';
 }
@@ -172,12 +172,12 @@ function readFileContentForPreview(filePath, mimeType, fileType) {
 async function testAIConnection(ws, params) {
   const { provider, model, apiKey, endpoint, prompt, systemPrompt, temperature, maxTokens, configId, isPlaygroundTest } = params;
   const startTime = Date.now();
-  
+
   console.log(`🧠 Testing AI: ${provider} / ${model}`);
-  
+
   try {
     let response, tokens;
-    
+
     switch (provider) {
       case 'gemini':
         response = await testGemini(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
@@ -194,15 +194,15 @@ async function testAIConnection(ws, params) {
       default:
         throw new Error('Unknown provider: ' + provider);
     }
-    
+
     const duration = Date.now() - startTime;
     console.log(`✅ AI test success (${duration}ms)`);
-    
+
     // Update config status if configId provided
     if (configId) {
       triggerDB.updateAIConfigStatus(configId, 'connected');
     }
-    
+
     ws.send(JSON.stringify({
       type: 'ai_test_result',
       success: true,
@@ -212,15 +212,15 @@ async function testAIConnection(ws, params) {
       configId: configId,
       isPlaygroundTest: isPlaygroundTest
     }));
-    
+
   } catch (error) {
     console.error(`❌ AI test failed: ${error.message}`);
-    
+
     // Update config status if configId provided
     if (configId) {
       triggerDB.updateAIConfigStatus(configId, 'error');
     }
-    
+
     ws.send(JSON.stringify({
       type: 'ai_test_result',
       success: false,
@@ -234,10 +234,10 @@ async function testAIConnection(ws, params) {
 // Test Google Gemini
 async function testGemini(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
   const fetch = require('node-fetch');
-  
+
   const modelName = model || 'gemini-1.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-  
+
   const requestBody = {
     contents: [{
       parts: [{ text: prompt }]
@@ -247,45 +247,45 @@ async function testGemini(apiKey, model, prompt, systemPrompt, temperature, maxT
       maxOutputTokens: maxTokens || 1024
     }
   };
-  
+
   // Add system instruction if provided
   if (systemPrompt) {
     requestBody.systemInstruction = {
       parts: [{ text: systemPrompt }]
     };
   }
-  
+
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(requestBody)
   });
-  
+
   const data = await response.json();
-  
+
   if (data.error) {
     throw new Error(data.error.message || 'Gemini API error');
   }
-  
+
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   const tokens = data.usageMetadata?.totalTokenCount || null;
-  
+
   return { text, tokens };
 }
 
 // Test OpenAI
 async function testOpenAI(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
   const fetch = require('node-fetch');
-  
+
   const modelName = model || 'gpt-3.5-turbo';
   const url = 'https://api.openai.com/v1/chat/completions';
-  
+
   const messages = [];
   if (systemPrompt) {
     messages.push({ role: 'system', content: systemPrompt });
   }
   messages.push({ role: 'user', content: prompt });
-  
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -299,40 +299,40 @@ async function testOpenAI(apiKey, model, prompt, systemPrompt, temperature, maxT
       max_tokens: maxTokens || 1024
     })
   });
-  
+
   const data = await response.json();
-  
+
   if (data.error) {
     throw new Error(data.error.message || 'OpenAI API error');
   }
-  
+
   const text = data.choices?.[0]?.message?.content || '';
   const tokens = data.usage?.total_tokens || null;
-  
+
   return { text, tokens };
 }
 
 // Test Anthropic Claude
 async function testClaude(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
   const fetch = require('node-fetch');
-  
+
   const modelName = model || 'claude-3-haiku-20240307';
   const url = 'https://api.anthropic.com/v1/messages';
-  
+
   const requestBody = {
     model: modelName,
     max_tokens: maxTokens || 1024,
     messages: [{ role: 'user', content: prompt }]
   };
-  
+
   if (systemPrompt) {
     requestBody.system = systemPrompt;
   }
-  
+
   if (temperature !== undefined) {
     requestBody.temperature = temperature;
   }
-  
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -342,33 +342,33 @@ async function testClaude(apiKey, model, prompt, systemPrompt, temperature, maxT
     },
     body: JSON.stringify(requestBody)
   });
-  
+
   const data = await response.json();
-  
+
   if (data.error) {
     throw new Error(data.error.message || 'Claude API error');
   }
-  
+
   const text = data.content?.[0]?.text || '';
   const tokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
-  
+
   return { text, tokens: tokens || null };
 }
 
 // Test Custom API (OpenAI-compatible)
 async function testCustomAPI(apiKey, model, endpoint, prompt, systemPrompt, temperature, maxTokens) {
   const fetch = require('node-fetch');
-  
+
   if (!endpoint) {
     throw new Error('Custom endpoint is required');
   }
-  
+
   const messages = [];
   if (systemPrompt) {
     messages.push({ role: 'system', content: systemPrompt });
   }
   messages.push({ role: 'user', content: prompt });
-  
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -382,17 +382,17 @@ async function testCustomAPI(apiKey, model, endpoint, prompt, systemPrompt, temp
       max_tokens: maxTokens || 1024
     })
   });
-  
+
   const data = await response.json();
-  
+
   if (data.error) {
     throw new Error(data.error.message || 'API error');
   }
-  
+
   // Try to parse response in OpenAI format
   const text = data.choices?.[0]?.message?.content || data.response || data.text || JSON.stringify(data);
   const tokens = data.usage?.total_tokens || null;
-  
+
   return { text, tokens };
 }
 
@@ -486,7 +486,7 @@ function startWebSocketServer(apiState, httpServer) {
 
           // Load user triggers từ SQLite
           const userTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
-          
+
           ws.send(JSON.stringify({
             type: 'auto_reply_status',
             enabled: require('../autoReply').autoReplyState.enabled,
@@ -531,7 +531,7 @@ function startWebSocketServer(apiState, httpServer) {
           }
 
           require('../autoReply').autoReplyState.enabled = msg.enabled;
-          
+
           broadcast(apiState, {
             type: 'auto_reply_status_changed',
             enabled: msg.enabled
@@ -869,21 +869,70 @@ function startWebSocketServer(apiState, httpServer) {
         // ============================================
         else if (msg.type === 'logout') {
           console.log('👋 User logout request');
+
+          // Stop message listener first
+          if (apiState.api?.listener) {
+            try {
+              apiState.api.listener.stop();
+              console.log('🛑 Message listener stopped');
+            } catch (e) {
+              console.log('⚠️ Error stopping listener:', e.message);
+            }
+          }
+
+          // Stop friend request polling
+          if (apiState.friendRequestCheckInterval) {
+            clearInterval(apiState.friendRequestCheckInterval);
+            apiState.friendRequestCheckInterval = null;
+            console.log('🛑 Friend request polling stopped');
+          }
+
+          // Reset all API state
           apiState.isLoggedIn = false;
           apiState.currentUser = null;
-          
+          apiState.api = null;
+          apiState.friends = null;
+          apiState.messageStore = new Map();
+          apiState.acceptedFriendRequests = null;
+          apiState.autoAcceptFriendEnabled = false;
+          apiState.autoAcceptFriendWelcome = '';
+
+          // Reset auto-reply state
+          try {
+            const autoReply = require('../autoReply');
+            autoReply.autoReplyState.enabled = false;
+            autoReply.autoReplyState.cooldowns.clear();
+            autoReply.autoReplyState.botActiveStates.clear();
+            autoReply.autoReplyState.pendingInputs.clear();
+            console.log('🛑 Auto-reply state reset');
+          } catch (e) { }
+
+          // Delete cached credentials file (zca-js stores in working directory)
+          const fs = require('fs');
+          const path = require('path');
+          const credFiles = ['credentials.json', 'creds.json', 'session.json', '.zalo_session', 'qr.png'];
+          credFiles.forEach(file => {
+            [process.cwd(), __dirname, path.join(__dirname, '..')].forEach(dir => {
+              try {
+                const filePath = path.join(dir, file);
+                if (fs.existsSync(filePath)) {
+                  fs.unlinkSync(filePath);
+                  console.log(`🗑️ Deleted: ${filePath}`);
+                }
+              } catch (e) { }
+            });
+          });
+
+          console.log('✅ Session fully cleared');
+
           broadcast(apiState, {
             type: 'logged_out'
           });
 
-          if (apiState.api?.listener) {
-            try {
-              apiState.api.listener.stop();
-            } catch (e) {}
-          }
-
+          // Restart login after a short delay
           setTimeout(() => {
             if (apiState.loginZalo) {
+              console.log('🔄 Restarting login flow...');
               apiState.loginZalo();
             }
           }, 2000);
@@ -932,10 +981,10 @@ function startWebSocketServer(apiState, httpServer) {
           }
 
           const triggerId = msg.triggerId || msg.triggerID;
-          
+
           // Get trigger info
           const trigger = triggerDB.getTriggerById(triggerId);
-          
+
           if (!trigger) {
             ws.send(JSON.stringify({
               type: 'trigger_detail',
@@ -948,7 +997,7 @@ function startWebSocketServer(apiState, httpServer) {
 
           // Get flow for this trigger
           let flow = triggerDB.getFlowByTrigger(triggerId);
-          
+
           // Auto-create flow if not exists and trigger is in flow mode
           if (!flow && trigger.setMode === 1) {
             flow = triggerDB.createFlow(triggerId, trigger.triggerName + ' Flow');
@@ -1020,7 +1069,7 @@ function startWebSocketServer(apiState, httpServer) {
               block.blockData || {},
               block.blockOrder || 0
             );
-            
+
             // Update additional fields if needed
             if (savedBlock && (block.condition1 || block.condition2)) {
               savedBlock = triggerDB.updateFlowBlock(savedBlock.blockID, {
@@ -1032,35 +1081,35 @@ function startWebSocketServer(apiState, httpServer) {
 
           if (savedBlock) {
             console.log(`💾 Block saved: #${savedBlock.blockID} (${savedBlock.blockType})`);
-            
+
             // Đặc biệt xử lý cho table-data block - lưu conditions, columnValues, resultMappings vào tables riêng
             if (savedBlock.blockType === 'table-data' && block.blockData) {
               const blockData = block.blockData;
-              
+
               // Lưu conditions
               if (blockData.conditions && Array.isArray(blockData.conditions)) {
                 triggerDB.saveBlockConditions(savedBlock.blockID, blockData.conditions);
                 console.log(`  📋 Saved ${blockData.conditions.length} conditions`);
               }
-              
+
               // Lưu columnValues
               if (blockData.columnValues && Array.isArray(blockData.columnValues)) {
                 triggerDB.saveBlockColumnValues(savedBlock.blockID, blockData.columnValues);
                 console.log(`  📝 Saved ${blockData.columnValues.length} column values`);
               }
-              
+
               // Lưu resultMappings
               if (blockData.resultMappings && Array.isArray(blockData.resultMappings)) {
                 triggerDB.saveBlockResultMappings(savedBlock.blockID, blockData.resultMappings);
                 console.log(`  💾 Saved ${blockData.resultMappings.length} result mappings`);
               }
-              
+
               // Reload block để có đầy đủ data
               savedBlock = triggerDB.getFlowBlockById(savedBlock.blockID);
             }
-            
+
             ws.send(JSON.stringify({ type: 'block_saved', block: savedBlock }));
-            
+
             // Send updated flow
             const flow = triggerDB.getFlowById(targetFlowId);
             if (flow) {
@@ -1077,13 +1126,13 @@ function startWebSocketServer(apiState, httpServer) {
         // ============================================
         else if (msg.type === 'delete_block') {
           const { blockId, flowId } = msg;
-          
+
           const deleted = triggerDB.deleteFlowBlock(blockId);
-          
+
           if (deleted) {
             console.log(`🗑️ Block deleted: #${blockId}`);
             ws.send(JSON.stringify({ type: 'block_deleted', blockId }));
-            
+
             // Send updated flow
             if (flowId) {
               const flow = triggerDB.getFlowById(flowId);
@@ -1102,15 +1151,15 @@ function startWebSocketServer(apiState, httpServer) {
         // ============================================
         else if (msg.type === 'update_block_orders') {
           const { flowId, orders } = msg;
-          
+
           if (orders && Array.isArray(orders)) {
             orders.forEach(item => {
               triggerDB.updateFlowBlock(item.blockID, { blockOrder: item.blockOrder });
             });
-            
+
             console.log(`📊 Block orders updated for flow #${flowId}`);
             ws.send(JSON.stringify({ type: 'block_orders_updated', flowId }));
-            
+
             // Send updated flow
             const flow = triggerDB.getFlowById(flowId);
             if (flow) {
@@ -1124,12 +1173,12 @@ function startWebSocketServer(apiState, httpServer) {
         // FLOW BUILDER API
         // ============================================
         else if (msg.type === 'get_flow') {
-          const flow = msg.flowID 
-            ? triggerDB.getFlowById(msg.flowID) 
+          const flow = msg.flowID
+            ? triggerDB.getFlowById(msg.flowID)
             : triggerDB.getFlowByTrigger(msg.triggerID);
-          ws.send(JSON.stringify({ 
-            type: 'flow_data', 
-            flow: flow 
+          ws.send(JSON.stringify({
+            type: 'flow_data',
+            flow: flow
           }));
         }
 
@@ -1371,11 +1420,11 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'process_payment') {
           const userUID = apiState.currentUser?.uid;
           const { transactionCode, amount, bankBin, accountNumber, accountName } = msg;
-          
+
           const transaction = triggerDB.getTransactionByCode(transactionCode);
           if (transaction && transaction.status === 'WAITING') {
             const updated = triggerDB.markTransactionPaid(transaction.transactionID);
-            
+
             triggerDB.createPaymentLog(userUID || transaction.userUID, {
               transactionID: transaction.transactionID,
               transactionCode,
@@ -1385,14 +1434,14 @@ function startWebSocketServer(apiState, httpServer) {
               amount: amount || transaction.amount,
               rawData: msg
             });
-            
-            broadcast(apiState, { 
-              type: 'payment_received', 
-              transactionCode, 
+
+            broadcast(apiState, {
+              type: 'payment_received',
+              transactionCode,
               amount: amount || transaction.amount,
               transaction: updated
             });
-            
+
             console.log(`💰 Payment received: ${transactionCode} - ${amount || transaction.amount}đ`);
           }
         }
@@ -1516,7 +1565,7 @@ function startWebSocketServer(apiState, httpServer) {
           if (row) {
             const tableInfo = triggerDB.getUserTableById(msg.tableID);
             triggerDB.logActivity(userUID, 'add', 'row', row.rowID, `Row #${row.rowID}`, `Thêm hàng vào bảng "${tableInfo?.tableName || msg.tableID}"`);
-            
+
             ws.send(JSON.stringify({ type: 'row_added', row }));
             const table = triggerDB.getUserTableById(msg.tableID);
             ws.send(JSON.stringify({ type: 'table_detail', table }));
@@ -1531,7 +1580,7 @@ function startWebSocketServer(apiState, httpServer) {
           const success = triggerDB.deleteTableRow(msg.rowID);
           if (success) {
             triggerDB.logActivity(userUID, 'delete', 'row', msg.rowID, `Row #${msg.rowID}`, `Xóa hàng từ bảng "${tableInfo?.tableName || msg.tableID}"`);
-            
+
             ws.send(JSON.stringify({ type: 'row_deleted', rowID: msg.rowID }));
             if (msg.tableID) {
               const table = triggerDB.getUserTableById(msg.tableID);
@@ -1548,7 +1597,7 @@ function startWebSocketServer(apiState, httpServer) {
           const result = triggerDB.deleteTableRows(msg.tableID, msg.rowIDs || []);
           if (result && result.success) {
             triggerDB.logActivity(userUID, 'delete', 'row', null, `${result.deletedCount} rows`, `Xóa ${result.deletedCount} hàng từ bảng "${tableInfo?.tableName || msg.tableID}"`);
-            
+
             ws.send(JSON.stringify({ type: 'rows_deleted', rowIDs: msg.rowIDs, deletedCount: result.deletedCount }));
             if (msg.tableID) {
               const table = triggerDB.getUserTableById(msg.tableID);
@@ -1631,7 +1680,7 @@ function startWebSocketServer(apiState, httpServer) {
           const table = triggerDB.getUserTableById(msg.tableID);
           ws.send(JSON.stringify({ type: 'table_data', table }));
         }
-        
+
         else if (msg.type === 'get_table_detail') {
           const table = triggerDB.getUserTableById(msg.tableID);
           if (table) {
@@ -1683,7 +1732,7 @@ function startWebSocketServer(apiState, httpServer) {
           const userUID = apiState.currentUser?.uid;
           const tableInfo = triggerDB.getUserTableById(msg.tableID);
           const tableName = tableInfo?.tableName || `Table #${msg.tableID}`;
-          
+
           const success = triggerDB.deleteUserTable(msg.tableID);
           if (success) {
             console.log(`🗑️ Deleted custom table: ${msg.tableID}`);
@@ -1700,7 +1749,7 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'get_google_sheet_configs') {
           const userUID = apiState.currentUser?.uid;
           console.log('[WS] get_google_sheet_configs - userUID:', userUID);
-          
+
           let configs;
           if (userUID) {
             configs = triggerDB.getGoogleSheetConfigs(userUID);
@@ -1724,7 +1773,7 @@ function startWebSocketServer(apiState, httpServer) {
           }
           const config = msg.config;
           config.userUID = userUID;
-          
+
           const saved = triggerDB.saveGoogleSheetConfig(config);
           if (saved) {
             ws.send(JSON.stringify({ type: 'google_sheet_config_saved', config: saved }));
@@ -1749,7 +1798,7 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'get_ai_configs') {
           const userUID = apiState.currentUser?.uid;
           console.log('[WS] get_ai_configs - userUID:', userUID);
-          
+
           let configs;
           if (userUID) {
             configs = triggerDB.getAIConfigs(userUID);
@@ -1786,7 +1835,7 @@ function startWebSocketServer(apiState, httpServer) {
           }
           const config = msg.config;
           config.userUID = userUID;
-          
+
           const saved = triggerDB.saveAIConfig(config);
           if (saved) {
             ws.send(JSON.stringify({ type: 'ai_config_saved', config: saved }));
@@ -1824,7 +1873,7 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'get_images') {
           const userUID = apiState.currentUser?.uid;
           console.log('[WS] get_images - userUID:', userUID);
-          
+
           let images;
           if (userUID) {
             images = triggerDB.getImages(userUID);
@@ -1858,23 +1907,23 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
             return;
           }
-          
+
           try {
             // Parse base64 data
             const base64Data = msg.data.replace(/^data:image\/\w+;base64,/, '');
             const buffer = Buffer.from(base64Data, 'base64');
-            
+
             // Create images directory if not exists
             const imagesDir = path.join(__dirname, '..', 'data', 'images');
             if (!fs.existsSync(imagesDir)) {
               fs.mkdirSync(imagesDir, { recursive: true });
             }
-            
+
             // Generate unique filename - giữ nguyên extension gốc
             const ext = path.extname(msg.fileName) || '.png';
             const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
             const filePath = path.join(imagesDir, uniqueName);
-            
+
             // ✅ Lấy width/height của ảnh gốc bằng sharp (nếu có)
             let width = 0, height = 0;
             try {
@@ -1886,14 +1935,14 @@ function startWebSocketServer(apiState, httpServer) {
             } catch (sharpErr) {
               console.log('⚠️ Sharp not available, skipping dimension extraction');
             }
-            
+
             // ✅ Lưu file GỐC không nén
             fs.writeFileSync(filePath, buffer);
             console.log(`💾 Saved original image: ${buffer.length} bytes`);
-            
+
             // Extract name from filename (without extension)
             const baseName = path.basename(msg.fileName, ext);
-            
+
             // Save to database với width/height
             const image = triggerDB.createImage(userUID, {
               name: baseName,
@@ -1904,7 +1953,7 @@ function startWebSocketServer(apiState, httpServer) {
               width: width,
               height: height
             });
-            
+
             if (image) {
               console.log(`✅ Created image: ${baseName} (ID: ${image.id}, ${width}x${height})`);
               ws.send(JSON.stringify({ type: 'image_uploaded', image }));
@@ -1923,13 +1972,13 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
             return;
           }
-          
+
           const updated = triggerDB.updateImage(msg.imageId, userUID, {
             name: msg.name,
             variableName: msg.variableName,
             description: msg.description
           });
-          
+
           if (updated) {
             console.log(`✅ Updated image: ${msg.imageId}`);
             ws.send(JSON.stringify({ type: 'image_updated', image: updated }));
@@ -1941,7 +1990,7 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'delete_image') {
           const userUID = apiState.currentUser?.uid;
           const result = triggerDB.deleteImage(msg.imageId, userUID);
-          
+
           if (result.success) {
             // Delete file from disk
             if (result.filePath && fs.existsSync(result.filePath)) {
@@ -1962,7 +2011,7 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'delete_images') {
           const userUID = apiState.currentUser?.uid;
           const result = triggerDB.deleteImages(msg.imageIds, userUID);
-          
+
           if (result.success) {
             // Delete files from disk
             result.filePaths.forEach(filePath => {
@@ -1987,7 +2036,7 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'get_files') {
           const userUID = apiState.currentUser?.uid;
           console.log('[WS] get_files - userUID:', userUID);
-          
+
           let fileList = [];
           if (userUID) {
             fileList = triggerDB.getFiles(userUID);
@@ -2026,7 +2075,7 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
             return;
           }
-          
+
           try {
             // Parse base64 data
             const base64Match = msg.data.match(/^data:([^;]+);base64,(.+)$/);
@@ -2034,29 +2083,29 @@ function startWebSocketServer(apiState, httpServer) {
               ws.send(JSON.stringify({ type: 'error', message: 'Invalid file data' }));
               return;
             }
-            
+
             const mimeType = base64Match[1];
             const base64Data = base64Match[2];
             const buffer = Buffer.from(base64Data, 'base64');
-            
+
             // Create files directory
             const filesDir = path.join(__dirname, '..', 'data', 'files');
             if (!fs.existsSync(filesDir)) {
               fs.mkdirSync(filesDir, { recursive: true });
             }
-            
+
             // Generate unique filename
             const ext = path.extname(msg.fileName) || getExtFromMime(mimeType);
             const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
             const filePath = path.join(filesDir, uniqueName);
-            
+
             // Save file
             fs.writeFileSync(filePath, buffer);
             console.log(`💾 Saved file: ${msg.fileName} (${buffer.length} bytes)`);
-            
+
             // Get file type
             const fileType = getFileTypeFromMime(mimeType);
-            
+
             // Save to database
             const file = triggerDB.createFile(userUID, {
               name: path.basename(msg.fileName, ext),
@@ -2067,7 +2116,7 @@ function startWebSocketServer(apiState, httpServer) {
               fileType: fileType,
               category: 'document'
             });
-            
+
             if (file) {
               console.log(`✅ Created file: ${file.name} (ID: ${file.id})`);
               ws.send(JSON.stringify({ type: 'file_uploaded', file }));
@@ -2089,14 +2138,14 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
             return;
           }
-          
+
           const updated = triggerDB.updateFile(msg.fileId, userUID, {
             name: msg.name,
             variableName: msg.variableName,
             description: msg.description,
             category: msg.category
           });
-          
+
           if (updated) {
             console.log(`✅ Updated file: ${msg.fileId}`);
             ws.send(JSON.stringify({ type: 'file_updated', file: updated }));
@@ -2111,7 +2160,7 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'delete_file') {
           const userUID = apiState.currentUser?.uid;
           const result = triggerDB.deleteFile(msg.fileId, userUID);
-          
+
           if (result.success) {
             // Delete from disk
             if (result.filePath && fs.existsSync(result.filePath)) {
@@ -2134,12 +2183,12 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'delete_files') {
           const userUID = apiState.currentUser?.uid;
           const result = triggerDB.deleteFiles(msg.fileIds, userUID);
-          
+
           if (result.success) {
             // Delete files from disk
             for (const fp of result.filePaths || []) {
               if (fs.existsSync(fp)) {
-                try { fs.unlinkSync(fp); } catch (e) {}
+                try { fs.unlinkSync(fp); } catch (e) { }
               }
             }
             ws.send(JSON.stringify({ type: 'files_deleted', count: result.count }));
@@ -2154,7 +2203,7 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'get_file_templates') {
           const userUID = apiState.currentUser?.uid;
           console.log('[WS] get_file_templates - userUID:', userUID);
-          
+
           let templateList = [];
           if (userUID) {
             templateList = triggerDB.getFileTemplates(userUID);
@@ -2172,7 +2221,7 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
             return;
           }
-          
+
           try {
             // Parse base64 data
             const base64Match = msg.data.match(/^data:([^;]+);base64,(.+)$/);
@@ -2180,25 +2229,25 @@ function startWebSocketServer(apiState, httpServer) {
               ws.send(JSON.stringify({ type: 'error', message: 'Invalid template file' }));
               return;
             }
-            
+
             const mimeType = base64Match[1];
             const base64Data = base64Match[2];
             const buffer = Buffer.from(base64Data, 'base64');
-            
+
             // Create templates directory
             const templatesDir = path.join(__dirname, '..', 'data', 'templates');
             if (!fs.existsSync(templatesDir)) {
               fs.mkdirSync(templatesDir, { recursive: true });
             }
-            
+
             // Save template file
             const ext = path.extname(msg.fileName) || getExtFromMime(mimeType);
             const uniqueName = `template_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
             const filePath = path.join(templatesDir, uniqueName);
-            
+
             fs.writeFileSync(filePath, buffer);
             console.log(`💾 Saved template file: ${msg.fileName}`);
-            
+
             // Create template in database
             const template = triggerDB.createFileTemplate(userUID, {
               name: msg.name,
@@ -2211,7 +2260,7 @@ function startWebSocketServer(apiState, httpServer) {
               variables: msg.variables || [],
               outputFormat: msg.outputFormat || 'same'
             });
-            
+
             if (template) {
               console.log(`✅ Created template: ${template.name} (ID: ${template.id})`);
               ws.send(JSON.stringify({ type: 'template_created', template }));
@@ -2233,14 +2282,14 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({ type: 'error', message: 'User not logged in' }));
             return;
           }
-          
+
           const updated = triggerDB.updateFileTemplate(msg.templateId, userUID, {
             name: msg.name,
             description: msg.description,
             variables: msg.variables,
             outputFormat: msg.outputFormat
           });
-          
+
           if (updated) {
             console.log(`✅ Updated template: ${msg.templateId}`);
             ws.send(JSON.stringify({ type: 'template_updated', template: updated }));
@@ -2255,10 +2304,10 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'delete_file_template') {
           const userUID = apiState.currentUser?.uid;
           const result = triggerDB.deleteFileTemplate(msg.templateId, userUID);
-          
+
           if (result.success) {
             if (result.filePath && fs.existsSync(result.filePath)) {
-              try { fs.unlinkSync(result.filePath); } catch (e) {}
+              try { fs.unlinkSync(result.filePath); } catch (e) { }
             }
             ws.send(JSON.stringify({ type: 'template_deleted', templateId: msg.templateId }));
           } else {
@@ -2269,26 +2318,26 @@ function startWebSocketServer(apiState, httpServer) {
         // ========================================
         // FILE CONTENT HANDLERS - Đọc nội dung file để preview
         // ========================================
-        
+
         else if (msg.type === 'get_file_content') {
           const userUID = apiState.currentUser?.uid;
           if (!userUID) {
             ws.send(JSON.stringify({ type: 'file_content', content: null, error: 'Not logged in' }));
             return;
           }
-          
+
           try {
             const fileId = parseInt(msg.fileId);
             const file = triggerDB.getFileById(fileId);
-            
+
             if (!file) {
               ws.send(JSON.stringify({ type: 'file_content', content: null, error: 'File not found' }));
               return;
             }
-            
+
             const content = readFileContentForPreview(file.filePath, file.mimeType, file.fileType);
-            ws.send(JSON.stringify({ 
-              type: 'file_content', 
+            ws.send(JSON.stringify({
+              type: 'file_content',
               content: content,
               fileType: file.fileType
             }));
@@ -2304,19 +2353,19 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({ type: 'file_content', content: null, error: 'Not logged in' }));
             return;
           }
-          
+
           try {
             const templateId = parseInt(msg.templateId);
             const template = triggerDB.getFileTemplateById(templateId);
-            
+
             if (!template) {
               ws.send(JSON.stringify({ type: 'file_content', content: null, error: 'Template not found' }));
               return;
             }
-            
+
             const content = readFileContentForPreview(template.filePath, template.mimeType, template.fileType);
-            ws.send(JSON.stringify({ 
-              type: 'file_content', 
+            ws.send(JSON.stringify({
+              type: 'file_content',
               content: content,
               fileType: template.fileType
             }));
@@ -2333,16 +2382,16 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
             return;
           }
-          
+
           const templateIds = msg.templateIds || [];
           let deleted = 0;
-          
+
           for (const id of templateIds) {
             try {
               const template = triggerDB.getFileTemplateById(id);
               if (template && template.userUID === userUID) {
                 if (template.filePath && fs.existsSync(template.filePath)) {
-                  try { fs.unlinkSync(template.filePath); } catch (e) {}
+                  try { fs.unlinkSync(template.filePath); } catch (e) { }
                 }
                 triggerDB.deleteFileTemplate(id, userUID);
                 deleted++;
@@ -2351,7 +2400,7 @@ function startWebSocketServer(apiState, httpServer) {
               console.error('❌ Delete template error:', err.message);
             }
           }
-          
+
           console.log(`🗑️ Deleted ${deleted} templates`);
           ws.send(JSON.stringify({ type: 'templates_deleted', count: deleted }));
         }
@@ -2370,7 +2419,7 @@ function startWebSocketServer(apiState, httpServer) {
         console.error('❌ WebSocket message error:', err.message);
         console.error(err.stack);
       }
-      
+
     });
 
     ws.on('close', () => {

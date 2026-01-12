@@ -1,148 +1,13 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cổng Thanh Toán - Zalo Bot</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; min-height: 100vh; }
-    
-    /* Header */
-    .header { background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%); color: white; padding: 20px 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-    .header-content { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
-    .header h1 { font-size: 24px; display: flex; align-items: center; gap: 12px; }
-    .header-actions { display: flex; gap: 12px; align-items: center; }
-    
-    /* Tabs */
-    .tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.1); padding: 4px; border-radius: 8px; }
-    .tab { padding: 10px 20px; border: none; background: transparent; color: rgba(255,255,255,0.7); font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
-    .tab:hover { background: rgba(255,255,255,0.1); color: white; }
-    .tab.active { background: white; color: #1e3a5f; }
-    
-    /* Buttons */
-    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; }
-    .btn-primary { background: #4caf50; color: white; }
-    .btn-primary:hover { background: #43a047; }
-    .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
-    .btn-secondary:hover { background: rgba(255,255,255,0.3); }
-    .btn-danger { background: #f44336; color: white; }
-    .btn-danger:hover { background: #e53935; }
-    .btn-outline { background: transparent; border: 1px solid #e0e0e0; color: #666; }
-    .btn-outline:hover { background: #f5f5f5; }
-    
-    /* Main Content */
-    .main-content { max-width: 1400px; margin: 0 auto; padding: 24px; }
-    
-    /* Stats Cards */
-    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .stat-card .icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 12px; }
-    .stat-card .icon.blue { background: #e3f2fd; }
-    .stat-card .icon.green { background: #e8f5e9; }
-    .stat-card .icon.orange { background: #fff3e0; }
-    .stat-card .icon.red { background: #ffebee; }
-    .stat-card .value { font-size: 28px; font-weight: 700; color: #1a1a1a; }
-    .stat-card .label { font-size: 13px; color: #666; margin-top: 4px; }
-    
-    /* Card */
-    .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 24px; }
-    .card-header { padding: 16px 20px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; }
-    .card-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-    .card-body { padding: 0; }
-    
-    /* Filter Bar */
-    .filter-bar { padding: 16px 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    .filter-bar input, .filter-bar select { padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; outline: none; }
-    .filter-bar input:focus, .filter-bar select:focus { border-color: #1e88e5; }
-    
-    /* Table */
-    .table-responsive { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 900px; }
-    th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e0e0e0; }
-    th { background: #f8f9fa; font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-    td { font-size: 14px; }
-    tr:hover { background: #f9f9f9; }
-    
-    /* Status Badge */
-    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
-    .status-badge.waiting { background: #fff3e0; color: #e65100; }
-    .status-badge.paid { background: #e8f5e9; color: #2e7d32; }
-    .status-badge.failed { background: #ffebee; color: #c62828; }
-    .status-badge.expired { background: #f5f5f5; color: #666; }
-    
-    /* Bank Badge */
-    .bank-badge { display: flex; align-items: center; gap: 8px; }
-    .bank-icon { width: 24px; height: 24px; background: #ffebee; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-    
-    /* Customer Cell */
-    .customer-cell { display: flex; align-items: center; gap: 10px; }
-    .customer-avatar { width: 36px; height: 36px; background: #e3f2fd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1565c0; }
-    .customer-info { }
-    .customer-name { font-weight: 600; color: #1a1a1a; }
-    .customer-id { font-size: 11px; color: #999; }
-    
-    /* Amount */
-    .amount { font-weight: 600; color: #1a1a1a; }
-    .amount.positive { color: #2e7d32; }
-    
-    /* Action Buttons */
-    .action-btns { display: flex; gap: 6px; }
-    .action-btn { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; }
-    .action-btn.edit { background: #e3f2fd; color: #1e88e5; }
-    .action-btn.edit:hover { background: #bbdefb; }
-    .action-btn.delete { background: #ffebee; color: #f44336; }
-    .action-btn.delete:hover { background: #ffcdd2; }
-    .action-btn.view { background: #e8f5e9; color: #4caf50; }
-    .action-btn.view:hover { background: #c8e6c9; }
-    
-    /* Tab Content */
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    
-    /* Modal */
-    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; }
-    .modal-overlay.active { opacity: 1; visibility: visible; }
-    .modal { background: white; border-radius: 16px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; transform: translateY(-20px); transition: transform 0.3s; }
-    .modal-overlay.active .modal { transform: translateY(0); }
-    .modal-header { padding: 20px 24px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; }
-    .modal-header h3 { font-size: 18px; font-weight: 600; }
-    .modal-close { width: 32px; height: 32px; border: none; background: #f5f5f5; border-radius: 8px; cursor: pointer; font-size: 18px; }
-    .modal-body { padding: 24px; }
-    .modal-footer { padding: 16px 24px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 12px; }
-    
-    /* Form */
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
-    .form-group label .required { color: #f44336; }
-    .form-control { width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
-    .form-control:focus { border-color: #1e88e5; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .form-hint { font-size: 11px; color: #999; margin-top: 4px; }
-    
-    /* Empty State */
-    .empty-state { text-align: center; padding: 60px 20px; color: #999; }
-    .empty-state .icon { font-size: 64px; margin-bottom: 16px; }
-    .empty-state h3 { font-size: 18px; color: #666; margin-bottom: 8px; }
-    
-    /* Toast */
-    .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 8px; color: white; z-index: 10000; animation: slideIn 0.3s; }
-    .toast.success { background: #4caf50; }
-    .toast.error { background: #f44336; }
-    .toast.info { background: #2196f3; }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
-    
-    /* Code */
-    code { background: #f5f5f5; padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px; }
-    
-    /* Pagination */
-    .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 20px; }
-    .pagination button { padding: 8px 16px; border: 1px solid #e0e0e0; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
-    .pagination button:hover { background: #f5f5f5; }
-    .pagination button.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
-    .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-  </style>
+  <link rel="stylesheet" href="/assets/style_bank_manager.css">
 </head>
+
 <body>
   <div class="header">
     <div class="header-content">
@@ -155,13 +20,13 @@
         </div>
         <button class="btn btn-primary" onclick="openCreateTransaction()">+ Thêm mới</button>
         <a href="/trigger-manager.html" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-            <span>🏠</span>
-            <span>Trigger Manager</span>
+          <span>🏠</span>
+          <span>Trigger Manager</span>
         </a>
       </div>
     </div>
   </div>
-  
+
   <div class="main-content">
     <!-- Stats -->
     <div class="stats-row">
@@ -186,7 +51,7 @@
         <div class="label">Tổng thu</div>
       </div>
     </div>
-    
+
     <!-- Tab: Transactions -->
     <div id="tab-transactions" class="tab-content active">
       <div class="card">
@@ -238,7 +103,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Tab: Payment Gates -->
     <div id="tab-gates" class="tab-content">
       <div class="card">
@@ -275,7 +140,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Tab: Payment Logs -->
     <div id="tab-logs" class="tab-content">
       <div class="card">
@@ -313,7 +178,7 @@
       </div>
     </div>
   </div>
-  
+
   <!-- Modal: Create Transaction -->
   <div class="modal-overlay" id="transactionModal">
     <div class="modal">
@@ -323,14 +188,14 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="editTransactionId">
-        
+
         <div class="form-group">
           <label>Cổng thanh toán <span class="required">*</span></label>
           <select class="form-control" id="transactionGate">
             <option value="">-- Chọn cổng --</option>
           </select>
         </div>
-        
+
         <div class="form-row">
           <div class="form-group">
             <label>Số tiền <span class="required">*</span></label>
@@ -344,17 +209,17 @@
             </select>
           </div>
         </div>
-        
+
         <div class="form-group">
           <label>Khách hàng (User ID)</label>
           <input type="text" class="form-control" id="transactionCustomerId" placeholder="Zalo User ID">
         </div>
-        
+
         <div class="form-group">
           <label>Tên khách hàng</label>
           <input type="text" class="form-control" id="transactionCustomerName" placeholder="Tên khách hàng">
         </div>
-        
+
         <div class="form-group">
           <label>Ghi chú</label>
           <input type="text" class="form-control" id="transactionNote" placeholder="Nội dung thanh toán">
@@ -366,7 +231,7 @@
       </div>
     </div>
   </div>
-  
+
   <!-- Modal: Add Gate -->
   <div class="modal-overlay" id="gateModal">
     <div class="modal">
@@ -376,29 +241,29 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="editGateId">
-        
+
         <div class="form-group">
           <label>Tên cổng <span class="required">*</span></label>
           <input type="text" class="form-control" id="gateName" placeholder="VD: MB Bank - Tien Dat">
         </div>
-        
+
         <div class="form-group">
           <label>Ngân hàng <span class="required">*</span></label>
           <select class="form-control" id="gateBank">
             <option value="">-- Chọn ngân hàng --</option>
           </select>
         </div>
-        
+
         <div class="form-group">
           <label>Số tài khoản <span class="required">*</span></label>
           <input type="text" class="form-control" id="gateAccountNumber" placeholder="Số tài khoản">
         </div>
-        
+
         <div class="form-group">
           <label>Tên chủ tài khoản <span class="required">*</span></label>
           <input type="text" class="form-control" id="gateAccountName" placeholder="NGUYEN VAN A">
         </div>
-        
+
         <div class="form-group">
           <label>Trạng thái</label>
           <select class="form-control" id="gateStatus">
@@ -433,18 +298,18 @@
       { code: 'VTB', name: 'Vietinbank', bin: 970415 },
       { code: 'MOMO', name: 'MoMo', bin: 971012 }
     ];
-    
+
     let ws = null;
     let transactions = [];
     let paymentGates = [];
     let paymentLogs = [];
-    
+
     // Init
     document.addEventListener('DOMContentLoaded', () => {
       populateBankSelects();
       connectWebSocket();
     });
-    
+
     function populateBankSelects() {
       const selects = ['gateBank', 'filterBank'];
       selects.forEach(id => {
@@ -459,7 +324,7 @@
         });
       });
     }
-    
+
     function connectWebSocket() {
       ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
       ws.onopen = () => {
@@ -470,14 +335,14 @@
       };
       ws.onclose = () => setTimeout(connectWebSocket, 3000);
       ws.onmessage = (e) => {
-        try { handleMessage(JSON.parse(e.data)); } catch(err) { console.error(err); }
+        try { handleMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
       };
     }
-    
+
     function handleMessage(data) {
       console.log('📩', data.type, data);
-      
-      switch(data.type) {
+
+      switch (data.type) {
         case 'transactions_list':
           transactions = data.transactions || [];
           renderTransactions();
@@ -545,49 +410,49 @@
           break;
       }
     }
-    
+
     // Tab switching
     function switchTab(tabName) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      
+
       event.target.classList.add('active');
       document.getElementById('tab-' + tabName).classList.add('active');
     }
-    
+
     // Load data
     function loadTransactions() {
       if (ws?.readyState === 1) {
         ws.send(JSON.stringify({ type: 'get_transactions' }));
       }
     }
-    
+
     function loadPaymentGates() {
       if (ws?.readyState === 1) {
         ws.send(JSON.stringify({ type: 'get_payment_gates' }));
       }
     }
-    
+
     function loadPaymentLogs() {
       if (ws?.readyState === 1) {
         ws.send(JSON.stringify({ type: 'get_payment_logs' }));
       }
     }
-    
+
     // Render functions
     function renderTransactions() {
       const tbody = document.getElementById('transactionsTable');
       const filtered = filterTransactionsList();
-      
+
       if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="icon">📋</div><h3>Không có giao dịch</h3></div></td></tr>`;
         return;
       }
-      
+
       tbody.innerHTML = filtered.map((t, i) => {
         const bank = BANKS.find(b => b.bin === t.bankBin) || { code: '?', name: 'Unknown' };
         const statusClass = t.status.toLowerCase();
-        
+
         return `
           <tr>
             <td>${i + 1}</td>
@@ -622,12 +487,12 @@
         `;
       }).join('');
     }
-    
+
     function filterTransactionsList() {
       const search = document.getElementById('searchTransaction').value.toLowerCase();
       const status = document.getElementById('filterStatus').value;
       const bank = document.getElementById('filterBank').value;
-      
+
       return transactions.filter(t => {
         if (search && !t.transactionCode.toLowerCase().includes(search)) return false;
         if (status && t.status !== status) return false;
@@ -635,22 +500,22 @@
         return true;
       });
     }
-    
+
     function filterTransactions() {
       renderTransactions();
     }
-    
+
     function renderPaymentGates() {
       const tbody = document.getElementById('gatesTable');
-      
+
       if (paymentGates.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">🏦</div><h3>Chưa có cổng thanh toán</h3></div></td></tr>`;
         return;
       }
-      
+
       tbody.innerHTML = paymentGates.map((g, i) => {
         const bank = BANKS.find(b => b.bin === g.bankBin) || { code: '?', name: 'Unknown' };
-        
+
         return `
           <tr>
             <td>${i + 1}</td>
@@ -674,18 +539,18 @@
         `;
       }).join('');
     }
-    
+
     function renderPaymentLogs() {
       const tbody = document.getElementById('logsTable');
-      
+
       if (paymentLogs.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">📜</div><h3>Chưa có log thanh toán</h3></div></td></tr>`;
         return;
       }
-      
+
       tbody.innerHTML = paymentLogs.map((log, i) => {
         const bank = BANKS.find(b => b.bin === log.bankBin) || { code: '?', name: 'Unknown' };
-        
+
         return `
           <tr>
             <td>${i + 1}</td>
@@ -704,19 +569,19 @@
         `;
       }).join('');
     }
-    
+
     function updateStats() {
       const total = transactions.length;
       const waiting = transactions.filter(t => t.status === 'WAITING').length;
       const paid = transactions.filter(t => t.status === 'PAID').length;
       const totalAmount = transactions.filter(t => t.status === 'PAID').reduce((sum, t) => sum + (t.amount || 0), 0);
-      
+
       document.getElementById('totalTransactions').textContent = total;
       document.getElementById('waitingCount').textContent = waiting;
       document.getElementById('paidCount').textContent = paid;
       document.getElementById('totalAmount').textContent = formatMoney(totalAmount);
     }
-    
+
     function updateGateSelect() {
       const select = document.getElementById('transactionGate');
       select.innerHTML = '<option value="">-- Chọn cổng --</option>';
@@ -728,7 +593,7 @@
         select.appendChild(option);
       });
     }
-    
+
     // Transaction CRUD
     function openCreateTransaction() {
       document.getElementById('transactionModalTitle').textContent = 'Tạo giao dịch mới';
@@ -741,11 +606,11 @@
       document.getElementById('transactionNote').value = '';
       document.getElementById('transactionModal').classList.add('active');
     }
-    
+
     function editTransaction(id) {
       const t = transactions.find(x => x.transactionID === id);
       if (!t) return;
-      
+
       document.getElementById('transactionModalTitle').textContent = 'Sửa giao dịch';
       document.getElementById('editTransactionId').value = id;
       document.getElementById('transactionGate').value = t.gateID || '';
@@ -756,11 +621,11 @@
       document.getElementById('transactionNote').value = t.note || '';
       document.getElementById('transactionModal').classList.add('active');
     }
-    
+
     function closeTransactionModal() {
       document.getElementById('transactionModal').classList.remove('active');
     }
-    
+
     function saveTransaction() {
       const id = document.getElementById('editTransactionId').value;
       const gateID = parseInt(document.getElementById('transactionGate').value);
@@ -769,14 +634,14 @@
       const customerID = document.getElementById('transactionCustomerId').value.trim();
       const customerName = document.getElementById('transactionCustomerName').value.trim();
       const note = document.getElementById('transactionNote').value.trim();
-      
+
       if (!gateID || !amount) {
         showToast('⚠️ Vui lòng chọn cổng và nhập số tiền!', 'error');
         return;
       }
-      
+
       const gate = paymentGates.find(g => g.gateID === gateID);
-      
+
       if (id) {
         ws.send(JSON.stringify({
           type: 'update_transaction',
@@ -794,12 +659,12 @@
         }));
       }
     }
-    
+
     function deleteTransaction(id) {
       if (!confirm('Bạn có chắc muốn xóa giao dịch này?')) return;
       ws.send(JSON.stringify({ type: 'delete_transaction', transactionID: id }));
     }
-    
+
     // Payment Gate CRUD
     function openAddGate() {
       document.getElementById('gateModalTitle').textContent = 'Thêm cổng thanh toán';
@@ -811,11 +676,11 @@
       document.getElementById('gateStatus').value = '1';
       document.getElementById('gateModal').classList.add('active');
     }
-    
+
     function editGate(id) {
       const g = paymentGates.find(x => x.gateID === id);
       if (!g) return;
-      
+
       document.getElementById('gateModalTitle').textContent = 'Sửa cổng thanh toán';
       document.getElementById('editGateId').value = id;
       document.getElementById('gateName').value = g.gateName || '';
@@ -825,11 +690,11 @@
       document.getElementById('gateStatus').value = g.status ? '1' : '0';
       document.getElementById('gateModal').classList.add('active');
     }
-    
+
     function closeGateModal() {
       document.getElementById('gateModal').classList.remove('active');
     }
-    
+
     function saveGate() {
       const id = document.getElementById('editGateId').value;
       const gateName = document.getElementById('gateName').value.trim();
@@ -837,12 +702,12 @@
       const accountNumber = document.getElementById('gateAccountNumber').value.trim();
       const accountName = document.getElementById('gateAccountName').value.trim();
       const status = document.getElementById('gateStatus').value === '1';
-      
+
       if (!gateName || !bankBin || !accountNumber || !accountName) {
         showToast('⚠️ Vui lòng điền đầy đủ thông tin!', 'error');
         return;
       }
-      
+
       if (id) {
         ws.send(JSON.stringify({
           type: 'update_payment_gate',
@@ -856,29 +721,29 @@
         }));
       }
     }
-    
+
     function deleteGate(id) {
       if (!confirm('Bạn có chắc muốn xóa cổng thanh toán này?')) return;
       ws.send(JSON.stringify({ type: 'delete_payment_gate', gateID: id }));
     }
-    
+
     // Helpers
     function formatMoney(amount) {
       return new Intl.NumberFormat('vi-VN').format(amount || 0) + 'đ';
     }
-    
+
     function formatDateTime(timestamp) {
       if (!timestamp) return '-';
       const d = new Date(timestamp);
       return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     }
-    
+
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text || '';
       return div.innerHTML;
     }
-    
+
     function showToast(msg, type = 'info') {
       document.querySelectorAll('.toast').forEach(t => t.remove());
       const toast = document.createElement('div');
@@ -889,4 +754,5 @@
     }
   </script>
 </body>
+
 </html>
