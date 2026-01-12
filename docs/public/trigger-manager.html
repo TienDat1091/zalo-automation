@@ -722,8 +722,15 @@
       const trigger = triggerId === 'builtin_auto_message' ? builtInTriggers.autoMessage : builtInTriggers.autoAcceptFriend;
       console.log('🔘 Trigger state:', trigger);
 
-      // Nếu chưa bật và chưa có config → yêu cầu setup
-      if (!trigger.enabled && !trigger.response && !trigger.welcomeMessage) {
+      // Nếu chưa có triggerID (chưa tạo trong DB) → yêu cầu setup
+      if (!trigger.triggerID) {
+        console.log('🔘 Not created yet, opening setup modal');
+        setupBuiltInTrigger(triggerId);
+        return;
+      }
+
+      // Nếu chưa có config (response/welcomeMessage rỗng) → yêu cầu setup
+      if (!trigger.response && !trigger.welcomeMessage) {
         console.log('🔘 No config, opening setup modal');
         setupBuiltInTrigger(triggerId);
         return;
@@ -732,11 +739,14 @@
       // Toggle trạng thái
       trigger.enabled = !trigger.enabled;
       console.log('🔘 Toggled to:', trigger.enabled);
+
+      // Gửi toggle request (dùng toggle_trigger thay vì update_trigger)
+      ws.send(JSON.stringify({
+        type: 'toggle_trigger',
+        id: trigger.triggerID
+      }));
+
       renderTriggerList();
-
-      // Save vào backend
-      saveBuiltInTriggerState(triggerId, trigger);
-
       showToast(trigger.enabled ? '✅ Đã bật ' + trigger.name : '⏸️ Đã tắt ' + trigger.name, 'success');
     }
 
@@ -940,12 +950,15 @@
       // Xác định triggerKey đặc biệt
       const specialKey = triggerId === 'builtin_auto_message' ? '__builtin_auto_message__' : '__builtin_auto_friend__';
 
-      // Nếu đã có triggerID trong DB, gửi update
+      // Nếu đã có triggerID trong DB, gửi update với đầy đủ data
       if (trigger.triggerID) {
         ws.send(JSON.stringify({
           type: 'update_trigger',
           id: trigger.triggerID,
-          enabled: trigger.enabled
+          updates: {
+            triggerContent: trigger.response || trigger.welcomeMessage || '',
+            enabled: trigger.enabled ? 1 : 0
+          }
         }));
       } else {
         // Chưa có trong DB, tạo mới

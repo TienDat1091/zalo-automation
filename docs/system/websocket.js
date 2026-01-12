@@ -612,7 +612,7 @@ function startWebSocketServer(apiState, httpServer) {
           }
 
           const triggerID = msg.id || msg.trigger?.id || msg.trigger?.triggerID;
-          const updates = msg.trigger || {
+          const updates = msg.updates || msg.trigger || {
             triggerName: msg.keywords?.[0],
             triggerKey: msg.keywords?.join(','),
             triggerContent: msg.response,
