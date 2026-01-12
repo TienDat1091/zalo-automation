@@ -1,26 +1,33 @@
 // websocket-helper.js - Helper để tạo WebSocket connection đúng port
-(function(window) {
+(function (window) {
   'use strict';
 
   /**
-   * Tạo WebSocket connection tới server Node.js (port 3000)
+   * Tạo WebSocket connection tới server Node.js
    * Hoạt động với:
-   * - Direct access: localhost:3000
-   * - Live Server: localhost:5500 (proxy to 3000)
-   * - Browser-Sync: localhost:3001 (proxy to 3000)
+   * - Local development: localhost:3000
+   * - Production (Render, etc): uses same host without port
    *
    * @returns {WebSocket} WebSocket instance
    */
-  window.createWebSocket = function() {
+  window.createWebSocket = function () {
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-    // Luôn connect tới port 3000 (Node.js server)
-    // Không dùng location.host vì có thể là Live Server (5500) hoặc Browser-Sync (3001)
-    const wsHost = location.hostname + ':3000';
+    // Check if running on production (HTTPS) or local development
+    const isProduction = location.protocol === 'https:' ||
+      location.hostname.includes('render.com') ||
+      location.hostname.includes('onrender.com') ||
+      !['localhost', '127.0.0.1'].includes(location.hostname);
+
+    // On production, use location.host (no port specified, uses default 443/80)
+    // On local development, always use port 3000
+    const wsHost = isProduction ? location.host : (location.hostname + ':3000');
 
     console.log('🔌 Connecting WebSocket to:', wsProtocol + '//' + wsHost);
+    console.log('📍 Environment:', isProduction ? 'Production' : 'Local Development');
 
     return new WebSocket(wsProtocol + '//' + wsHost);
   };
 
 })(window);
+
