@@ -8,6 +8,92 @@ const fs = require('fs');
 const path = require('path');
 
 // ============================================
+// FILE TYPE HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Get file extension from MIME type
+ * @param {string} mimeType - MIME type (e.g., 'image/png')
+ * @returns {string} File extension with dot (e.g., '.png')
+ */
+function getExtFromMime(mimeType) {
+  const mimeToExt = {
+    // Images
+    'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'image/svg+xml': '.svg',
+    'image/bmp': '.bmp',
+    'image/tiff': '.tiff',
+    // Documents
+    'application/pdf': '.pdf',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'application/vnd.ms-powerpoint': '.ppt',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+    // Text
+    'text/plain': '.txt',
+    'text/csv': '.csv',
+    'text/html': '.html',
+    'application/json': '.json',
+    'application/xml': '.xml',
+    // Archives
+    'application/zip': '.zip',
+    'application/x-rar-compressed': '.rar',
+    'application/x-7z-compressed': '.7z',
+    // Audio
+    'audio/mpeg': '.mp3',
+    'audio/wav': '.wav',
+    'audio/ogg': '.ogg',
+    // Video
+    'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/avi': '.avi'
+  };
+  return mimeToExt[mimeType] || '.bin';
+}
+
+/**
+ * Get file type category from MIME type
+ * @param {string} mimeType - MIME type (e.g., 'image/png')
+ * @returns {string} File type category (e.g., 'image', 'document', 'video')
+ */
+function getFileTypeFromMime(mimeType) {
+  if (!mimeType) return 'other';
+
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('text/')) return 'text';
+
+  // Document types
+  if (mimeType.includes('pdf') ||
+    mimeType.includes('word') ||
+    mimeType.includes('excel') ||
+    mimeType.includes('spreadsheet') ||
+    mimeType.includes('powerpoint') ||
+    mimeType.includes('presentation')) {
+    return 'document';
+  }
+
+  // Archive types
+  if (mimeType.includes('zip') ||
+    mimeType.includes('rar') ||
+    mimeType.includes('7z') ||
+    mimeType.includes('tar') ||
+    mimeType.includes('gzip')) {
+    return 'archive';
+  }
+
+  return 'other';
+}
+
+
+// ============================================
 // INIT BACKUP SYSTEM (Before database init)
 // ============================================
 backup.initBackup();
