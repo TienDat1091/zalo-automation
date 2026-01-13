@@ -133,6 +133,55 @@ function broadcast(apiState, data) {
 }
 
 // ============================================
+// PRINT AGENT MANAGEMENT
+// ============================================
+const printAgents = new Set(); // Lưu các print agent đã kết nối
+
+/**
+ * Gửi lệnh in đến print agent
+ * @param {object} printRequest - { fileUrl, fileName, senderId }
+ * @returns {boolean} - true nếu có print agent nhận lệnh
+ */
+function sendToPrintAgent(printRequest) {
+  const hasAgent = printAgents.size > 0;
+
+  if (!hasAgent) {
+    console.log('⚠️ No print agent connected');
+    return false;
+  }
+
+  const requestId = `print_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const message = JSON.stringify({
+    type: 'print_request',
+    requestId,
+    ...printRequest
+  });
+
+  let sent = false;
+  printAgents.forEach(agent => {
+    try {
+      if (agent.readyState === 1) {
+        agent.send(message);
+        sent = true;
+        console.log(`🖨️ Print request sent to agent: ${printRequest.fileName}`);
+      }
+    } catch (e) {
+      console.error('❌ Failed to send to print agent:', e.message);
+    }
+  });
+
+  return sent;
+}
+
+/**
+ * Kiểm tra có print agent kết nối không
+ * @returns {boolean}
+ */
+function hasPrintAgent() {
+  return printAgents.size > 0;
+}
+
+// ============================================
 // AUTO-CREATE BUILT-IN TRIGGERS
 // ============================================
 function ensureBuiltInTriggers(userUID) {
@@ -2676,6 +2725,32 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ========================================
+        // PRINT AGENT REGISTRATION
+        // ========================================
+        else if (msg.type === 'register_print_agent') {
+          console.log(`🖨️ Print Agent connected: ${msg.hostname || 'unknown'} (${msg.platform || 'unknown'})`);
+          ws.isPrintAgent = true;
+          printAgents.add(ws);
+          ws.send(JSON.stringify({
+            type: 'agent_registered',
+            success: true,
+            message: 'Print Agent registered successfully'
+          }));
+        }
+
+        else if (msg.type === 'print_result') {
+          console.log(`🖨️ Print result: ${msg.success ? '✅' : '❌'} ${msg.fileName}`);
+          // Broadcast kết quả in về dashboard (nếu cần)
+          broadcast(apiState, {
+            type: 'print_completed',
+            success: msg.success,
+            fileName: msg.fileName,
+            error: msg.error,
+            senderId: msg.senderId
+          });
+        }
+
+        // ========================================
         // FALLBACK - Unhandled message types
         // ========================================
         else {
@@ -2694,6 +2769,11 @@ function startWebSocketServer(apiState, httpServer) {
 
     ws.on('close', () => {
       apiState.clients.delete(ws);
+      // Xóa print agent nếu ngắt kết nối
+      if (ws.isPrintAgent) {
+        printAgents.delete(ws);
+        console.log('🖨️ Print Agent disconnected');
+      }
       console.log('❌ WebSocket disconnected');
     });
 
@@ -2717,5 +2797,5 @@ function startWebSocketServer(apiState, httpServer) {
   return wss;
 }
 
-// Export triggerDB để các module khác có thể dùng
-module.exports = { startWebSocketServer, broadcast, triggerDB };
+// Export triggerDB và print agent functions để các module khác có thể dùng
+module.exports = { startWebSocketServer, broadcast, triggerDB, sendToPrintAgent, hasPrintAgent };

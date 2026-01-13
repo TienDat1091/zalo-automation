@@ -28,10 +28,39 @@ async function downloadToTemp(url, ext) {
     }
 }
 
-async function printFile(url, fileType) {
+async function printFile(url, fileType, fileName, senderId) {
     let tempPath = null;
     let pdfPath = null;
 
+    // ========================================
+    // HYBRID MODE: Kiểm tra có print agent không
+    // ========================================
+    try {
+        const { hasPrintAgent, sendToPrintAgent } = require('./system/websocket.js');
+
+        if (hasPrintAgent && hasPrintAgent()) {
+            console.log('🖨️ Sending print request to remote Print Agent...');
+            const sent = sendToPrintAgent({
+                fileUrl: url,
+                fileName: fileName || `file.${fileType}`,
+                fileType: fileType,
+                senderId: senderId
+            });
+
+            if (sent) {
+                return { success: true, message: 'Đã gửi lệnh in tới Print Agent.', remote: true };
+            }
+            // Nếu không gửi được, fallback in local
+            console.log('⚠️ Print Agent failed, falling back to local printing...');
+        }
+    } catch (e) {
+        // websocket module chưa sẵn sàng, in local
+        console.log('⚠️ Print Agent not available, using local printing');
+    }
+
+    // ========================================
+    // LOCAL MODE: In trực tiếp trên máy này
+    // ========================================
     try {
         // CASE 1: PDF
         if (fileType === 'pdf') {
@@ -67,7 +96,7 @@ async function printFile(url, fileType) {
             if (pdfPath && fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
         }, 15000);
 
-        return { success: true, message: 'Đã gửi lệnh in thành công.' };
+        return { success: true, message: 'Đã gửi lệnh in thành công.', remote: false };
     } catch (error) {
         console.error('Print error:', error);
         return { success: false, message: `Lỗi in ấn: ${error.message}` };
