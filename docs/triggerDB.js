@@ -102,15 +102,16 @@ module.exports = {
   createTrigger(data) {
     try {
       const stmt = db.prepare(`
-        INSERT INTO triggers (triggerName, triggerKey, triggerUserID, triggerContent, 
+        INSERT INTO triggers (triggerName, triggerKey, triggerType, triggerUserID, triggerContent, 
           timeStartActive, timeEndActive, dateStartActive, dateEndActive, 
           cooldown, scope, uids, enabled, setMode)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       const result = stmt.run(
         data.triggerName || 'New Trigger',
         data.triggerKey || '',
+        data.triggerType || 'keyword',  // MỚI: loại trigger
         data.triggerUserID,
         data.triggerContent || '',
         data.timeStartActive || '00:00',
@@ -186,7 +187,7 @@ module.exports = {
       const fields = [];
       const values = [];
 
-      const allowedFields = ['triggerName', 'triggerKey', 'triggerContent',
+      const allowedFields = ['triggerName', 'triggerKey', 'triggerType', 'triggerContent',
         'timeStartActive', 'timeEndActive', 'dateStartActive', 'dateEndActive',
         'cooldown', 'scope', 'uids', 'enabled', 'setMode'];
 
@@ -251,7 +252,7 @@ module.exports = {
     }
   },
 
-  findMatchingTrigger(userUID, messageContent, senderId, isFriend) {
+  findMatchingTrigger(userUID, messageContent, senderId, isFriend, hasAttachment = false) {
     try {
       const triggers = this.getEnabledTriggers(userUID);
       const lowerContent = messageContent.toLowerCase().trim();
@@ -267,11 +268,25 @@ module.exports = {
         // Check scope
         if (!this._checkScope(trigger, senderId, isFriend)) continue;
 
-        // Check keywords
-        const keywords = trigger.keywords || [];
-        for (const keyword of keywords) {
-          if (lowerContent.includes(keyword.toLowerCase())) {
+        // MỚI: Check theo loại trigger
+        const triggerType = trigger.triggerType || 'keyword';
+
+        if (triggerType === 'any_message') {
+          // Match tất cả tin nhắn
+          return trigger;
+        } else if (triggerType === 'any_file') {
+          // Chỉ match khi có file/ảnh
+          if (hasAttachment) {
             return trigger;
+          }
+          continue;
+        } else {
+          // triggerType === 'keyword' - loại mặc định
+          const keywords = trigger.keywords || [];
+          for (const keyword of keywords) {
+            if (lowerContent.includes(keyword.toLowerCase())) {
+              return trigger;
+            }
           }
         }
       }
@@ -290,6 +305,7 @@ module.exports = {
       triggerName: row.triggerName,
       name: row.triggerName,
       triggerKey: row.triggerKey,
+      triggerType: row.triggerType || 'keyword',  // MỚI: loại trigger
       keywords: row.triggerKey ? row.triggerKey.split(',').map(k => k.trim()).filter(k => k) : [],
       triggerContent: row.triggerContent,
       response: row.triggerContent,

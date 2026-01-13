@@ -19,13 +19,13 @@ function initDB() {
 }
 
 function createTables(db) {
-  // Moved from triggerDB._createTables
   // Triggers table
   db.exec(`
     CREATE TABLE IF NOT EXISTS triggers (
       triggerID INTEGER PRIMARY KEY AUTOINCREMENT,
       triggerName TEXT NOT NULL,
       triggerKey TEXT,
+      triggerType TEXT DEFAULT 'keyword',
       triggerUserID TEXT NOT NULL,
       triggerContent TEXT,
       timeCreated INTEGER DEFAULT (strftime('%s','now') * 1000),
@@ -41,6 +41,14 @@ function createTables(db) {
       setMode INTEGER DEFAULT 0
     )
   `);
+
+  // Thêm cột triggerType nếu chưa có (migration cho DB cũ)
+  try {
+    db.exec(`ALTER TABLE triggers ADD COLUMN triggerType TEXT DEFAULT 'keyword'`);
+    console.log('✅ Added triggerType column to triggers table');
+  } catch (e) {
+    // Cột đã tồn tại - bỏ qua lỗi
+  }
 
   // Flows table
   db.exec(`

@@ -1,7 +1,7 @@
 // public/blocks/flow-builder-ui.js
 // UI Controller cho Flow Builder - Load SAU tất cả block files
 
-(function() {
+(function () {
   'use strict';
 
   // ========================================
@@ -36,7 +36,7 @@
   // ========================================
   // TOAST NOTIFICATION
   // ========================================
-  window.showToast = function(message, type) {
+  window.showToast = function (message, type) {
     type = type || 'info';
     var existing = document.querySelector('.toast');
     if (existing) existing.remove();
@@ -46,7 +46,7 @@
     toast.textContent = message;
     document.body.appendChild(toast);
 
-    setTimeout(function() { toast.remove(); }, 3000);
+    setTimeout(function () { toast.remove(); }, 3000);
   };
 
   // ========================================
@@ -79,7 +79,7 @@
   // ========================================
   // WEBSOCKET
   // ========================================
-  
+
   // Cấu hình WebSocket URL
   var WS_CONFIG = {
     url: window.WS_URL || null,
@@ -111,12 +111,12 @@
       var ws = new WebSocket(wsUrl);
       window.ws = ws;
 
-      ws.onopen = function() {
+      ws.onopen = function () {
         console.log('✅ WebSocket connected successfully!');
         loadData();
       };
 
-      ws.onmessage = function(event) {
+      ws.onmessage = function (event) {
         try {
           var data = JSON.parse(event.data);
           console.log('📨 WS message:', data.type);
@@ -126,12 +126,12 @@
         }
       };
 
-      ws.onerror = function(err) {
+      ws.onerror = function (err) {
         console.error('❌ WebSocket error:', err);
         showToast('❌ Không thể kết nối WebSocket (port ' + WS_CONFIG.wsPort + ')', 'error');
       };
 
-      ws.onclose = function(event) {
+      ws.onclose = function (event) {
         console.log('WebSocket closed, code:', event.code);
       };
     } catch (e) {
@@ -165,27 +165,27 @@
         state.triggerData = data.trigger;
         state.flowData = data.flow;
         state.blocks = data.blocks || (data.flow && data.flow.blocks) || [];
-        
+
         // Set next block ID
-        state.blocks.forEach(function(b) {
+        state.blocks.forEach(function (b) {
           if (b.blockID >= state.nextBlockId) state.nextBlockId = b.blockID + 1;
         });
-        
+
         renderTriggerHeader();
         renderFlowCanvas();
         console.log('✅ Loaded trigger:', state.triggerData?.triggerName, '- Blocks:', state.blocks.length);
         break;
-        
+
       case 'files_list':
-          window.uploadedFiles = (data.files || []).map(function(f) {
-            var id = f.fileID || f.id;
-            return Object.assign({}, f, { 
-              id: id,
-              url: API_BASE_URL + '/api/files/' + id
-            });
+        window.uploadedFiles = (data.files || []).map(function (f) {
+          var id = f.fileID || f.id;
+          return Object.assign({}, f, {
+            id: id,
+            url: API_BASE_URL + '/api/files/' + id
           });
-          console.log('📁 Loaded', window.uploadedFiles.length, 'files');
-          break;
+        });
+        console.log('📁 Loaded', window.uploadedFiles.length, 'files');
+        break;
 
       case 'triggers_list':
         window.allTriggers = data.triggers || [];
@@ -204,7 +204,7 @@
 
       case 'google_sheet_configs':
         // Normalize: convert configID to id for consistency
-        window.googleSheetConfigs = (data.configs || []).map(function(cfg) {
+        window.googleSheetConfigs = (data.configs || []).map(function (cfg) {
           return Object.assign({}, cfg, { id: cfg.configID || cfg.id });
         });
         console.log('📗 Loaded', window.googleSheetConfigs.length, 'Google Sheet configs');
@@ -212,7 +212,7 @@
 
       case 'ai_configs':
         // Normalize: convert configID to id for consistency
-        window.aiConfigs = (data.configs || []).map(function(cfg) {
+        window.aiConfigs = (data.configs || []).map(function (cfg) {
           return Object.assign({}, cfg, { id: cfg.configID || cfg.id });
         });
         console.log('🧠 Loaded', window.aiConfigs.length, 'AI configs');
@@ -220,9 +220,9 @@
 
       case 'images_list':
         // Normalize: convert imageID to id và thêm URL đầy đủ
-        window.uploadedImages = (data.images || []).map(function(img) {
+        window.uploadedImages = (data.images || []).map(function (img) {
           var id = img.imageID || img.id;
-          return Object.assign({}, img, { 
+          return Object.assign({}, img, {
             id: id,
             url: API_BASE_URL + '/api/images/' + id
           });
@@ -281,14 +281,14 @@
 
     // Group by category
     var grouped = {};
-    Object.values(blocks).forEach(function(block) {
+    Object.values(blocks).forEach(function (block) {
       var cat = block.category || 'other';
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(block);
     });
 
     var html = '';
-    Object.keys(categories).forEach(function(catKey) {
+    Object.keys(categories).forEach(function (catKey) {
       var catInfo = categories[catKey];
       var catBlocks = grouped[catKey];
 
@@ -296,7 +296,7 @@
         html += '<div class="block-category" data-category="' + catKey + '">';
         html += '<div class="category-title">' + catInfo.icon + ' ' + catInfo.name + '</div>';
 
-        catBlocks.forEach(function(b) {
+        catBlocks.forEach(function (b) {
           html += '<div class="block-item" draggable="true" data-type="' + b.type + '">';
           html += '<div class="block-icon ' + b.category + '" style="background:' + (b.color || catInfo.color) + '">' + b.icon + '</div>';
           html += '<div class="block-info">';
@@ -313,11 +313,11 @@
   }
 
   // Filter blocks
-  window.filterBlocks = function() {
+  window.filterBlocks = function () {
     var search = document.getElementById('blockSearch').value.toLowerCase();
     var items = document.querySelectorAll('.block-item');
 
-    items.forEach(function(item) {
+    items.forEach(function (item) {
       var name = item.querySelector('.block-name').textContent.toLowerCase();
       var desc = item.querySelector('.block-desc').textContent.toLowerCase();
       var match = name.includes(search) || desc.includes(search);
@@ -336,13 +336,13 @@
     var badgeEl = document.getElementById('triggerBadge');
 
     if (nameEl) nameEl.textContent = trigger.triggerName || 'Trigger';
-    
+
     if (badgeEl) {
       // Kiểm tra isActive - có thể là 1, true, "1", "true"
-      var isActive = trigger.isActive === 1 || trigger.isActive === true || 
-                     trigger.isActive === '1' || trigger.isActive === 'true' ||
-                     trigger.enabled === 1 || trigger.enabled === true;
-      
+      var isActive = trigger.isActive === 1 || trigger.isActive === true ||
+        trigger.isActive === '1' || trigger.isActive === 'true' ||
+        trigger.enabled === 1 || trigger.enabled === true;
+
       badgeEl.textContent = isActive ? 'Active' : 'Inactive';
       badgeEl.className = 'badge ' + (isActive ? 'active' : 'inactive');
     }
@@ -356,8 +356,8 @@
     if (!container) return;
 
     var trigger = state.triggerData;
-    var blocks = state.blocks.filter(function(b) { return !b.parentBlockID; })
-                              .sort(function(a, b) { return a.blockOrder - b.blockOrder; });
+    var blocks = state.blocks.filter(function (b) { return !b.parentBlockID; })
+      .sort(function (a, b) { return a.blockOrder - b.blockOrder; });
 
     var html = '';
 
@@ -368,25 +368,34 @@
     html += '<span class="trigger-start-title">Khi nhận tin nhắn</span>';
     html += '</div>';
     html += '<div class="trigger-start-keywords">';
-    
-    // Hiển thị keywords - kiểm tra nhiều field có thể chứa keywords
-    var keywordsStr = '';
-    if (trigger) {
-      keywordsStr = trigger.triggerKeywords || trigger.triggerKey || trigger.keywords || '';
-    }
-    
-    if (keywordsStr) {
-      var keywords = keywordsStr.split(',');
-      keywords.forEach(function(kw) {
-        var trimmed = kw.trim();
-        if (trimmed) {
-          html += '<span class="trigger-keyword">' + FlowBuilder.escapeHtml(trimmed) + '</span>';
-        }
-      });
+
+    // MỚI: Kiểm tra loại trigger
+    var triggerType = trigger ? (trigger.triggerType || 'keyword') : 'keyword';
+
+    if (triggerType === 'any_message') {
+      html += '<span class="trigger-keyword" style="background:#4caf50;color:white;">💬 Tin nhắn bất kì</span>';
+    } else if (triggerType === 'any_file') {
+      html += '<span class="trigger-keyword" style="background:#2196f3;color:white;">📎 File/Ảnh bất kì</span>';
     } else {
-      html += '<span class="trigger-keyword" style="opacity:0.6">Chưa có từ khóa</span>';
+      // Hiển thị keywords - kiểm tra nhiều field có thể chứa keywords
+      var keywordsStr = '';
+      if (trigger) {
+        keywordsStr = trigger.triggerKeywords || trigger.triggerKey || trigger.keywords || '';
+      }
+
+      if (keywordsStr) {
+        var keywords = keywordsStr.split(',');
+        keywords.forEach(function (kw) {
+          var trimmed = kw.trim();
+          if (trimmed) {
+            html += '<span class="trigger-keyword">' + FlowBuilder.escapeHtml(trimmed) + '</span>';
+          }
+        });
+      } else {
+        html += '<span class="trigger-keyword" style="opacity:0.6">Chưa có từ khóa</span>';
+      }
     }
-    
+
     html += '</div></div>';
 
     // Connector
@@ -396,7 +405,7 @@
     if (blocks.length === 0) {
       html += renderDropZone(0);
     } else {
-      blocks.forEach(function(block, index) {
+      blocks.forEach(function (block, index) {
         html += renderFlowBlock(block);
         html += '<div class="flow-connector small"></div>';
         html += renderDropZone(index + 1);
@@ -418,10 +427,10 @@
 
   function renderDropZone(position) {
     return '<div class="drop-zone" data-position="' + position + '">' +
-           '<div class="drop-zone-text">' +
-           '<div class="drop-zone-icon">➕</div>' +
-           '<div>Kéo block vào đây</div>' +
-           '</div></div>';
+      '<div class="drop-zone-text">' +
+      '<div class="drop-zone-icon">➕</div>' +
+      '<div>Kéo block vào đây</div>' +
+      '</div></div>';
   }
 
   function renderFlowBlock(block) {
@@ -433,7 +442,7 @@
 
     // Parse blockData if string
     if (typeof data === 'string') {
-      try { data = JSON.parse(data); } catch(e) { data = {}; }
+      try { data = JSON.parse(data); } catch (e) { data = {}; }
     }
 
     // Get preview
@@ -485,9 +494,9 @@
   function renderConditionBranches(block) {
     var data = block.blockData || {};
     if (typeof data === 'string') {
-      try { data = JSON.parse(data); } catch(e) { data = {}; }
+      try { data = JSON.parse(data); } catch (e) { data = {}; }
     }
-    
+
     var html = '<div class="condition-branches">';
 
     // TRUE branch
@@ -496,7 +505,7 @@
     html += '<div class="branch-content" data-branch="true" data-parent="' + block.blockID + '">';
     if (data.trueFlowId || block.condition1) {
       var flowId = data.trueFlowId || block.condition1;
-      var targetTrigger = window.allTriggers.find(function(t) { return t.triggerID === flowId; });
+      var targetTrigger = window.allTriggers.find(function (t) { return t.triggerID === flowId; });
       html += '<div style="font-size:11px;color:#666;">→ ' + (targetTrigger ? targetTrigger.triggerName : 'Flow #' + flowId) + '</div>';
     } else {
       html += '<div class="branch-placeholder">Chọn flow trong cài đặt</div>';
@@ -509,7 +518,7 @@
     html += '<div class="branch-content" data-branch="false" data-parent="' + block.blockID + '">';
     if (data.falseFlowId || block.condition2) {
       var flowId2 = data.falseFlowId || block.condition2;
-      var targetTrigger2 = window.allTriggers.find(function(t) { return t.triggerID === flowId2; });
+      var targetTrigger2 = window.allTriggers.find(function (t) { return t.triggerID === flowId2; });
       html += '<div style="font-size:11px;color:#666;">→ ' + (targetTrigger2 ? targetTrigger2.triggerName : 'Flow #' + flowId2) + '</div>';
     } else {
       html += '<div class="branch-placeholder">Chọn flow trong cài đặt</div>';
@@ -527,7 +536,7 @@
     var blocksList = document.getElementById('blocksList');
 
     // Palette drag start
-    blocksList.addEventListener('dragstart', function(e) {
+    blocksList.addEventListener('dragstart', function (e) {
       var item = e.target.closest('.block-item');
       if (item) {
         state.draggedBlockType = item.dataset.type;
@@ -537,7 +546,7 @@
       }
     });
 
-    blocksList.addEventListener('dragend', function(e) {
+    blocksList.addEventListener('dragend', function (e) {
       var item = e.target.closest('.block-item');
       if (item) {
         item.classList.remove('dragging');
@@ -546,12 +555,12 @@
     });
 
     // CLICK TO ADD BLOCK
-    blocksList.addEventListener('click', function(e) {
+    blocksList.addEventListener('click', function (e) {
       var item = e.target.closest('.block-item');
       if (item) {
         var blockType = item.dataset.type;
         // Add to end of flow
-        var position = state.blocks.filter(function(b) { return !b.parentBlockID; }).length;
+        var position = state.blocks.filter(function (b) { return !b.parentBlockID; }).length;
         addBlock(blockType, position);
       }
     });
@@ -561,21 +570,21 @@
     var canvas = document.getElementById('flowContainer');
 
     // Flow block drag
-    canvas.querySelectorAll('.flow-block').forEach(function(block) {
-      block.addEventListener('dragstart', function(e) {
+    canvas.querySelectorAll('.flow-block').forEach(function (block) {
+      block.addEventListener('dragstart', function (e) {
         state.draggedBlockId = parseInt(block.dataset.blockId);
         state.draggedBlockType = null;
         block.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
       });
 
-      block.addEventListener('dragend', function(e) {
+      block.addEventListener('dragend', function (e) {
         block.classList.remove('dragging');
         state.draggedBlockId = null;
       });
 
       // Click to select
-      block.addEventListener('click', function(e) {
+      block.addEventListener('click', function (e) {
         if (!e.target.closest('.block-action-btn')) {
           selectBlock(parseInt(block.dataset.blockId));
         }
@@ -583,17 +592,17 @@
     });
 
     // Drop zones
-    canvas.querySelectorAll('.drop-zone').forEach(function(zone) {
-      zone.addEventListener('dragover', function(e) {
+    canvas.querySelectorAll('.drop-zone').forEach(function (zone) {
+      zone.addEventListener('dragover', function (e) {
         e.preventDefault();
         zone.classList.add('drag-over');
       });
 
-      zone.addEventListener('dragleave', function(e) {
+      zone.addEventListener('dragleave', function (e) {
         zone.classList.remove('drag-over');
       });
 
-      zone.addEventListener('drop', function(e) {
+      zone.addEventListener('drop', function (e) {
         e.preventDefault();
         zone.classList.remove('drag-over');
         var position = parseInt(zone.dataset.position);
@@ -629,7 +638,7 @@
     };
 
     // Adjust orders
-    state.blocks.forEach(function(b) {
+    state.blocks.forEach(function (b) {
       if (b.blockOrder >= position) {
         b.blockOrder++;
       }
@@ -650,14 +659,14 @@
   }
 
   function moveBlock(blockId, newPosition) {
-    var block = state.blocks.find(function(b) { return b.blockID === blockId; });
+    var block = state.blocks.find(function (b) { return b.blockID === blockId; });
     if (!block) return;
 
     var oldPosition = block.blockOrder;
     if (oldPosition === newPosition) return;
 
     // Adjust orders
-    state.blocks.forEach(function(b) {
+    state.blocks.forEach(function (b) {
       if (oldPosition < newPosition) {
         if (b.blockOrder > oldPosition && b.blockOrder <= newPosition) {
           b.blockOrder--;
@@ -678,10 +687,10 @@
     renderFlowCanvas();
   }
 
-  window.deleteBlock = function(blockId) {
+  window.deleteBlock = function (blockId) {
     if (!confirm('Xóa block này?')) return;
 
-    var index = state.blocks.findIndex(function(b) { return b.blockID === blockId; });
+    var index = state.blocks.findIndex(function (b) { return b.blockID === blockId; });
     if (index === -1) return;
 
     var block = state.blocks[index];
@@ -690,7 +699,7 @@
     state.blocks.splice(index, 1);
 
     // Adjust orders
-    state.blocks.forEach(function(b) {
+    state.blocks.forEach(function (b) {
       if (b.blockOrder > position) {
         b.blockOrder--;
       }
@@ -714,14 +723,14 @@
     renderFlowCanvas();
   };
 
-  window.toggleBlockEnabled = function(blockId) {
-    var block = state.blocks.find(function(b) { return b.blockID === blockId; });
+  window.toggleBlockEnabled = function (blockId) {
+    var block = state.blocks.find(function (b) { return b.blockID === blockId; });
     if (!block) return;
 
     // Parse blockData
     var data = block.blockData;
     if (typeof data === 'string') {
-      try { data = JSON.parse(data); } catch(e) { data = {}; }
+      try { data = JSON.parse(data); } catch (e) { data = {}; }
     }
 
     // Toggle enabled state
@@ -733,7 +742,7 @@
 
     // Re-render
     renderFlowCanvas();
-    
+
     showToast(data.enabled ? '✅ Block được kích hoạt' : '❌ Block bị vô hiệu hóa', 'info');
   };
 
@@ -744,7 +753,7 @@
     state.selectedBlockId = blockId;
 
     // Update UI
-    document.querySelectorAll('.flow-block').forEach(function(el) {
+    document.querySelectorAll('.flow-block').forEach(function (el) {
       el.classList.remove('selected');
     });
     var selected = document.querySelector('.flow-block[data-block-id="' + blockId + '"]');
@@ -754,12 +763,12 @@
     openPropertiesPanel(blockId);
   }
 
-  window.editBlock = function(blockId) {
+  window.editBlock = function (blockId) {
     selectBlock(blockId);
   };
 
   function openPropertiesPanel(blockId) {
-    var block = state.blocks.find(function(b) { return b.blockID === blockId; });
+    var block = state.blocks.find(function (b) { return b.blockID === blockId; });
     if (!block) return;
 
     var panel = document.getElementById('propertiesPanel');
@@ -772,7 +781,7 @@
     // Parse blockData if string
     var blockData = block.blockData;
     if (typeof blockData === 'string') {
-      try { blockData = JSON.parse(blockData); } catch(e) { blockData = {}; }
+      try { blockData = JSON.parse(blockData); } catch (e) { blockData = {}; }
     }
     block.blockData = blockData;
 
@@ -791,20 +800,20 @@
     panel.classList.remove('hidden');
   }
 
-  window.closePropertiesPanel = function() {
+  window.closePropertiesPanel = function () {
     var panel = document.getElementById('propertiesPanel');
     panel.classList.add('hidden');
     state.selectedBlockId = null;
 
-    document.querySelectorAll('.flow-block').forEach(function(el) {
+    document.querySelectorAll('.flow-block').forEach(function (el) {
       el.classList.remove('selected');
     });
   };
 
-  window.saveCurrentBlock = function() {
+  window.saveCurrentBlock = function () {
     if (!state.selectedBlockId) return;
 
-    var block = state.blocks.find(function(b) { return b.blockID === state.selectedBlockId; });
+    var block = state.blocks.find(function (b) { return b.blockID === state.selectedBlockId; });
     if (!block) return;
 
     // Get data from form
@@ -847,7 +856,7 @@
   function saveBlockOrders() {
     if (!window.ws || window.ws.readyState !== WebSocket.OPEN) return;
 
-    var orders = state.blocks.map(function(b) {
+    var orders = state.blocks.map(function (b) {
       return { blockID: b.blockID, blockOrder: b.blockOrder };
     });
 
@@ -861,15 +870,15 @@
   // ========================================
   // NAVIGATION
   // ========================================
-  window.goBack = function() {
+  window.goBack = function () {
     window.location.href = '/trigger-manager.html';
   };
 
   // ========================================
   // VARIABLES MODAL
   // ========================================
-  
-  window.showVariablesModal = function() {
+
+  window.showVariablesModal = function () {
     var modal = document.getElementById('variablesModal');
     if (modal) {
       modal.style.display = 'flex';
@@ -877,19 +886,19 @@
     }
   };
 
-  window.closeVariablesModal = function() {
+  window.closeVariablesModal = function () {
     var modal = document.getElementById('variablesModal');
     if (modal) {
       modal.style.display = 'none';
     }
   };
 
-  window.refreshVariables = function() {
+  window.refreshVariables = function () {
     var content = document.getElementById('variablesContent');
     if (content) {
       content.innerHTML = '<div class="loading-spinner">Đang tải...</div>';
     }
-    
+
     if (window.ws && window.ws.readyState === WebSocket.OPEN) {
       window.ws.send(JSON.stringify({ type: 'get_all_variables' }));
     } else {
@@ -899,15 +908,15 @@
     }
   };
 
-  window.renderVariablesTable = function(variables) {
+  window.renderVariablesTable = function (variables) {
     var content = document.getElementById('variablesContent');
     if (!content) return;
-    
+
     if (!variables || variables.length === 0) {
       content.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Chưa có biến nào được lưu</p><small>Biến sẽ được tạo khi flow chạy và thu thập dữ liệu từ người dùng</small></div>';
       return;
     }
-    
+
     var html = '<table class="variables-table">';
     html += '<thead><tr>';
     html += '<th>Tên biến</th>';
@@ -918,14 +927,14 @@
     html += '<th>Thao tác</th>';
     html += '</tr></thead>';
     html += '<tbody>';
-    
-    variables.forEach(function(v) {
+
+    variables.forEach(function (v) {
       var updatedAt = v.updatedAt ? new Date(v.updatedAt).toLocaleString('vi-VN') : '-';
       var displayValue = v.variableValue || '';
       if (displayValue.length > 50) {
         displayValue = displayValue.substring(0, 50) + '...';
       }
-      
+
       html += '<tr>';
       html += '<td><span class="var-name">{' + escapeHtml(v.variableName) + '}</span></td>';
       html += '<td class="var-value" title="' + escapeHtml(v.variableValue || '') + '">' + escapeHtml(displayValue) + '</td>';
@@ -938,17 +947,17 @@
       html += '</td>';
       html += '</tr>';
     });
-    
+
     html += '</tbody></table>';
     html += '<div style="margin-top:12px;font-size:12px;color:#888;">Tổng: ' + variables.length + ' biến</div>';
-    
+
     content.innerHTML = html;
   };
 
-  window.copyVariable = function(varName) {
+  window.copyVariable = function (varName) {
     var textToCopy = '{' + varName + '}';
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(textToCopy).then(function() {
+      navigator.clipboard.writeText(textToCopy).then(function () {
         showToast('✅ Đã copy: ' + textToCopy, 'success');
       });
     } else {
@@ -963,12 +972,12 @@
     }
   };
 
-  window.deleteVariable = function(varName, conversationID) {
+  window.deleteVariable = function (varName, conversationID) {
     if (!confirm('Xóa biến "' + varName + '"?')) return;
-    
+
     if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-      window.ws.send(JSON.stringify({ 
-        type: 'delete_variable', 
+      window.ws.send(JSON.stringify({
+        type: 'delete_variable',
         variableName: varName,
         conversationID: conversationID
       }));
@@ -977,9 +986,9 @@
     }
   };
 
-  window.clearAllVariables = function() {
+  window.clearAllVariables = function () {
     if (!confirm('⚠️ Xóa TẤT CẢ biến đã lưu?\n\nHành động này không thể hoàn tác!')) return;
-    
+
     if (window.ws && window.ws.readyState === WebSocket.OPEN) {
       window.ws.send(JSON.stringify({ type: 'clear_all_variables' }));
       // Refresh sau 500ms

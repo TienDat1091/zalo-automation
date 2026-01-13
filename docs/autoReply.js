@@ -74,6 +74,20 @@ async function processAutoReply(apiState, message) {
     // FILE / IMAGE DETECTION TRIGGER (__builtin_auto_file__)
     // ========================================================
     if (typeof content === 'object') {
+      // MỚI: Kiểm tra custom trigger có loại any_file hoặc any_message
+      const customTrigger = triggerDB.findMatchingTrigger(userUID, '', senderId, isFriend, true);  // hasAttachment = true
+      if (customTrigger && customTrigger.triggerType !== 'keyword') {
+        console.log(`🎯 Custom trigger matched (${customTrigger.triggerType}): ${customTrigger.triggerName}`);
+        const setMode = customTrigger.setMode || 0;
+        if (setMode === 1) {
+          await executeFlow(apiState, senderId, customTrigger, content, userUID);
+        } else if (customTrigger.triggerContent?.trim()) {
+          await sendMessage(apiState, senderId, customTrigger.triggerContent, userUID);
+        }
+        return;
+      }
+
+      // Builtin Auto File Trigger (fallback)
       const allTriggers = triggerDB.getTriggersByUser(userUID);
       const autoFileTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_file__' && t.enabled === true);
 

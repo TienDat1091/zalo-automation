@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zalo Trigger Manager - SQLite v3</title>
+  <title>Zalo Trigger Manager</title>
   <link rel="stylesheet" href="assets/style_trigger_manager.css" />
   <style>
     .notification-badge {
@@ -667,7 +667,7 @@
 <body>
   <div class="header">
     <div class="header-left">
-      <div class="header-title"><span class="icon">🤖</span><span>Bot-Auto Testt</span></div>
+      <div class="header-title"><span class="icon">🤖</span><span>Bot-Auto</span></div>
       <div class="user-info-panel" id="userInfoPanel" style="display:none;">
         <div class="user-avatar" id="userAvatar">👤</div>
         <div class="user-details">
@@ -742,8 +742,21 @@
       <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
         <div class="form-group"><label class="form-label">Tên trigger *</label><input type="text" class="form-input"
             id="triggerName" placeholder="VD: Hỏi giá sản phẩm"></div>
-        <div class="form-group"><label class="form-label">Từ khóa *</label><input type="text" class="form-input"
-            id="triggerKeywords" placeholder="VD: giá, báo giá (phân cách dấu phẩy)"></div>
+
+        <!-- Loại trigger (MỚI) -->
+        <div class="form-group">
+          <label class="form-label">🎯 Loại trigger</label>
+          <select class="form-input" id="triggerType" onchange="onTriggerTypeChange()">
+            <option value="keyword">📝 Từ khóa (keyword)</option>
+            <option value="any_message">💬 Tin nhắn bất kì</option>
+            <option value="any_file">📎 File/Ảnh bất kì</option>
+          </select>
+          <div class="mode-hint" id="triggerTypeHint">Kích hoạt khi tin nhắn chứa từ khóa bên dưới</div>
+        </div>
+
+        <!-- Từ khóa (ẩn khi chọn any_message hoặc any_file) -->
+        <div class="form-group" id="keywordsGroup"><label class="form-label">Từ khóa *</label><input type="text"
+            class="form-input" id="triggerKeywords" placeholder="VD: giá, báo giá (phân cách dấu phẩy)"></div>
 
         <!-- Chế độ chạy -->
         <div class="form-group">
@@ -1167,6 +1180,7 @@
       return {
         id: t.triggerID || t.id,
         name: t.triggerName || t.name || 'Untitled',
+        triggerType: t.triggerType || 'keyword',  // MỚI: loại trigger
         triggerKey: t.triggerKey || '',  // Keep raw triggerKey for built-in detection
         keywords: t.triggerKey ? t.triggerKey.split(',').map(k => k.trim()) : (t.keywords || []),
         response: t.triggerContent || t.response || '',
@@ -1763,6 +1777,26 @@
     }
 
     // ================================================
+    // TRIGGER TYPE CHANGE (MỚI)
+    // ================================================
+    function onTriggerTypeChange() {
+      const type = document.getElementById('triggerType').value;
+      const keywordsGroup = document.getElementById('keywordsGroup');
+      const hint = document.getElementById('triggerTypeHint');
+
+      if (type === 'keyword') {
+        keywordsGroup.style.display = 'block';
+        hint.textContent = 'Kích hoạt khi tin nhắn chứa từ khóa bên dưới';
+      } else if (type === 'any_message') {
+        keywordsGroup.style.display = 'none';
+        hint.textContent = '💬 Kích hoạt với TẤT CẢ tin nhắn (text, sticker, ...)';
+      } else if (type === 'any_file') {
+        keywordsGroup.style.display = 'none';
+        hint.textContent = '📎 Kích hoạt khi nhận File hoặc Ảnh';
+      }
+    }
+
+    // ================================================
     // SCOPE CHANGE
     // ================================================
     function onScopeChange() {
@@ -1794,6 +1828,7 @@
       editingTriggerId = null; selectedFriendUids = [];
       document.getElementById('modalTitle').textContent = 'Tạo Trigger Mới';
       document.getElementById('triggerName').value = '';
+      document.getElementById('triggerType').value = 'keyword';  // MỚI: reset loại trigger
       document.getElementById('triggerKeywords').value = '';
       document.getElementById('triggerResponse').value = '';
       document.getElementById('triggerEnabled').checked = true;
@@ -1805,6 +1840,8 @@
       document.getElementById('friendsSelectorGroup').style.display = 'none';
       document.getElementById('triggerCooldown').value = '30';
       document.getElementById('triggerMode').value = '0';
+      document.getElementById('keywordsGroup').style.display = 'block';  // MỚI: hiện lại field keywords
+      onTriggerTypeChange();  // MỚI
       onModeChange();
       document.getElementById('saveBtn').textContent = '💾 Lưu';
       document.getElementById('triggerModal').classList.add('show');
@@ -1815,6 +1852,7 @@
       editingTriggerId = id; selectedFriendUids = t.uids ? [...t.uids] : [];
       document.getElementById('modalTitle').textContent = 'Chỉnh sửa Trigger';
       document.getElementById('triggerName').value = t.name;
+      document.getElementById('triggerType').value = t.triggerType || 'keyword';  // MỚI: load loại trigger
       document.getElementById('triggerKeywords').value = t.keywords.join(', ');
       document.getElementById('triggerResponse').value = t.response;
       document.getElementById('triggerEnabled').checked = t.enabled;
@@ -1825,6 +1863,7 @@
       document.getElementById('triggerScope').value = t.scope.toString();
       document.getElementById('triggerCooldown').value = Math.floor(t.cooldown / 1000);
       document.getElementById('triggerMode').value = t.setMode.toString();
+      onTriggerTypeChange();  // MỚI: cập nhật UI theo loại trigger
       onModeChange();
       onScopeChange();
       document.getElementById('saveBtn').textContent = '💾 Cập nhật';
@@ -1836,20 +1875,23 @@
 
     function saveTrigger() {
       const name = document.getElementById('triggerName').value.trim();
+      const triggerType = document.getElementById('triggerType').value;  // MỚI
       const kw = document.getElementById('triggerKeywords').value.trim().split(',').map(k => k.trim().toLowerCase()).filter(k => k);
       const resp = document.getElementById('triggerResponse').value.trim();
       const scope = parseInt(document.getElementById('triggerScope').value);
       const setMode = parseInt(document.getElementById('triggerMode').value);
 
       if (!name) { showToast('❌ Nhập tên!', 'error'); return; }
-      if (kw.length === 0) { showToast('❌ Nhập từ khóa!', 'error'); return; }
+      // MỚI: Chỉ validate từ khóa khi loại = keyword
+      if (triggerType === 'keyword' && kw.length === 0) { showToast('❌ Nhập từ khóa!', 'error'); return; }
       if (setMode === 0 && !resp) { showToast('❌ Nhập nội dung trả lời!', 'error'); return; }
       if ((scope === 2 || scope === 3) && selectedFriendUids.length === 0) { showToast('❌ Chọn bạn bè!', 'error'); return; }
       if (!ws || ws.readyState !== WebSocket.OPEN) { showToast('❌ Chưa kết nối!', 'error'); return; }
 
       const data = {
         triggerName: name,
-        triggerKey: kw.join(','),
+        triggerType: triggerType,  // MỚI: loại trigger (keyword / any_message / any_file)
+        triggerKey: triggerType === 'keyword' ? kw.join(',') : '',  // MỚI: chỉ lưu key khi loại = keyword
         triggerContent: setMode === 0 ? resp : '',
         timeStartActive: document.getElementById('triggerStartTime').value || '00:00',
         timeEndActive: document.getElementById('triggerEndTime').value || '23:59',
