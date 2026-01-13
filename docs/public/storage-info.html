@@ -1,496 +1,382 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Backup & Quản Lý Dữ Liệu</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thống Kê Hoạt Động Zalo</title>
+  <link rel="stylesheet" href="assets/style_dashboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
+      background: #f0f2f5;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
       padding: 20px;
     }
-    
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 12px;
-      padding: 40px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
     }
-    
-    h1 {
-      color: #333;
-      margin-bottom: 10px;
-      font-size: 28px;
+
+    .header h1 {
+      color: #1a73e8;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
-    
-    .subtitle {
-      color: #666;
-      margin-bottom: 30px;
-      font-size: 14px;
-    }
-    
+
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 20px;
-      margin-bottom: 40px;
+      margin-bottom: 30px;
     }
-    
+
     .stat-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: white;
+      padding: 25px;
       border-radius: 12px;
-      padding: 24px;
-      color: white;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-      transition: transform 0.3s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      transition: transform 0.2s;
     }
-    
+
     .stat-card:hover {
       transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     }
-    
-    .stat-card.empty {
-      background: linear-gradient(135deg, #ddd 0%, #bbb 100%);
-      color: #666;
+
+    .stat-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
     }
-    
+
+    .stat-info {
+      flex: 1;
+    }
+
     .stat-value {
-      font-size: 32px;
+      font-size: 28px;
       font-weight: bold;
-      margin: 10px 0;
+      color: #333;
+      margin-bottom: 4px;
     }
-    
+
     .stat-label {
       font-size: 14px;
-      opacity: 0.9;
-    }
-    
-    .stat-icon {
-      font-size: 32px;
-      margin-bottom: 10px;
-    }
-    
-    .actions {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 30px;
-    }
-    
-    button {
-      flex: 1;
-      min-width: 150px;
-      padding: 14px 24px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-    }
-    
-    .btn-secondary {
-      background: #f0f0f0;
-      color: #333;
-    }
-    
-    .btn-secondary:hover {
-      background: #e0e0e0;
-    }
-    
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-    }
-    
-    .btn-danger:hover {
-      background: #dc2626;
-      transform: translateY(-2px);
-    }
-    
-    .info-box {
-      background: #f0f9ff;
-      border-left: 4px solid #3b82f6;
-      padding: 16px;
-      border-radius: 6px;
-      margin-top: 24px;
-      font-size: 13px;
-      color: #333;
-      line-height: 1.6;
-    }
-    
-    .loading {
-      text-align: center;
-      padding: 40px 20px;
-    }
-    
-    .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #667eea;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 16px;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    .message-box {
-      padding: 16px;
-      border-radius: 6px;
-      margin-top: 16px;
-      font-size: 14px;
-    }
-    
-    .message-success {
-      background: #d1fae5;
-      color: #065f46;
-      border: 1px solid #6ee7b7;
-    }
-    
-    .message-error {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
-    
-    .close-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
       color: #666;
+      font-weight: 500;
     }
-    
-    .close-btn:hover {
-      color: #333;
+
+    .bg-blue {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .bg-green {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .bg-orange {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .bg-red {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .card-container {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #444;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 10px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    .data-table th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #555;
+    }
+
+    .data-table tr:hover {
+      background: #f9f9f9;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-success {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .status-fail {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .btn-refresh {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 8px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    .btn-refresh:hover {
+      background: #f0f0f0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
-    <button class="close-btn" onclick="window.close()">✕</button>
-    
-    <h1>💾 Backup & Quản Lý Dữ Liệu</h1>
-    <p class="subtitle">Quản lý dữ liệu tin nhắn của bạn</p>
-    
-    <div id="loadingContainer" class="loading" style="display: none;">
-      <div class="spinner"></div>
-      <div>Đang tải thông tin dữ liệu...</div>
+    <div class="header">
+      <h1><i class="fas fa-chart-line"></i> Bảng Thống Kê Hoạt Động</h1>
+      <button class="btn-refresh" onclick="refreshData()">
+        <i class="fas fa-sync-alt"></i> Làm mới
+      </button>
     </div>
-    
-    <div id="statsContainer" style="display: none;">
-      <div class="stats-grid">
-        <div class="stat-card" id="messagesCard">
-          <div class="stat-icon">📨</div>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon bg-blue"><i class="fas fa-comment-dots"></i></div>
+        <div class="stat-info">
+          <div class="stat-value" id="total-messages">...</div>
           <div class="stat-label">Tổng Tin Nhắn</div>
-          <div class="stat-value" id="totalMessages">-</div>
-        </div>
-        
-        <div class="stat-card" id="chatsCard">
-          <div class="stat-icon">👥</div>
-          <div class="stat-label">Cuộc Chat</div>
-          <div class="stat-value" id="totalChats">-</div>
-        </div>
-        
-        <div class="stat-card" id="sizeCard">
-          <div class="stat-icon">💾</div>
-          <div class="stat-label">Dung Lượng</div>
-          <div class="stat-value" id="totalSize">-</div>
         </div>
       </div>
-      
-      <div class="actions">
-        <button class="btn-primary" onclick="exportAllMessages()">
-          📥 Export Tất Cả
-        </button>
-        <button class="btn-secondary" onclick="exportAsCSV()">
-          📊 Export CSV
-        </button>
-        <button class="btn-danger" onclick="clearAllData()">
-          🗑️ Xóa Tất Cả
-        </button>
+      <div class="stat-card">
+        <div class="stat-icon bg-orange"><i class="fas fa-file-alt"></i></div>
+        <div class="stat-info">
+          <div class="stat-value" id="total-files">...</div>
+          <div class="stat-label">File Đã Nhận</div>
+        </div>
       </div>
-      
-      <div class="info-box">
-        <strong>ℹ️ Thông Tin:</strong><br>
-        • Tổng Tin Nhắn: Số lượng tin nhắn được lưu trữ<br>
-        • Cuộc Chat: Số lượng người dùng bạn đã chat<br>
-        • Dung Lượng: Kích thước dữ liệu (khoảng tính)
+      <div class="stat-card">
+        <div class="stat-icon bg-green"><i class="fas fa-print"></i></div>
+        <div class="stat-info">
+          <div class="stat-value" id="print-success">...</div>
+          <div class="stat-label">In Thành Công</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-red"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="stat-info">
+          <div class="stat-value" id="print-fail">...</div>
+          <div class="stat-label">In Thất Bại</div>
+        </div>
       </div>
     </div>
-    
-    <div id="messageContainer"></div>
+
+    <div class="grid-2">
+      <!-- Top Users -->
+      <div class="card-container">
+        <div class="card-title">🏆 Top Người Dùng Tích Cực (Tin nhắn)</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>UID / Tên</th>
+              <th>Số lượng</th>
+            </tr>
+          </thead>
+          <tbody id="top-users-body">
+            <tr>
+              <td colspan="2">Đang tải...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Top File Senders -->
+      <div class="card-container">
+        <div class="card-title">📁 Top Gửi File</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>UID / Tên</th>
+              <th>Số lượng</th>
+            </tr>
+          </thead>
+          <tbody id="top-files-body">
+            <tr>
+              <td colspan="2">Đang tải...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- File Logs -->
+    <div class="card-container">
+      <div class="card-title">📝 Nhật Ký Hoạt Động File (Gần đây)</div>
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Người gửi (UID)</th>
+              <th>File</th>
+              <th>Hành động</th>
+              <th>Trạng thái</th>
+              <th>Chi tiết</th>
+            </tr>
+          </thead>
+          <tbody id="file-logs-body">
+            <tr>
+              <td colspan="6">Đang tải...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script>
-    // ✅ LOAD STORAGE STATS FROM INDEXEDDB
-    async function loadStorageStats() {
-      const userUID = new URLSearchParams(location.search).get('userUID');
-      
-      if (!userUID) {
-        showMessage('❌ User ID not found', 'error');
+    const ws = new WebSocket('ws://localhost:3000');
+
+    ws.onopen = () => {
+      console.log('✅ Connected to WebSocket');
+      refreshData();
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'dashboard_stats_response') {
+          renderStats(data.stats);
+          renderTopUsers(data.topUsers);
+        }
+        if (data.type === 'file_logs_response') {
+          renderFileLogs(data.logs);
+        }
+      } catch (e) { console.error(e); }
+    };
+
+    function refreshData() {
+      if (ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'get_dashboard_stats' }));
+        ws.send(JSON.stringify({ type: 'get_file_logs' }));
+      }
+    }
+
+    function renderStats(stats) {
+      document.getElementById('total-messages').textContent = stats.msgCount.toLocaleString();
+      document.getElementById('total-files').textContent = stats.fileCount.toLocaleString();
+      document.getElementById('print-success').textContent = stats.printSuccess.toLocaleString();
+      document.getElementById('print-fail').textContent = stats.printFail.toLocaleString();
+    }
+
+    function renderTopUsers(top) {
+      const msgBody = document.getElementById('top-users-body');
+      msgBody.innerHTML = top.topMsg.length ? top.topMsg.map(u => `
+                <tr>
+                    <td>
+                        <span style="font-weight:500;">${u.senderId}</span>
+                    </td>
+                    <td><b>${u.count}</b></td>
+                </tr>`).join('') : '<tr><td colspan="2" style="text-align:center;color:#999;">Chưa có dữ liệu</td></tr>';
+
+      const fileBody = document.getElementById('top-files-body');
+      fileBody.innerHTML = top.topFiles.length ? top.topFiles.map(u => `
+                <tr>
+                    <td>
+                        <span style="font-weight:500;">${u.senderId}</span>
+                    </td>
+                    <td><b>${u.count}</b></td>
+                </tr>`).join('') : '<tr><td colspan="2" style="text-align:center;color:#999;">Chưa có dữ liệu</td></tr>';
+    }
+
+    function renderFileLogs(logs) {
+      const body = document.getElementById('file-logs-body');
+      if (!logs || logs.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">Chưa có log nào</td></tr>';
         return;
       }
-      
-      const dbName = `ZaloChat_${userUID}`;
-      
-      // Show loading
-      document.getElementById('loadingContainer').style.display = 'block';
-      document.getElementById('statsContainer').style.display = 'none';
-      
-      return new Promise((resolve) => {
-        const request = indexedDB.open(dbName, 3);
-        
-        request.onerror = () => {
-          console.error('❌ Failed to open DB:', request.error);
-          document.getElementById('loadingContainer').style.display = 'none';
-          showMessage('❌ Không thể mở dữ liệu. Vui lòng đảm bảo đã login trước.', 'error');
-          resolve(null);
-        };
-        
-        request.onsuccess = () => {
-          const db = request.result;
-          
-          try {
-            const transaction = db.transaction(['messages'], 'readonly');
-            const store = transaction.objectStore('messages');
-            
-            // Get all messages
-            const allRequest = store.getAll();
-            
-            allRequest.onsuccess = () => {
-              const messages = allRequest.result || [];
-              
-              console.log(`📊 Found ${messages.length} messages`);
-              
-              if (messages.length === 0) {
-                document.getElementById('loadingContainer').style.display = 'none';
-                document.getElementById('statsContainer').style.display = 'block';
-                
-                // Show empty state
-                document.getElementById('messagesCard').classList.add('empty');
-                document.getElementById('chatsCard').classList.add('empty');
-                document.getElementById('sizeCard').classList.add('empty');
-                
-                document.getElementById('totalMessages').textContent = '0';
-                document.getElementById('totalChats').textContent = '0';
-                document.getElementById('totalSize').textContent = '0 KB';
-                
-                showMessage('📭 Không có dữ liệu. Hãy gửi tin nhắn để có dữ liệu.', 'info');
-                resolve(null);
-                return;
-              }
-              
-              // Count unique chats (unique uid)
-              const uniqueChats = new Set(messages.map(m => m.uid)).size;
-              
-              // Calculate size
-              const sizeBytes = JSON.stringify(messages).length;
-              const sizeKB = (sizeBytes / 1024).toFixed(2);
-              const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2);
-              
-              const displaySize = sizeBytes > 1024 * 1024 
-                ? sizeMB + ' MB' 
-                : sizeKB + ' KB';
-              
-              // Update UI
-              document.getElementById('totalMessages').textContent = messages.length;
-              document.getElementById('totalChats').textContent = uniqueChats;
-              document.getElementById('totalSize').textContent = displaySize;
-              
-              // Remove empty state
-              document.getElementById('messagesCard').classList.remove('empty');
-              document.getElementById('chatsCard').classList.remove('empty');
-              document.getElementById('sizeCard').classList.remove('empty');
-              
-              document.getElementById('loadingContainer').style.display = 'none';
-              document.getElementById('statsContainer').style.display = 'block';
-              
-              console.log(`✅ Stats loaded: ${messages.length} messages, ${uniqueChats} chats, ${displaySize}`);
-              
-              resolve({
-                totalMessages: messages.length,
-                totalChats: uniqueChats,
-                totalSize: displaySize,
-                messages: messages
-              });
-            };
-            
-            allRequest.onerror = () => {
-              console.error('❌ Failed to get messages:', allRequest.error);
-              document.getElementById('loadingContainer').style.display = 'none';
-              showMessage('❌ Lỗi khi tải dữ liệu', 'error');
-              resolve(null);
-            };
-          } catch (err) {
-            console.error('❌ Error:', err);
-            document.getElementById('loadingContainer').style.display = 'none';
-            showMessage('❌ Lỗi: ' + err.message, 'error');
-            resolve(null);
-          }
-          
-          db.close();
-        };
-      });
+      body.innerHTML = logs.map(l => {
+        const statusClass = l.status === 'SUCCESS' ? 'status-success' : 'status-fail';
+        return `
+                 <tr>
+                    <td style="color:#666;font-size:13px;">${new Date(l.timestamp).toLocaleString()}</td>
+                    <td>${l.senderId.substring(0, 15)}...</td>
+                    <td title="${l.fileName}" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        ${l.fileType === 'image' ? '🖼️' : '📄'} ${l.fileName}
+                    </td>
+                    <td><b>${l.action}</b></td>
+                    <td><span class="status-badge ${statusClass}">${l.status}</span></td>
+                    <td style="font-size:12px;color:#888;">${l.details || ''}</td>
+                 </tr>
+             `}).join('');
     }
-    
-    // ✅ EXPORT ALL MESSAGES
-    async function exportAllMessages() {
-      const userUID = new URLSearchParams(location.search).get('userUID');
-      const dbName = `ZaloChat_${userUID}`;
-      
-      const request = indexedDB.open(dbName, 3);
-      
-      request.onsuccess = () => {
-        const db = request.result;
-        const transaction = db.transaction(['messages'], 'readonly');
-        const store = transaction.objectStore('messages');
-        const allRequest = store.getAll();
-        
-        allRequest.onsuccess = () => {
-          const messages = allRequest.result || [];
-          
-          const data = {
-            exportDate: new Date().toISOString(),
-            userUID: userUID,
-            totalMessages: messages.length,
-            messages: messages
-          };
-          
-          const json = JSON.stringify(data, null, 2);
-          downloadFile(json, `zalo-backup-${Date.now()}.json`, 'application/json');
-          
-          showMessage(`✅ Exported ${messages.length} messages`, 'success');
-        };
-      };
-    }
-    
-    // ✅ EXPORT AS CSV
-    async function exportAsCSV() {
-      const userUID = new URLSearchParams(location.search).get('userUID');
-      const dbName = `ZaloChat_${userUID}`;
-      
-      const request = indexedDB.open(dbName, 3);
-      
-      request.onsuccess = () => {
-        const db = request.result;
-        const transaction = db.transaction(['messages'], 'readonly');
-        const store = transaction.objectStore('messages');
-        const allRequest = store.getAll();
-        
-        allRequest.onsuccess = () => {
-          const messages = allRequest.result || [];
-          
-          // Create CSV header
-          const headers = ['ID', 'UID', 'Nội Dung', 'Thời Gian', 'Saved At'];
-          const rows = messages.map(m => [
-            m.id,
-            m.uid,
-            (m.content || m.msg || '').replace(/"/g, '""'),
-            new Date(m.timestamp).toLocaleString('vi-VN'),
-            new Date(m.savedAt).toLocaleString('vi-VN')
-          ]);
-          
-          const csv = [
-            headers.map(h => `"${h}"`).join(','),
-            ...rows.map(r => r.map(cell => `"${cell}"`).join(','))
-          ].join('\n');
-          
-          downloadFile(csv, `zalo-backup-${Date.now()}.csv`, 'text/csv');
-          
-          showMessage(`✅ Exported ${messages.length} messages as CSV`, 'success');
-        };
-      };
-    }
-    
-    // ✅ CLEAR ALL DATA
-    function clearAllData() {
-      if (!confirm('⚠️ Bạn chắc chắn muốn xóa tất cả dữ liệu? Hành động này không thể hoàn tác.')) {
-        return;
-      }
-      
-      const userUID = new URLSearchParams(location.search).get('userUID');
-      const dbName = `ZaloChat_${userUID}`;
-      
-      const deleteReq = indexedDB.deleteDatabase(dbName);
-      
-      deleteReq.onsuccess = () => {
-        console.log('✅ Database deleted');
-        showMessage('✅ Đã xóa tất cả dữ liệu', 'success');
-        
-        setTimeout(() => {
-          location.reload();
-        }, 1500);
-      };
-      
-      deleteReq.onerror = () => {
-        console.error('❌ Failed to delete DB:', deleteReq.error);
-        showMessage('❌ Lỗi khi xóa dữ liệu', 'error');
-      };
-    }
-    
-    // ✅ HELPER: Download file
-    function downloadFile(content, filename, type) {
-      const blob = new Blob([content], { type: type });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-    
-    // ✅ HELPER: Show message
-    function showMessage(text, type = 'info') {
-      const container = document.getElementById('messageContainer');
-      const className = type === 'success' ? 'message-success' : 
-                       type === 'error' ? 'message-error' : 
-                       'message-success';
-      
-      container.innerHTML = `<div class="message-box ${className}">${text}</div>`;
-      
-      if (type === 'success') {
-        setTimeout(() => {
-          container.innerHTML = '';
-        }, 3000);
-      }
-    }
-    
-    // ✅ Load stats on page load
-    window.addEventListener('load', () => {
-      loadStorageStats();
-    });
+
+    // Auto refresh every 10s
+    setInterval(refreshData, 10000);
   </script>
 </body>
+
 </html>

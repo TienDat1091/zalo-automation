@@ -50,6 +50,9 @@ module.exports = {
       db.pragma('journal_mode = WAL');
       console.log('✅ SQLite database connected:', dbModule.DB_PATH || 'triggers.db');
       dbModule.createTables(db);
+
+      this.initBuiltInTriggers();
+
       return true;
     } catch (error) {
       console.error('❌ SQLite init error:', error.message);
@@ -57,7 +60,41 @@ module.exports = {
     }
   },
 
-  
+  initBuiltInTriggers() {
+    try {
+      // Check Auto Friend Accept Trigger
+      const check = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_friend__'").get();
+      if (!check) {
+        console.log('✨ Creating built-in trigger: Auto Friend Accept');
+        this.createTrigger({
+          triggerName: 'Chấp nhận kết bạn',
+          triggerKey: '__builtin_auto_friend__',
+          triggerUserID: 'system',
+          triggerContent: 'Chào {name}, mình đã chấp nhận kết bạn lúc {time}.',
+          enabled: false, // Default disabled
+          scope: AutoReplyScope.Stranger
+        });
+      }
+
+      // Check Auto File Trigger
+      const checkFile = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_file__'").get();
+      if (!checkFile) {
+        console.log('✨ Creating built-in trigger: Auto File Processing');
+        this.createTrigger({
+          triggerName: 'Nhận diện File',
+          triggerKey: '__builtin_auto_file__',
+          triggerUserID: 'system',
+          triggerContent: 'Đã nhận file từ bạn.',
+          enabled: false,
+          scope: AutoReplyScope.Everyone
+        });
+      }
+    } catch (e) {
+      console.error('❌ Init built-in triggers error:', e.message);
+    }
+  },
+
+
 
   // ========================================
   // TRIGGERS CRUD
@@ -88,7 +125,7 @@ module.exports = {
       );
 
       const triggerID = result.lastInsertRowid;
-      
+
       // Auto create flow if setMode is Flow
       if (data.setMode === TriggerMode.Flow) {
         this.createFlow(triggerID, `Flow: ${data.triggerName}`);
@@ -149,7 +186,7 @@ module.exports = {
       const fields = [];
       const values = [];
 
-      const allowedFields = ['triggerName', 'triggerKey', 'triggerContent', 
+      const allowedFields = ['triggerName', 'triggerKey', 'triggerContent',
         'timeStartActive', 'timeEndActive', 'dateStartActive', 'dateEndActive',
         'cooldown', 'scope', 'uids', 'enabled', 'setMode'];
 
@@ -223,7 +260,7 @@ module.exports = {
       for (const trigger of triggers) {
         // Check time range
         if (!this._isWithinTimeRange(now, trigger.schedule.startTime, trigger.schedule.endTime)) continue;
-        
+
         // Check date range
         if (!this._isWithinDateRange(now, trigger.dateStartActive, trigger.dateEndActive)) continue;
 
@@ -406,7 +443,7 @@ module.exports = {
           ...b,
           blockData: b.blockData ? JSON.parse(b.blockData) : {}
         };
-        
+
         return block;
       });
     } catch (error) {
@@ -532,13 +569,13 @@ module.exports = {
   reorderFlowBlocks(flowID, blockIds) {
     try {
       const updateStmt = db.prepare('UPDATE flow_blocks SET blockOrder = ? WHERE blockID = ? AND flowID = ?');
-      
+
       const transaction = db.transaction(() => {
         blockIds.forEach((blockID, index) => {
           updateStmt.run(index, blockID, flowID);
         });
       });
-      
+
       transaction();
       return true;
     } catch (error) {
@@ -566,7 +603,7 @@ module.exports = {
   setVariable(userUID, conversationID, variableName, variableValue, variableType = 'text', blockID = null, flowID = null, expiresInMinutes = null) {
     try {
       const expiresAt = expiresInMinutes ? Date.now() + (expiresInMinutes * 60 * 1000) : null;
-      
+
       const stmt = db.prepare(`
         INSERT INTO variables (userUID, conversationID, variableName, variableValue, variableType, blockID, flowID, expiresAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -625,7 +662,7 @@ module.exports = {
         AND (expiresAt IS NULL OR expiresAt > ?)
         ORDER BY variableName ASC, updatedAt DESC
       `).all(userUID, Date.now());
-      
+
       // Loại bỏ trùng lặp, giữ lại giá trị mới nhất cho mỗi variableName
       const uniqueVars = {};
       variables.forEach(v => {
@@ -633,7 +670,7 @@ module.exports = {
           uniqueVars[v.variableName] = v;
         }
       });
-      
+
       return Object.values(uniqueVars);
     } catch (error) {
       console.error('❌ Get all variables by user error:', error.message);
@@ -679,10 +716,10 @@ module.exports = {
   setInputState(userUID, conversationID, blockID, flowID, triggerID, config) {
     try {
       const expiresAt = Date.now() + ((config.timeoutMinutes || 30) * 60 * 1000);
-      
+
       // Xóa state cũ nếu có
       db.prepare(`DELETE FROM user_input_states WHERE userUID = ? AND conversationID = ?`).run(userUID, conversationID);
-      
+
       const stmt = db.prepare(`
         INSERT INTO user_input_states 
         (userUID, conversationID, blockID, flowID, triggerID, expectedType, variableName, 
@@ -767,7 +804,7 @@ module.exports = {
     try {
       const fields = [];
       const values = [];
-      
+
       if (updates.currentQuestionIndex !== undefined) {
         fields.push('currentQuestionIndex = ?');
         values.push(updates.currentQuestionIndex);
@@ -796,13 +833,13 @@ module.exports = {
         fields.push('flowContext = ?');
         values.push(updates.flowContext);
       }
-      
+
       if (fields.length === 0) return null;
-      
+
       values.push(userUID, conversationID);
-      
+
       db.prepare(`UPDATE user_input_states SET ${fields.join(', ')} WHERE userUID = ? AND conversationID = ? AND isActive = 1`).run(...values);
-      
+
       return this.getInputState(userUID, conversationID);
     } catch (error) {
       console.error('❌ Update input state error:', error.message);
@@ -834,7 +871,7 @@ module.exports = {
         ORDER BY timestamp DESC 
         LIMIT ?
       `).all(userUID, limit);
-      
+
       return logs.map(log => ({
         ...log,
         details: log.details ? JSON.parse(log.details) : {}
@@ -855,7 +892,7 @@ module.exports = {
     }
   },
 
-  
+
 
 
   // ========================================
@@ -1090,7 +1127,7 @@ module.exports = {
         WHERE t.triggerUserID = ?
       `).get(userUID);
       const variables = db.prepare('SELECT COUNT(*) as count FROM variables WHERE userUID = ?').get(userUID);
-      
+
       return {
         total: total?.count || 0,
         enabled: enabled?.count || 0,
@@ -1100,7 +1137,7 @@ module.exports = {
       };
     } catch (error) {
       console.error('❌ Get stats error:', error.message);
-      return { total: 0, enabled: 0, disabled: 0, flows: 0, variables: 0};
+      return { total: 0, enabled: 0, disabled: 0, flows: 0, variables: 0 };
     }
   },
 
@@ -1122,7 +1159,7 @@ module.exports = {
   // ========================================
   // USER TABLES CRUD (Google Sheets-like)
   // ========================================
-  
+
   // Get all tables for user
   getUserTables(userUID) {
     try {
@@ -1134,13 +1171,13 @@ module.exports = {
         WHERE t.userUID = ? 
         ORDER BY t.createdAt DESC
       `).all(userUID);
-      
+
       // Load columns for each table
       tables.forEach(table => {
         table.columns = this.getTableColumns(table.tableID);
         table.rows = this.getTableRows(table.tableID);
       });
-      
+
       return tables;
     } catch (error) {
       console.error('❌ Get user tables error:', error.message);
@@ -1169,7 +1206,7 @@ module.exports = {
       console.log(`📊 createUserTable called for user: ${userUID}`);
       console.log(`  - tableName: ${data.tableName}`);
       console.log(`  - columns provided: ${data.columns ? data.columns.length : 0}`);
-      
+
       const stmt = db.prepare(`
         INSERT INTO user_tables (userUID, tableName, tableDescription)
         VALUES (?, ?, ?)
@@ -1179,17 +1216,17 @@ module.exports = {
         data.tableName || 'New Table',
         data.tableDescription || ''
       );
-      
+
       const tableID = result.lastInsertRowid;
       console.log(`  ✓ Table created with tableID: ${tableID}`);
-      
+
       // Tạo columns nếu có
       if (data.columns && Array.isArray(data.columns) && data.columns.length > 0) {
         const colStmt = db.prepare(`
           INSERT INTO table_columns (tableID, columnName, columnType, columnOrder, isRequired, defaultValue)
           VALUES (?, ?, ?, ?, ?, ?)
         `);
-        
+
         data.columns.forEach((col, index) => {
           const colName = col.columnName || col.name || `Column ${index + 1}`;
           colStmt.run(
@@ -1202,12 +1239,12 @@ module.exports = {
           );
           console.log(`  ✓ Column created: ${colName}`);
         });
-        
+
         console.log(`  ✅ Created ${data.columns.length} columns for table ${tableID}`);
       } else {
         console.log(`  ⚠️ No columns provided for table ${tableID}`);
       }
-      
+
       return this.getUserTableById(tableID);
     } catch (error) {
       console.error('❌ Create user table error:', error.message);
@@ -1255,7 +1292,7 @@ module.exports = {
   // ========================================
   // TABLE COLUMNS CRUD
   // ========================================
-  
+
   getTableColumns(tableID) {
     try {
       return db.prepare('SELECT * FROM table_columns WHERE tableID = ? ORDER BY columnOrder').all(tableID);
@@ -1287,7 +1324,7 @@ module.exports = {
         data.isRequired ? 1 : 0,
         data.defaultValue || null
       );
-      
+
       // Return updated table instead of just column
       return this.getUserTableById(tableID);
     } catch (error) {
@@ -1304,7 +1341,7 @@ module.exports = {
       // Support cả format cũ (name/type) và mới (columnName/columnType)
       const colName = updates.columnName || updates.name;
       const colType = updates.columnType || updates.type;
-      
+
       if (colName !== undefined) { fields.push('columnName = ?'); values.push(colName); }
       if (colType !== undefined) { fields.push('columnType = ?'); values.push(colType); }
       if (updates.columnOrder !== undefined) { fields.push('columnOrder = ?'); values.push(updates.columnOrder); }
@@ -1316,7 +1353,7 @@ module.exports = {
 
       values.push(columnID);
       db.prepare(`UPDATE table_columns SET ${fields.join(', ')} WHERE columnID = ?`).run(...values);
-      
+
       // Return updated table
       return this.getUserTableById(tableID);
     } catch (error) {
@@ -1330,7 +1367,7 @@ module.exports = {
       // Delete all cells in this column first
       db.prepare('DELETE FROM table_cells WHERE columnID = ?').run(columnID);
       db.prepare('DELETE FROM table_columns WHERE columnID = ?').run(columnID);
-      
+
       // Return updated table
       return this.getUserTableById(tableID);
     } catch (error) {
@@ -1342,12 +1379,12 @@ module.exports = {
   // ========================================
   // TABLE ROWS CRUD
   // ========================================
-  
+
   getTableRows(tableID) {
     try {
       const rows = db.prepare('SELECT * FROM table_rows WHERE tableID = ? ORDER BY rowOrder').all(tableID);
       const columns = this.getTableColumns(tableID);
-      
+
       // Get cells for each row
       return rows.map(row => {
         const cells = db.prepare('SELECT * FROM table_cells WHERE rowID = ?').all(row.rowID);
@@ -1355,21 +1392,21 @@ module.exports = {
         cells.forEach(cell => {
           cellMap[cell.columnID] = cell.cellValue;
         });
-        
+
         // Map to column order
         row.cells = columns.map(col => ({
           columnID: col.columnID,
           columnName: col.columnName,
           value: cellMap[col.columnID] || ''
         }));
-        
+
         // Also create rowData object for easier access (by columnID and columnName)
         row.rowData = {};
         columns.forEach(col => {
           row.rowData[col.columnID] = cellMap[col.columnID] || '';
           row.rowData[col.columnName] = cellMap[col.columnID] || '';
         });
-        
+
         return row;
       });
     } catch (error) {
@@ -1381,7 +1418,7 @@ module.exports = {
   addTableRow(tableID, cellValues = {}) {
     try {
       console.log(`📝 addTableRow called with tableID: ${tableID}`);
-      
+
       // Kiểm tra bảng có tồn tại không
       const table = db.prepare('SELECT * FROM user_tables WHERE tableID = ?').get(tableID);
       if (!table) {
@@ -1389,15 +1426,15 @@ module.exports = {
         return null;
       }
       console.log(`  ✓ Table exists: ${table.tableName}`);
-      
+
       // Kiểm tra columns
       const columns = this.getTableColumns(tableID);
       console.log(`  ✓ Columns count: ${columns.length}`);
-      
+
       if (columns.length === 0) {
         console.log(`  ⚠️ No columns found, creating row without cells`);
       }
-      
+
       // Get max order
       const maxOrder = db.prepare('SELECT MAX(rowOrder) as max FROM table_rows WHERE tableID = ?').get(tableID);
       const order = (maxOrder?.max ?? -1) + 1;
@@ -1458,7 +1495,7 @@ module.exports = {
   deleteTableRows(tableID, rowIDs) {
     try {
       if (!rowIDs || rowIDs.length === 0) return { success: false, deletedCount: 0 };
-      
+
       let deletedCount = 0;
       for (const rowID of rowIDs) {
         // Verify row belongs to this table
@@ -1469,7 +1506,7 @@ module.exports = {
           deletedCount++;
         }
       }
-      
+
       console.log(`🗑️ Deleted ${deletedCount} rows from table ${tableID}`);
       return { success: true, deletedCount };
     } catch (error) {
@@ -1481,29 +1518,29 @@ module.exports = {
   // ========================================
   // TABLE CELLS CRUD
   // ========================================
-  
+
   updateTableCell(rowID, columnID, value) {
     try {
       console.log(`📝 updateTableCell: rowID=${rowID}, columnID=${columnID}, value="${value}"`);
-      
+
       // Kiểm tra row có tồn tại không
       const row = db.prepare('SELECT * FROM table_rows WHERE rowID = ?').get(rowID);
       if (!row) {
         console.error(`  ❌ Row ${rowID} does not exist!`);
         return null;
       }
-      
+
       // Kiểm tra column có tồn tại không
       const column = db.prepare('SELECT * FROM table_columns WHERE columnID = ?').get(columnID);
       if (!column) {
         console.error(`  ❌ Column ${columnID} does not exist!`);
         return null;
       }
-      
+
       // Kiểm tra cell đã tồn tại chưa
       const existingCell = db.prepare('SELECT * FROM table_cells WHERE rowID = ? AND columnID = ?').get(rowID, columnID);
       const now = Date.now();
-      
+
       if (existingCell) {
         // Update existing cell
         db.prepare('UPDATE table_cells SET cellValue = ?, updatedAt = ? WHERE rowID = ? AND columnID = ?')
@@ -1515,10 +1552,10 @@ module.exports = {
           .run(rowID, columnID, value, now);
         console.log(`  ✓ Inserted new cell`);
       }
-      
+
       // Update row's updatedAt
       db.prepare('UPDATE table_rows SET updatedAt = ? WHERE rowID = ?').run(now, rowID);
-      
+
       return db.prepare('SELECT * FROM table_cells WHERE rowID = ? AND columnID = ?').get(rowID, columnID);
     } catch (error) {
       console.error('❌ Update table cell error:', error.message);
@@ -1536,7 +1573,7 @@ module.exports = {
         ON CONFLICT(rowID, columnID) 
         DO UPDATE SET cellValue = ?, updatedAt = ?
       `);
-      
+
       const now = Date.now();
       const transaction = db.transaction(() => {
         for (const [columnID, value] of Object.entries(cellValues)) {
@@ -1544,7 +1581,7 @@ module.exports = {
         }
         db.prepare('UPDATE table_rows SET updatedAt = ? WHERE rowID = ?').run(now, rowID);
       });
-      
+
       transaction();
       return this.getTableRowById(rowID);
     } catch (error) {
@@ -1583,28 +1620,28 @@ module.exports = {
   // ========================================
   // ALIAS FUNCTIONS (for compatibility)
   // ========================================
-  
+
   // Alias for getUserTables
   getTablesByUser(userUID) {
     return this.getUserTables(userUID);
   },
-  
+
   // Alias for getUserTableById
   getTableById(tableID) {
     return this.getUserTableById(tableID);
   },
-  
+
   // Alias for createUserTable
   createTable(userUID, data) {
     return this.createUserTable(userUID, data);
   },
-  
+
   // Alias for updateUserTable (need to implement)
   updateTable(tableID, updates) {
     try {
       const sets = [];
       const values = [];
-      
+
       if (updates.tableName !== undefined) {
         sets.push('tableName = ?');
         values.push(updates.tableName);
@@ -1621,22 +1658,22 @@ module.exports = {
         sets.push('flowID = ?');
         values.push(updates.flowID);
       }
-      
+
       sets.push('updatedAt = ?');
       values.push(Date.now());
       values.push(tableID);
-      
+
       if (sets.length > 1) {
         db.prepare(`UPDATE user_tables SET ${sets.join(', ')} WHERE tableID = ?`).run(...values);
       }
-      
+
       return this.getUserTableById(tableID);
     } catch (error) {
       console.error('❌ Update table error:', error.message);
       return null;
     }
   },
-  
+
   // Alias for deleteUserTable
   deleteTable(tableID) {
     try {
@@ -1647,13 +1684,13 @@ module.exports = {
       return false;
     }
   },
-  
+
   // Update table row (for table-data block)
   updateTableRow(rowID, rowData) {
     try {
       // rowData is object like { columnID: value, ... }
       const now = Date.now();
-      
+
       const transaction = db.transaction(() => {
         for (const [columnID, value] of Object.entries(rowData)) {
           const colId = parseInt(columnID) || columnID;
@@ -1666,7 +1703,7 @@ module.exports = {
         }
         db.prepare('UPDATE table_rows SET updatedAt = ? WHERE rowID = ?').run(now, rowID);
       });
-      
+
       transaction();
       return this.getTableRowById(rowID);
     } catch (error) {
@@ -1678,7 +1715,7 @@ module.exports = {
   // ========================================
   // ACTIVITY LOG
   // ========================================
-  
+
   /**
    * Log một hoạt động
    * @param {string} userUID - User ID
@@ -1715,15 +1752,15 @@ module.exports = {
     try {
       let query = 'SELECT * FROM activity_logs';
       const params = [];
-      
+
       if (userUID) {
         query += ' WHERE userUID = ?';
         params.push(userUID);
       }
-      
+
       query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
       params.push(limit, offset);
-      
+
       return db.prepare(query).all(...params);
     } catch (error) {
       console.error('❌ Get activity logs error:', error.message);
@@ -2151,12 +2188,12 @@ module.exports = {
     try {
       const { email, displayName, description, refreshToken, accessToken } = data;
       if (!email) throw new Error('Email is required');
-      
+
       const result = db.prepare(`
         INSERT INTO email_senders (email, displayName, description, googleRefreshToken, googleAccessToken, isActive, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(email, displayName || '', description || '', refreshToken || '', accessToken || '', 1, Date.now(), Date.now());
-      
+
       return this.getEmailSenderById(result.lastInsertRowid);
     } catch (error) { console.error('❌ Create sender error:', error.message); return null; }
   },
@@ -2221,16 +2258,16 @@ module.exports = {
     try {
       const { email, name, company, tags } = data;
       if (!email || !name) throw new Error('Email and name are required');
-      
+
       // Check if exists
       const existing = this.getEmailRecipientByEmail(email);
       if (existing) return existing;
-      
+
       const result = db.prepare(`
         INSERT INTO email_recipients (email, name, company, tags, createdAt)
         VALUES (?, ?, ?, ?, ?)
       `).run(email, name, company || '', tags || '', Date.now());
-      
+
       return this.getEmailRecipientById(result.lastInsertRowid);
     } catch (error) { console.error('❌ Create recipient error:', error.message); return null; }
   },
@@ -2286,12 +2323,12 @@ module.exports = {
     try {
       const { senderProfileID, senderEmail, recipientEmail, subject, body, status, errorMessage, flowID, triggerID } = data;
       if (!senderProfileID || !recipientEmail || !subject) throw new Error('Missing required fields');
-      
+
       const result = db.prepare(`
         INSERT INTO email_logs (senderProfileID, senderEmail, recipientEmail, subject, body, status, errorMessage, sentAt, flowID, triggerID)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(senderProfileID, senderEmail || '', recipientEmail, subject, body || '', status || 'pending', errorMessage || '', Date.now(), flowID || null, triggerID || null);
-      
+
       return this.getEmailLogById(result.lastInsertRowid);
     } catch (error) { console.error('❌ Create log error:', error.message); return null; }
   },
@@ -2302,7 +2339,7 @@ module.exports = {
         UPDATE email_logs SET status = ?, errorMessage = ?
         WHERE logID = ?
       `).run(status, errorMessage || '', logID);
-      
+
       return this.getEmailLogById(logID);
     } catch (error) { console.error('❌ Update log status error:', error.message); return null; }
   },

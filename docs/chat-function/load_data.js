@@ -5,25 +5,25 @@
 
 function renderFriendsVirtual() {
   const container = document.getElementById('friendsList');
-  
+
   // ✅ SORT: Sắp xếp theo tin nhắn cuối cùng (mới nhất trước)
   const sortedFriends = [...filteredFriends].sort((a, b) => {
     const aMsg = messageStore.get(a.userId);
     const bMsg = messageStore.get(b.userId);
-    
+
     // Những người có tin nhắn sẽ ở trên
     if (aMsg && !bMsg) return -1;
     if (!aMsg && bMsg) return 1;
-    
+
     // Nếu cả hai đều có tin nhắn, sắp xếp theo thời gian (mới nhất trước)
     if (aMsg && bMsg) {
       return bMsg.timestamp - aMsg.timestamp;
     }
-    
+
     // Nếu không có tin nhắn, giữ thứ tự ban đầu
     return 0;
   });
-  
+
   if (sortedFriends.length === 0) {
     container.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">Chưa có bạn bè nào</div>';
     return;
@@ -58,11 +58,11 @@ function updateVisibleFriends(sortedFriends) {
   content.innerHTML = visibleFriends.map(f => {
     const msgInfo = messageStore.get(f.userId);
     const hasMessages = !!msgInfo;
-    const preview = hasMessages 
+    const preview = hasMessages
       ? `<span class="has-message">${escapeHtml(msgInfo.lastMessage.substring(0, 30))}${msgInfo.lastMessage.length > 30 ? '...' : ''}</span>`
       : 'Nhấn để chat • UID: ' + f.userId;
-    
-    const timeStr = hasMessages 
+
+    const timeStr = hasMessages
       ? `<span class="message-time">${formatTime(msgInfo.timestamp)}</span>`
       : '';
 
@@ -72,12 +72,15 @@ function updateVisibleFriends(sortedFriends) {
         <img src="${f.avatar || 'https://via.placeholder.com/50'}" 
              onerror="this.src='https://via.placeholder.com/50'" 
              alt="${f.displayName || 'User'}">
-        <div class="info" style="flex:1;">
-          <div class="name">
-            <span>${f.displayName || 'Người dùng Zalo'}</span>
-            ${timeStr}
+        <div class="info" style="flex:1; overflow:hidden;">
+          <div class="name-row" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">${escapeHtml(f.displayName || 'Người dùng Zalo')}</span>
+            <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${f.userId}', '${escapeJs(f.displayName || 'User')}')" title="Xóa hội thoại">🗑️</button>
           </div>
-          <div class="preview">${preview}</div>
+          <div class="preview-row" style="display:flex; justify-content:space-between;">
+             <div class="preview" style="flex:1;">${preview}</div>
+             ${timeStr ? `<div class="time-tiny" style="font-size:10px; color:#888;">${timeStr}</div>` : ''}
+          </div>
         </div>
       </div>
     `;
@@ -96,31 +99,31 @@ async function loadMessagesFromIndexedDB(uid) {
       const transaction = dbInstance.transaction(['messages'], 'readonly');
       const store = transaction.objectStore('messages');
       const index = store.index('uid');
-      
+
       const request = index.getAll(uid);
-      
+
       request.onsuccess = () => {
         let messages = request.result;
         console.log(`📂 Loaded ${messages.length} messages from IndexedDB for ${uid}`);
-        
+
         // ✅ FIX: Deduplicate messages
         const uniqueMessages = [];
         const seenMsgIds = new Set();
-        
+
         for (const msg of messages) {
           const msgId = msg.msgId || msg.id;
           if (!seenMsgIds.has(msgId)) {
             uniqueMessages.push(msg);
             seenMsgIds.add(msgId);
           } else {
-            console.log(`⚠️ Skipping duplicate message: ${msgId}`);
+            console.log(`⚠️ Skipping duplicate message: ${msgId} `);
           }
         }
-        
+
         console.log(`✅ After dedup: ${uniqueMessages.length} unique messages`);
         resolve(uniqueMessages);
       };
-      
+
       request.onerror = () => {
         console.error('❌ Failed to load from IndexedDB:', request.error);
         resolve([]);
@@ -144,9 +147,9 @@ async function deleteConversationFromIndexedDB(uid) {
       const transaction = dbInstance.transaction(['messages'], 'readwrite');
       const store = transaction.objectStore('messages');
       const index = store.index('uid');
-      
+
       const request = index.openCursor(IDBKeyRange.only(uid));
-      
+
       request.onsuccess = (event) => {
         const cursor = event.target.result;
         if (cursor) {
@@ -154,7 +157,7 @@ async function deleteConversationFromIndexedDB(uid) {
           cursor.continue();
         } else {
           console.log(`✅ Đã xóa lịch sử chat với ${uid} từ IndexedDB`);
-          
+
           // ✅ FIX: Clear lastChatWith if it's the deleted conversation
           const lastChat = localStorage.getItem('lastChatWith');
           if (lastChat) {
@@ -164,13 +167,13 @@ async function deleteConversationFromIndexedDB(uid) {
                 localStorage.removeItem('lastChatWith');
                 console.log('✅ Cleared lastChatWith from localStorage');
               }
-            } catch (e) {}
+            } catch (e) { }
           }
-          
+
           resolve(true);
         }
       };
-      
+
       request.onerror = () => {
         console.error('❌ Failed to delete from IndexedDB:', request.error);
         resolve(false);
@@ -186,7 +189,7 @@ async function selectFriend(userId, displayName, avatar) {
   selectedFriend = { userId, displayName, avatar };
 
   document.querySelectorAll('.friend-item').forEach(el => el.classList.remove('active'));
-  
+
   document.getElementById('chatHeader').style.display = 'flex';
   document.getElementById('inputArea').style.display = 'flex';
   document.getElementById('chatAvatar').src = avatar || 'https://via.placeholder.com/50';
@@ -207,10 +210,10 @@ async function selectFriend(userId, displayName, avatar) {
 
   document.getElementById('messagesContainer').innerHTML = '<div class="loading-friends"><div class="spinner"></div><div>Đang tải tin nhắn...</div></div>';
   currentMessages = [];
-  
+
   console.log(`📂 Loading from IndexedDB for ${userId}`);
   const storedMessages = await loadMessagesFromIndexedDB(userId);
-  
+
   if (storedMessages.length > 0) {
     console.log(`✅ Found ${storedMessages.length} unique messages for ${userId}`);
     currentMessages = storedMessages.sort((a, b) => a.timestamp - b.timestamp);
@@ -230,26 +233,26 @@ async function deleteConversation(userId) {
   try {
     // Delete from IndexedDB
     await deleteConversationFromIndexedDB(userId);
-    
+
     // Delete from server memory
     ws.send(JSON.stringify({
       type: 'delete_conversation',
       uid: userId
     }));
-    
+
     // Clear UI
     currentMessages = [];
     renderMessages();
     messageStore.delete(userId);
     renderFriendsVirtual();
-    
+
     // Clear chat header
     document.getElementById('chatHeader').style.display = 'none';
     document.getElementById('inputArea').style.display = 'none';
     document.getElementById('messagesContainer').innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Chọn một cuộc trò chuyện để bắt đầu</div></div>';
-    
+
     selectedFriend = null;
-    
+
     showNotification('✅ Đã xóa lịch sử chat', 'success');
   } catch (err) {
     console.error('❌ Error deleting conversation:', err);
@@ -267,17 +270,75 @@ function renderMessages() {
   container.innerHTML = currentMessages.map(msg => {
     const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const isSelf = msg.isSelf || msg.senderId === currentUserId;
-    return `
-      <div class="message ${isSelf ? 'self' : ''}">
-        <img class="avatar" src="${isSelf ? document.getElementById('userAvatar').src : (selectedFriend?.avatar || 'https://via.placeholder.com/50')}" alt="Avatar">
-        <div>
-          <div class="bubble">${escapeHtml(msg.content || msg.msg || '')}</div>
-          <div class="time">${time}</div>
+    const msgType = msg.type || 'text';
+    const isAutoReply = msg.isAutoReply || false;
+
+    // ✅ Render attachment nếu có
+    let attachmentHtml = '';
+
+    if (msgType === 'image' && msg.imageUrl) {
+      attachmentHtml = `
+      <div class="message-attachment" style="margin-top:8px;">
+        <img src="${escapeHtml(msg.imageUrl)}" alt="Ảnh"
+          style="max-width:200px;max-height:200px;border-radius:8px;cursor:pointer;"
+          onclick="window.open('${escapeHtml(msg.imageUrl)}', '_blank')"
+          onerror="this.style.display='none'; this.parentElement.innerHTML='[Ảnh không tải được]';">
         </div>
-      </div>`;
+    `;
+    } else if (msgType === 'file' && msg.fileData) {
+      const fileIcon = { pdf: '📄', word: '📝', excel: '📊', powerpoint: '📽️', archive: '📦', audio: '🎵', video: '🎬', image: '🖼️' }[msg.fileData.fileType] || '📎';
+      const fileSize = msg.fileData.fileSize ? formatFileSizeLD(msg.fileData.fileSize) : '';
+      // ✅ View URL (inline) và Download URL
+      const viewUrl = msg.fileData.fileUrl ? `/ api / proxy - file ? url = ${encodeURIComponent(msg.fileData.fileUrl)}& name=${encodeURIComponent(msg.fileData.fileName || 'file')}& mode=view` : '#';
+      const downloadUrl = msg.fileData.fileUrl ? `/ api / proxy - file ? url = ${encodeURIComponent(msg.fileData.fileUrl)}& name=${encodeURIComponent(msg.fileData.fileName || 'file')}& mode=download` : '#';
+
+      attachmentHtml = `
+      <div class="message-attachment" style="margin-top:8px;">
+        <div style="display:flex;align-items:center;gap:8px;background:#f5f5f5;padding:10px 14px;border-radius:8px;">
+          <span style="font-size:20px;">${fileIcon}</span>
+          <span style="flex:1;color:#333;font-size:13px;">${escapeHtml(msg.fileData.fileName || 'File')}</span>
+          ${fileSize ? '<span style="color:#888;font-size:11px;">(' + fileSize + ')</span>' : ''}
+          <a href="${viewUrl}" target="_blank" title="Xem" style="color:#0068FF;font-size:12px;text-decoration:none;">👁️ Xem</a>
+          <a href="${downloadUrl}" download="${escapeHtml(msg.fileData.fileName || 'file')}" title="Tải" style="color:#0068FF;font-size:12px;text-decoration:none;">⬇️ Tải</a>
+        </div>
+        </div>
+      `;
+    } else if (msgType === 'gif' && msg.imageUrl) {
+      attachmentHtml = `
+      <div class="message-attachment" style="margin-top:8px;">
+        <img src="${escapeHtml(msg.imageUrl)}" alt="GIF" style="max-width:200px;border-radius:8px;">
+        </div>
+    `;
+    } else if (msgType === 'sticker') {
+      attachmentHtml = '<div style="font-size:32px;">😊</div>';
+    }
+
+    // Nội dung text (ẩn nếu có attachment và content chỉ là placeholder)
+    const contentText = (msgType !== 'text' && attachmentHtml) ? '' : escapeHtml(msg.content || msg.msg || '');
+
+    return `
+      <div class="message ${isSelf ? 'self' : ''} ${isAutoReply ? 'auto-reply' : ''}">
+        <img class="avatar" src="${isSelf ? document.getElementById('userAvatar').src : (selectedFriend?.avatar || 'https://via.placeholder.com/50')}" alt="Avatar">
+          <div>
+            <div class="bubble">
+              ${contentText}
+              ${attachmentHtml}
+              ${isAutoReply ? '<span class="auto-reply-badge" style="display:inline-block;background:#2196f3;color:white;font-size:9px;padding:2px 6px;border-radius:10px;margin-left:5px;">🤖 Auto</span>' : ''}
+            </div>
+            <div class="time">${time}</div>
+          </div>
+        </div>`;
   }).join('');
 
   scrollToBottom();
+}
+
+function formatFileSizeLD(bytes) {
+  if (!bytes) return '';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
 }
 
 function escapeHtml(text) {
@@ -292,10 +353,33 @@ function escapeJs(str) {
 
 function sendMessage() {
   console.log('📤 sendMessage() được gọi');
+
+  if (!selectedFriend) {
+    console.log('⚠️ Chưa chọn người nhận');
+    alert('Vui lòng chọn bạn bè trước');
+    return;
+  }
+
+  // ✅ Gửi attachment nếu có (pendingAttachment được define trong dashboard.html)
+  if (typeof pendingAttachment !== 'undefined' && pendingAttachment) {
+    console.log('📎 Sending attachment...');
+    if (typeof sendFileAttachment === 'function') {
+      sendFileAttachment();
+    }
+
+    // Nếu không có text thì chỉ gửi attachment
+    const input = document.getElementById('messageInput');
+    if (!input.value.trim()) {
+      input.value = '';
+      input.focus();
+      return;
+    }
+  }
+
   const input = document.getElementById('messageInput');
   const text = input.value.trim();
-  if (!text || !selectedFriend) {
-    console.log('⚠️ Không có text hoặc selectedFriend');
+  if (!text) {
+    console.log('⚠️ Không có text');
     return;
   }
 
@@ -307,7 +391,7 @@ function sendMessage() {
   }));
   input.value = '';
   console.log('✅ Đã gửi tin nhắn, clear input');
-  
+
   input.focus();
 }
 
@@ -330,34 +414,70 @@ if (!document.getElementById('loadDataStyles')) {
   const styleElement = document.createElement('style');
   styleElement.id = 'loadDataStyles';
   styleElement.textContent = `
-    .delete-conv-btn {
+          .delete - conv - btn {
       background: none;
       border: none;
-      font-size: 18px;
+      font - size: 18px;
       cursor: pointer;
       padding: 8px;
-      border-radius: 6px;
+      border - radius: 6px;
       transition: background 0.2s;
-      margin-left: auto;
+      margin - left: auto;
     }
     
-    .delete-conv-btn:hover {
+    .delete -conv - btn:hover {
       background: #ffebee;
     }
     
-    .emoji-picker-btn {
+    .delete -chat - btn {
       background: none;
       border: none;
-      font-size: 18px;
+      font - size: 16px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border - radius: 4px;
+      transition: background 0.2s;
+      opacity: 0.7;
+    }
+    .delete -chat - btn:hover {
+      background: #ffebee;
+      opacity: 1;
+      color: #d32f2f;
+    }
+    .emoji - picker - btn {
+      background: none;
+      border: none;
+      font - size: 18px;
       cursor: pointer;
       padding: 6px 8px;
-      border-radius: 4px;
+      border - radius: 4px;
       transition: all 0.2s;
     }
-    
-    .emoji-picker-btn:hover {
+    .emoji - picker - btn:hover {
       background: #e0e0e0;
     }
-  `;
+    `;
   document.head.appendChild(styleElement);
 }
+
+// ✅ DELETE CHAT FUNCTION
+function deleteChat(uid, name) {
+  if (confirm(`⚠️ Bạn có chắc muốn xóa toàn bộ lịch sử chat với "${name}" ?\nHành động này không thể hoàn tác.`)) {
+    if (typeof socket !== 'undefined' && socket.readyState === 1) {
+      socket.send(JSON.stringify({ type: 'delete_conversation', uid: uid }));
+      if (typeof showToast === 'function') showToast('Đang xóa đoạn hội thoại...', 'info');
+    }
+
+    // Optimistic update
+    if (typeof messageStore !== 'undefined') messageStore.delete(uid);
+
+    // Clear view if active
+    if (typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === uid) {
+      const msgContainer = document.getElementById('messages');
+      if (msgContainer) msgContainer.innerHTML = '<div class="empty-state">Đoạn hội thoại đã bị xóa</div>';
+    }
+
+    if (typeof renderFriendsVirtual === 'function') renderFriendsVirtual();
+  }
+}
+window.deleteChat = deleteChat;

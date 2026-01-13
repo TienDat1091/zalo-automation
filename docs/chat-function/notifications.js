@@ -1,44 +1,47 @@
-  // ✅ SHOW NOTIFICATION WITH FIXED CLICK
-  function showNotification(senderName, messagePreview, userId, avatar) {
-    console.log(`🔔 Showing notification for: ${senderName} (${userId})`);
-    
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    
-    notification.innerHTML = `
+// ✅ SHOW NOTIFICATION WITH FIXED CLICK
+function showNewMessageNotification(senderName, messagePreview, userId, avatar) {
+  console.log(`🔔 Showing notification for: ${senderName} (${userId})`);
+
+  const notification = document.createElement('div');
+  notification.className = 'notification-message';
+  notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 300px;
+        animation: slideIn 0.3s ease-out;
+        cursor: pointer;
+    `;
+
+  notification.innerHTML = `
       <img src="${avatar}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
       <div style="flex: 1;">
         <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${senderName}</div>
-        <div style="color: #666; font-size: 13px;">${messagePreview}...</div>
+        <div style="color: #666; font-size: 13px;">${messagePreview.substring(0, 50)}${messagePreview.length > 50 ? '...' : ''}</div>
       </div>
     `;
-    
-    // ✅ FIX: Use closure to capture values properly
-    notification.style.cursor = 'pointer';
-    notification.onclick = (event) => {
-      console.log(`✅ Notification clicked: ${senderName} - Opening chat...`);
-      event.stopPropagation();
-      
-      // Get friend from current friends list
-      const friendToOpen = allFriends.find(f => f.userId === userId);
-      if (friendToOpen) {
-        console.log(`📂 Opening chat with: ${friendToOpen.displayName}`);
-        selectFriend(friendToOpen.userId, friendToOpen.displayName, friendToOpen.avatar);
-        notification.remove();
-      } else {
-        console.warn(`⚠️ Friend not found: ${userId}`);
-      }
-    };
-    
-    document.body.appendChild(notification);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.remove();
-      }
-    }, 5000);
-  }
+
+  notification.onclick = (event) => {
+    console.log(`✅ Notification clicked: ${senderName}`);
+    event.stopPropagation();
+    selectFriend(userId, senderName, avatar);
+    notification.remove();
+  };
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    if (notification.parentNode) notification.remove();
+  }, 5000);
+}
 
 // notifications.js - Clean notification system
 // No external dependencies
@@ -47,7 +50,7 @@
  * @param {string} message - Message to display
  * @param {string} type - Type: 'info', 'success', 'error', 'warning'
  */
-function showNotification(message, type = 'info') {
+function showToast(message, type = 'info') {
   if (!message) {
     console.warn('⚠️ showNotification: message is empty');
     return;
@@ -137,5 +140,5 @@ if (!document.getElementById('notificationStyles')) {
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { showNotification };
+  module.exports = { showNewMessageNotification, showToast };
 }

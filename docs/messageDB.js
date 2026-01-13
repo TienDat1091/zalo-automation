@@ -1,0 +1,238 @@
+// messageDB.js - SQLite module for message storage
+const path = require('path');
+const fs = require('fs');
+
+let db = null;
+
+// ============================================
+// INITIALIZE DATABASE
+// ============================================
+function init() {
+    try {
+        const Database = require('better-sqlite3');
+        const dbPath = path.join(__dirname, 'data', 'messages.db');
+
+        const dataDir = path.dirname(dbPath);
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+
+        db = new Database(dbPath);
+
+        // MESSAGES TABLE
+        db.exec(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversationId TEXT NOT NULL,
+        msgId TEXT UNIQUE,
+        senderId TEXT NOT NULL,
+        receiverId TEXT,
+        content TEXT,
+        timestamp INTEGER NOT NULL,
+        isSelf INTEGER DEFAULT 0,
+        isAutoReply INTEGER DEFAULT 0,
+        attachmentType TEXT,
+        attachmentPath TEXT,
+        attachmentName TEXT,
+        attachmentSize INTEGER,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+        // INDEXES
+        db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversationId);
+      CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_messages_msgId ON messages(msgId);
+    `);
+
+        // FILE ACTIVITY LOGS (NEW)
+        db.exec(`
+      CREATE TABLE IF NOT EXISTS file_activity_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp INTEGER NOT NULL,
+        senderId TEXT NOT NULL,
+        fileName TEXT,
+        fileType TEXT,
+        action TEXT, -- RECEIVED, PRINTED
+        status TEXT, -- SUCCESS, FAIL
+        details TEXT
+      )
+    `);
+
+        // RECEIVED FILES (LEGACY/BACKUP)
+        db.exec(`
+      CREATE TABLE IF NOT EXISTS received_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversationId TEXT NOT NULL,
+        msgId TEXT,
+        fileName TEXT NOT NULL,
+        filePath TEXT NOT NULL,
+        fileSize INTEGER,
+        mimeType TEXT,
+        senderId TEXT,
+        timestamp INTEGER NOT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+        console.log('✅ MessageDB initialized:', dbPath);
+        return true;
+    } catch (err) {
+        console.error('❌ MessageDB init error:', err.message);
+        return false;
+    }
+}
+
+// ============================================
+// SAVE MESSAGE
+// ============================================
+function saveMessage(conversationId, message) {
+    if (!db) return null;
+    try {
+        const stmt = db.prepare(`
+      INSERT OR REPLACE INTO messages 
+      (conversationId, msgId, senderId, receiverId, content, timestamp, isSelf, isAutoReply, attachmentType, attachmentPath, attachmentName, attachmentSize)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+        const result = stmt.run(
+            conversationId,
+            message.msgId || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            message.senderId || '',
+            message.receiverId || '',
+            message.content || message.msg || '',
+            message.timestamp || Date.now(),
+            message.isSelf ? 1 : 0,
+            message.isAutoReply ? 1 : 0,
+            message.attachmentType || null,
+            message.attachmentPath || null,
+            message.attachmentName || null,
+            message.attachmentSize || null
+        );
+        return result.lastInsertRowid;
+    } catch (err) {
+        if (!err.message.includes('UNIQUE constraint')) {
+            console.error('❌ Save message error:', err.message);
+        }
+        return null;
+    }
+}
+
+// ============================================
+// LOG FILE ACTIVITY (NEW)
+// ============================================
+function logFileActivity(senderId, fileName, fileType, action, status, details = '') {
+    if (!db) return;
+    try {
+        const stmt = db.prepare(`
+       INSERT INTO file_activity_logs (timestamp, senderId, fileName, fileType, action, status, details)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+        stmt.run(Date.now(), senderId, fileName || 'unknown', fileType || 'unknown', action, status, details);
+    } catch (e) {
+        console.error('Log file activity error:', e);
+    }
+}
+
+// ============================================
+// DASHBOARD STATS (NEW)
+// ============================================
+function getDashboardStats() {
+    if (!db) return { msgCount: 0, fileCount: 0, printSuccess: 0, printFail: 0 };
+    try {
+        const msgCount = db.prepare('SELECT COUNT(*) as c FROM messages').get().c;
+        const fileCount = db.prepare("SELECT COUNT(*) as c FROM file_activity_logs WHERE action='RECEIVED'").get().c;
+        const printSuccess = db.prepare("SELECT COUNT(*) as c FROM file_activity_logs WHERE action='PRINTED' AND status='SUCCESS'").get().c;
+        const printFail = db.prepare("SELECT COUNT(*) as c FROM file_activity_logs WHERE action='PRINTED' AND status='FAIL'").get().c;
+
+        return { msgCount, fileCount, printSuccess, printFail };
+    } catch (e) {
+        return { msgCount: 0, fileCount: 0, printSuccess: 0, printFail: 0 };
+    }
+}
+
+function getTopUsers(limit = 10) {
+    if (!db) return { topMsg: [], topFiles: [] };
+    try {
+        const topMsg = db.prepare(`SELECT senderId, COUNT(*) as count FROM messages WHERE isSelf=0 GROUP BY senderId ORDER BY count DESC LIMIT ?`).all(limit);
+        const topFiles = db.prepare(`SELECT senderId, COUNT(*) as count FROM file_activity_logs WHERE action='RECEIVED' GROUP BY senderId ORDER BY count DESC LIMIT ?`).all(limit);
+        return { topMsg, topFiles };
+    } catch (e) {
+        return { topMsg: [], topFiles: [] };
+    }
+}
+
+function getFileLogs(limit = 100) {
+    if (!db) return [];
+    try {
+        return db.prepare('SELECT * FROM file_activity_logs ORDER BY timestamp DESC LIMIT ?').all(limit);
+    } catch (e) { return []; }
+}
+
+function deleteConversation(conversationId) {
+    if (!db) return;
+    try {
+        db.prepare('DELETE FROM messages WHERE conversationId = ? OR senderId = ?').run(conversationId, conversationId);
+        // Also delete logs for privacy if requested? Or keep logs? User asked "xóa toàn bộ đoạn hội thoại". 
+        // Keeping logs might be better for "Quản lý dữ liệu".
+    } catch (e) { }
+}
+
+// ============================================
+// STANDARD GETTERS
+// ============================================
+function getMessages(conversationId, limit = 100, offset = 0) {
+    if (!db) return [];
+    try {
+        const stmt = db.prepare(`SELECT * FROM messages WHERE conversationId = ? ORDER BY timestamp ASC LIMIT ? OFFSET ?`);
+        return stmt.all(conversationId, limit, offset);
+    } catch (err) { return []; }
+}
+
+function getLastMessage(conversationId) {
+    if (!db) return null;
+    try {
+        const row = db.prepare(`SELECT * FROM messages WHERE conversationId = ? ORDER BY timestamp DESC LIMIT 1`).get(conversationId);
+        return row ? { content: row.content, timestamp: row.timestamp, isSelf: !!row.isSelf } : null;
+    } catch (err) { return null; }
+}
+
+function getAllConversations() {
+    if (!db) return [];
+    try {
+        return db.prepare(`SELECT conversationId, MAX(timestamp) as lastTimestamp, COUNT(*) as messageCount FROM messages GROUP BY conversationId ORDER BY lastTimestamp DESC`).all();
+    } catch (err) { return []; }
+}
+
+// Support Legacy received_files logic if needed
+function saveReceivedFile(conversationId, fileInfo) {
+    if (!db) return null;
+    try {
+        // Also log to new table
+        logFileActivity(conversationId, fileInfo.fileName, fileInfo.mimeType, 'RECEIVED', 'SUCCESS', '');
+
+        const stmt = db.prepare(`INSERT INTO received_files (conversationId, msgId, fileName, filePath, fileSize, mimeType, senderId, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+        return stmt.run(conversationId, fileInfo.msgId, fileInfo.fileName, fileInfo.filePath, fileInfo.fileSize, fileInfo.mimeType, fileInfo.senderId, Date.now()).lastInsertRowid;
+    } catch (err) { return null; }
+}
+
+function getReceivedFiles(conversationId, limit = 50) {
+    if (!db) return [];
+    try { return db.prepare(`SELECT * FROM received_files WHERE conversationId = ? ORDER BY timestamp DESC LIMIT ?`).all(conversationId, limit); } catch (e) { return []; }
+}
+
+module.exports = {
+    init,
+    saveMessage,
+    getMessages,
+    getLastMessage,
+    saveReceivedFile,
+    getReceivedFiles,
+    getAllConversations,
+    // NEW
+    logFileActivity,
+    getDashboardStats,
+    getTopUsers,
+    getFileLogs,
+    deleteConversation
+};

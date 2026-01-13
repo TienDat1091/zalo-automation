@@ -125,6 +125,62 @@ app.get('/api/images/:id', (req, res) => {
   }
 });
 
+// ✅ Proxy endpoint để download file từ Zalo CDN (bypass 403)
+app.get('/api/proxy-file', async (req, res) => {
+  try {
+    const fileUrl = req.query.url;
+    const fileName = req.query.name || 'file';
+
+    if (!fileUrl) {
+      return res.status(400).json({ error: 'Missing url parameter' });
+    }
+
+    console.log(`📥 Proxying file: ${fileName} from ${fileUrl}`);
+
+    // Fetch file from Zalo CDN
+    const https = require('https');
+    const http = require('http');
+    const protocol = fileUrl.startsWith('https') ? https : http;
+
+    protocol.get(fileUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Referer': 'https://chat.zalo.me/'
+      }
+    }, (response) => {
+      if (response.statusCode === 200) {
+        const contentType = response.headers['content-type'] || 'application/octet-stream';
+
+        // ✅ Nếu mode=view thì inline, ngược lại download
+        if (req.query.mode === 'view') {
+          res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
+        } else {
+          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+        }
+        res.setHeader('Content-Type', contentType);
+        if (response.headers['content-length']) {
+          res.setHeader('Content-Length', response.headers['content-length']);
+        }
+        response.pipe(res);
+      } else if (response.statusCode === 302 || response.statusCode === 301) {
+        // Follow redirect
+        const redirectUrl = response.headers.location;
+        res.redirect(`/api/proxy-file?url=${encodeURIComponent(redirectUrl)}&name=${encodeURIComponent(fileName)}&mode=${req.query.mode || 'download'}`);
+      } else {
+        console.error(`❌ Proxy failed: ${response.statusCode}`);
+        res.status(response.statusCode).json({ error: `Failed to fetch file: ${response.statusCode}` });
+      }
+    }).on('error', (err) => {
+      console.error('❌ Proxy error:', err.message);
+      res.status(500).json({ error: 'Failed to fetch file' });
+    });
+  } catch (error) {
+    console.error('❌ Proxy error:', error.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Register File & Template API endpoints
 require('./file-function/file-api.js')(app, triggerDB);
 

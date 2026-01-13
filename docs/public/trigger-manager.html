@@ -994,6 +994,16 @@
         enabled: false,
         welcomeMessage: '',
         triggerID: null
+      },
+      autoFile: {
+        id: 'builtin_auto_file',
+        name: 'Nhận diện file',
+        description: 'Tự động trả lời khi nhận file/ảnh',
+        icon: '📂',
+        enabled: false,
+        response: 'xlsx: Bạn đã gửi file Excel\npdf: Bạn đã gửi file PDF\ndefault: Đã nhận file của bạn',
+        cooldown: 0,
+        triggerID: null
       }
     };
 
@@ -1031,13 +1041,27 @@
           // Separate built-in triggers from database
           const autoMessageTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_message__');
           const autoFriendTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_friend__');
+          const autoFileTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_file__');
 
           // Update built-in triggers state from database
           if (autoMessageTrigger) {
             builtInTriggers.autoMessage.enabled = autoMessageTrigger.enabled;
             builtInTriggers.autoMessage.response = autoMessageTrigger.response;
             builtInTriggers.autoMessage.triggerID = autoMessageTrigger.id;
-            builtInTriggers.autoMessage.cooldown = autoMessageTrigger.cooldown || 30000; // Load cooldown from DB
+            builtInTriggers.autoMessage.cooldown = autoMessageTrigger.cooldown || 30000;
+          }
+
+          if (autoFriendTrigger) {
+            builtInTriggers.autoAcceptFriend.enabled = autoFriendTrigger.enabled;
+            builtInTriggers.autoAcceptFriend.welcomeMessage = autoFriendTrigger.response;
+            builtInTriggers.autoAcceptFriend.triggerID = autoFriendTrigger.id;
+          }
+
+          if (autoFileTrigger) {
+            builtInTriggers.autoFile.enabled = autoFileTrigger.enabled;
+            builtInTriggers.autoFile.response = autoFileTrigger.response;
+            builtInTriggers.autoFile.triggerID = autoFileTrigger.id;
+            builtInTriggers.autoFile.cooldown = autoFileTrigger.cooldown || 2000;
           }
 
           if (autoFriendTrigger) {
@@ -1069,6 +1093,10 @@
           builtInTriggers.autoAcceptFriend.triggerID = newTrigger.id;
           builtInTriggers.autoAcceptFriend.enabled = newTrigger.enabled;
           builtInTriggers.autoAcceptFriend.welcomeMessage = newTrigger.response;
+        } else if (newTrigger.triggerKey === '__builtin_auto_file__') {
+          builtInTriggers.autoFile.triggerID = newTrigger.id;
+          builtInTriggers.autoFile.enabled = newTrigger.enabled;
+          builtInTriggers.autoFile.response = newTrigger.response;
         } else {
           // Regular user trigger
           triggers.push(newTrigger);
@@ -1090,6 +1118,9 @@
         } else if (t.triggerKey === '__builtin_auto_friend__') {
           builtInTriggers.autoAcceptFriend.enabled = t.enabled;
           builtInTriggers.autoAcceptFriend.welcomeMessage = t.response;
+        } else if (t.triggerKey === '__builtin_auto_file__') {
+          builtInTriggers.autoFile.enabled = t.enabled;
+          builtInTriggers.autoFile.response = t.response;
         } else {
           const i = triggers.findIndex(x => x.id === t.id);
           if (i !== -1) { triggers[i] = t; if (currentTriggerId === t.id) displayTrigger(t); }
@@ -1282,12 +1313,15 @@
 
     function renderBuiltInTriggers() {
       return `
-        <div class="trigger-group" style="margin-bottom: 16px; border: 2px solid #667eea; border-radius: 8px; padding: 8px;">
-          <div class="trigger-group-title" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; border-radius: 6px; margin: -8px -8px 8px -8px;">
+        <div class="trigger-group" style="margin-bottom: 24px; border: 1px solid #e0e0e0; border-radius: 12px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden;">
+          <div class="trigger-group-title" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 16px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
             ⚙️ Triggers Mặc Định
           </div>
-          ${renderBuiltInTriggerItem(builtInTriggers.autoMessage)}
-          ${renderBuiltInTriggerItem(builtInTriggers.autoAcceptFriend)}
+          <div style="padding: 12px;">
+            ${renderBuiltInTriggerItem(builtInTriggers.autoMessage)}
+            ${renderBuiltInTriggerItem(builtInTriggers.autoAcceptFriend)}
+            ${renderBuiltInTriggerItem(builtInTriggers.autoFile)}
+          </div>
         </div>
       `;
     }
@@ -1298,23 +1332,24 @@
       const statusIcon = trigger.enabled ? '✅' : '⭕';
 
       return `
-        <div class="trigger-item-compact" style="background: ${trigger.enabled ? '#f0f9ff' : '#fafafa'}; border: 1px solid ${trigger.enabled ? '#b3d9ff' : '#eee'};">
-          <div class="trigger-header-row" onclick="toggleBuiltInTrigger('${trigger.id}')">
-            <div class="trigger-main-info">
-              <div class="trigger-icon-small" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 16px;">
-                ${trigger.icon}
+        <div class="trigger-item-compact" onclick="toggleBuiltInTrigger('${trigger.id}')" style="cursor: pointer; background: ${trigger.enabled ? '#f0f9ff' : '#fafafa'}; border: 1px solid ${trigger.enabled ? '#b3d9ff' : '#eee'}; display: flex; align-items: flex-start; gap: 12px; padding: 12px; margin-bottom: 8px;">
+          <div class="trigger-icon-small" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 18px; width: 40px; height: 40px; border-radius: 10px;">
+            ${trigger.icon}
+          </div>
+          
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <div style="font-weight: 600; color: #333; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                ${escapeHtml(trigger.name)}
               </div>
-              <div style="flex:1;min-width:0;">
-                <div class="trigger-name-small">
-                  ${escapeHtml(trigger.name)}
-                  <span style="font-size: 10px; padding: 2px 6px; background: ${statusColor}; color: white; border-radius: 4px; margin-left: 6px;">${statusIcon} ${statusText}</span>
-                </div>
-                <div class="trigger-keywords-preview">${escapeHtml(trigger.description)}</div>
-              </div>
+              <span style="font-size: 10px; padding: 3px 8px; background: ${statusColor}; color: white; border-radius: 12px; font-weight: 600; white-space: nowrap;">${statusIcon} ${statusText}</span>
             </div>
-            <div class="trigger-actions" onclick="event.stopPropagation()">
-              <button class="action-icon" onclick="setupBuiltInTrigger('${trigger.id}')" title="Cài đặt">⚙️</button>
-            </div>
+            
+            <div class="trigger-keywords-preview" style="white-space: normal; line-height: 1.4; color: #666;">${escapeHtml(trigger.description)}</div>
+          </div>
+
+          <div class="trigger-actions" onclick="event.stopPropagation()" style="align-self: center;">
+            <button class="action-icon" onclick="setupBuiltInTrigger('${trigger.id}')" title="Cài đặt" style="width: 32px; height: 32px; font-size: 16px; color: #667eea;">⚙️</button>
           </div>
         </div>
       `;
@@ -1325,7 +1360,16 @@
     // ================================================
     function toggleBuiltInTrigger(triggerId) {
       console.log('🔘 toggleBuiltInTrigger called:', triggerId);
-      const trigger = triggerId === 'builtin_auto_message' ? builtInTriggers.autoMessage : builtInTriggers.autoAcceptFriend;
+
+      let trigger;
+      if (triggerId === 'builtin_auto_message') trigger = builtInTriggers.autoMessage;
+      else if (triggerId === 'builtin_auto_friend') trigger = builtInTriggers.autoAcceptFriend;
+      else if (triggerId === 'builtin_auto_file') trigger = builtInTriggers.autoFile;
+
+      if (!trigger) {
+        console.error('Trigger not found for ID:', triggerId);
+        return;
+      }
       console.log('🔘 Trigger state:', trigger);
 
       // Nếu chưa có triggerID (chưa tạo trong DB) → yêu cầu setup
@@ -1362,6 +1406,8 @@
         showAutoMessageSetup();
       } else if (triggerId === 'builtin_auto_friend') {
         showAutoFriendSetup();
+      } else if (triggerId === 'builtin_auto_file') {
+        showAutoFileSetup();
       }
     }
 
@@ -1475,6 +1521,50 @@
       showToast('✅ Đã lưu cài đặt Chấp nhận kết bạn!', 'success');
     }
 
+    // ================================================
+    // AUTO FILE SETUP MODAL
+    // ================================================
+    function showAutoFileSetup() {
+      const trigger = builtInTriggers.autoFile;
+
+      // Populate form
+      document.getElementById('autoFileResponse').value = trigger.response || '';
+      document.getElementById('autoFileEnabled').checked = trigger.enabled;
+
+      document.getElementById('autoFileModal').style.display = 'flex';
+    }
+
+    function hideAutoFileModal() {
+      document.getElementById('autoFileModal').style.display = 'none';
+    }
+
+    function saveAutoFileSetup() {
+      const response = document.getElementById('autoFileResponse').value.trim();
+      const enabled = document.getElementById('autoFileEnabled').checked;
+
+      if (!response && enabled) {
+        showToast('⚠️ Bạn nên nhập nội dung trả lời để trigger hoạt động hiệu quả', 'info');
+      }
+
+      if (!currentUser?.uid) {
+        showToast('❌ Chưa đăng nhập!', 'error');
+        return;
+      }
+
+      // Update state
+      builtInTriggers.autoFile.response = response;
+      builtInTriggers.autoFile.enabled = enabled;
+      builtInTriggers.autoFile.cooldown = 2000;
+
+      // Save to database
+      saveBuiltInTriggerState('builtin_auto_file', builtInTriggers.autoFile);
+
+      // Hide modal and update UI
+      hideAutoFileModal();
+      renderTriggerList();
+      showToast('✅ Đã lưu cài đặt Nhận diện file!', 'success');
+    }
+
     function toggleEmojiPickerForAutoFriend(event) {
       event.stopPropagation();
       const picker = document.getElementById('emojiPickerAutoFriend');
@@ -1559,7 +1649,10 @@
       }
 
       // Xác định triggerKey đặc biệt
-      const specialKey = triggerId === 'builtin_auto_message' ? '__builtin_auto_message__' : '__builtin_auto_friend__';
+      let specialKey = '';
+      if (triggerId === 'builtin_auto_message') specialKey = '__builtin_auto_message__';
+      else if (triggerId === 'builtin_auto_friend') specialKey = '__builtin_auto_friend__';
+      else if (triggerId === 'builtin_auto_file') specialKey = '__builtin_auto_file__';
 
       // Nếu đã có triggerID trong DB, gửi update với đầy đủ data
       if (trigger.triggerID) {
@@ -1567,31 +1660,29 @@
           type: 'update_trigger',
           id: trigger.triggerID,
           updates: {
-            triggerContent: trigger.response || trigger.welcomeMessage || '',
-            enabled: trigger.enabled ? 1 : 0,
-            cooldown: trigger.cooldown || 30000 // Include cooldown in update
+            triggerName: trigger.name,
+            enabled: trigger.enabled,
+            triggerContent: trigger.response || trigger.welcomeMessage,
+            cooldown: trigger.cooldown,
+            triggerKey: specialKey
           }
         }));
       } else {
-        // Chưa có trong DB, tạo mới
-        const newTrigger = {
+        // Tạo mới
+        ws.send(JSON.stringify({
           type: 'create_trigger',
           name: trigger.name,
           triggerKey: specialKey,
           content: trigger.response || trigger.welcomeMessage || '',
           enabled: trigger.enabled,
-          scope: 0,  // Everyone
+          scope: 0,
           uids: [],
-          cooldown: trigger.cooldown || 30000, // Use trigger's cooldown (in ms)
+          cooldown: trigger.cooldown || 30000,
           startTime: '00:00',
           endTime: '23:59',
-          dateStart: null,
-          dateEnd: null,
-          setMode: 0,  // Direct mode
-          userUID: currentUser.uid
-        };
-
-        ws.send(JSON.stringify(newTrigger));
+          userUID: currentUser.uid,
+          keywords: []
+        }));
       }
     }
 
@@ -1860,6 +1951,56 @@
     });
   </script>
   <script src="assets/auto-reconnect.js"></script>
+  <!-- AUTO FILE MODAL -->
+  <div class="modal-overlay" id="autoFileModal" style="display:none; z-index:10002;">
+    <div class="modal" style="width:500px; max-width:90%;">
+      <div class="modal-header">
+        <h3>⚙️ Cài đặt Nhận diện file</h3><button class="modal-close" onclick="hideAutoFileModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:#e3f2fd; border:1px solid #90caf9; padding:12px; border-radius:8px; margin-bottom:16px;">
+          <h4 style="margin:0 0 8px 0; color:#1565c0; font-size:14px;">ℹ️ Hướng dẫn</h4>
+          <p style="margin:0; font-size:12px; line-height:1.5; color:#333;">
+            Tự động trả lời khi nhận được file hoặc ảnh. Bạn có thể cấu hình trả lời riêng cho từng loại file.<br><br>
+            <strong>Cú pháp cấu hình (mỗi dòng một loại):</strong><br>
+            <code
+              style="background:white; padding:2px 4px; border-radius:4px;">xlsx: Nội dung trả lời cho excel</code><br>
+            <code style="background:white; padding:2px 4px; border-radius:4px;">pdf: Nội dung trả lời cho pdf</code><br>
+            <code style="background:white; padding:2px 4px; border-radius:4px;">image: Nội dung khi nhận ảnh</code><br>
+            <code style="background:white; padding:2px 4px; border-radius:4px;">default: Nội dung mặc định</code><br>
+          <div style="margin-top:8px;">
+            <strong>Biến hỗ trợ:</strong>
+            <code style="color:#e91e63;">{name}</code>,
+            <code style="color:#e91e63;">{ext}</code>,
+            <code style="color:#e91e63;">{content}</code> (Đọc nội dung file Excel),
+            <code style="color:#e91e63;">{print}</code> (In PDF, Ảnh, Word, Excel),
+            <code style="color:#e91e63;">{confirm_print}</code> (Hỏi trước khi in)
+          </div>
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="autoFileEnabled" style="width:18px; height:18px; margin-right:8px;">
+            <span style="font-weight:600;">Bật tính năng này</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nội dung trả lời</label>
+          <textarea class="form-input" id="autoFileResponse" rows="8"
+            placeholder="xlsx: Bạn đã gửi file Excel...&#10;pdf: Bạn đã gửi file PDF...&#10;default: Đã nhận được file"></textarea>
+          <div class="trigger-keywords-preview" style="margin-top:6px;">Trả lời khác nhau tùy theo đuôi file nhận được.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="hideAutoFileModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveAutoFileSetup()">Lưu cài đặt</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 
 </html>

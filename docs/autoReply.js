@@ -1,6 +1,11 @@
 // autoReply.js - Auto Reply v4.4 - FIXED CONDITION TO RUN FLOWS
 // Fix: condition chạy flow khác thay vì tìm child blocks
 const triggerDB = require('./triggerDB');
+const fileReader = require('./fileReader');
+const printer = require('./printer');
+const messageDB = require('./messageDB');
+
+const fileBatchMap = new Map(); // senderId -> { files: [], timer: null }
 
 const autoReplyState = {
   enabled: false,
@@ -18,7 +23,9 @@ async function processAutoReply(apiState, message) {
     if (!message || !message.data) return;
 
     const content = message.data.content;
-    if (typeof content !== 'string' || !content.trim()) return;
+    // if (typeof content !== 'string' || !content.trim()) return; // OLD CHECK
+    // Allow objects for file/image detection
+    if (!content) return;
 
     const senderId = message.uidFrom || message.threadId;
     if (!senderId || message.isSelf) return;
@@ -41,22 +48,79 @@ async function processAutoReply(apiState, message) {
     }
 
     const isFriend = apiState.friends?.some(f => f.userId === senderId) || false;
-    console.log(`📨 Message from ${senderId}: "${content.substring(0, 30)}..."`);
+    const logContent = typeof content === 'string' ? content.substring(0, 30) : '[File/Image]';
+    console.log(`📨 Message from ${senderId}: "${logContent}..."`);
 
-    // ========== CHECK PENDING USER INPUT ==========
-    const pendingKey = `${userUID}_${senderId}`;
-    let pendingInput = autoReplyState.pendingInputs.get(pendingKey);
+    // ========== CHECK PENDING USER INPUT (TEXT ONLY) ==========
+    if (typeof content === 'string') {
+      const pendingKey = `${userUID}_${senderId}`;
+      let pendingInput = autoReplyState.pendingInputs.get(pendingKey);
 
-    if (!pendingInput) {
-      const dbState = triggerDB.getInputState(userUID, senderId);
-      if (dbState) {
-        pendingInput = dbState;
+      if (!pendingInput) {
+        const dbState = triggerDB.getInputState(userUID, senderId);
+        if (dbState) {
+          pendingInput = dbState;
+        }
+      }
+
+      if (pendingInput) {
+        console.log(`👂 Has pending input state`);
+        await handleUserInputResponse(apiState, senderId, content, pendingInput, userUID);
+        return;
       }
     }
 
-    if (pendingInput) {
-      console.log(`👂 Has pending input state`);
-      await handleUserInputResponse(apiState, senderId, content, pendingInput, userUID);
+    // ========================================================
+    // FILE / IMAGE DETECTION TRIGGER (__builtin_auto_file__)
+    // ========================================================
+    if (typeof content === 'object') {
+      const allTriggers = triggerDB.getTriggersByUser(userUID);
+      const autoFileTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_file__' && t.enabled === true);
+
+      if (autoFileTrigger) {
+        console.log('📂 Checking Auto File trigger...');
+        let fileType = 'unknown';
+        let fileExt = '';
+
+        // Phân tích loại file
+        // Phân tích loại file
+        if (message.type === 'Image' || (content.href && (content.href.indexOf('photo') > -1 || /\.(jpg|jpeg|png|gif|webp)/i.test(content.href) || content.href.includes('/jpg/') || content.href.includes('/png/')))) {
+          fileType = 'image';
+          fileExt = 'jpg'; // Default for images
+        } else if (content.title || content.filename) {
+          const name = content.title || content.filename || '';
+          const parts = name.split('.');
+          if (parts.length > 1) fileExt = parts.pop().toLowerCase();
+          fileType = 'file';
+        }
+
+        if (fileExt || fileType === 'image') {
+          // GOM BATCH
+          // 1. Prepare file info
+          const fInfo = {
+            url: content.fileUrl || content.url || content.href,
+            type: fileType,
+            ext: fileExt,
+            name: content.title || content.filename || 'unknown',
+            triggerContent: autoFileTrigger.triggerContent || autoFileTrigger.response || '' // Keep config for later check
+          };
+
+          // 2. Add to batch
+          let batch = fileBatchMap.get(senderId) || { files: [], timer: null };
+          batch.files.push(fInfo);
+
+          if (batch.timer) clearTimeout(batch.timer);
+          batch.timer = setTimeout(() => {
+            processFileBatch(apiState, senderId, userUID, fileBatchMap.get(senderId).files);
+            fileBatchMap.delete(senderId);
+          }, 3000); // Wait 3s debounce
+
+          fileBatchMap.set(senderId, batch);
+          return; // Skip immediate reply
+        }
+      }
+
+      // If content is object but not handled by autoFile, return to avoid processing as text
       return;
     }
 
@@ -1433,6 +1497,149 @@ function handleAutoReplyMessage(apiState, ws, msg) {
       return true;
     default:
       return false;
+  }
+}
+
+async function handleUserInputResponse(apiState, senderId, content, pendingInput, userUID) {
+  // 1. CONFIRM PRINT SINGLE
+  if (pendingInput.type === 'CONFIRM_PRINT') {
+    const text = content.toLowerCase().trim();
+    if (['yes', 'y', 'có', 'co', 'ok', 'in', 'đồng ý'].includes(text)) {
+      await sendMessage(apiState, senderId, "✅ Đang tiến hành in...", userUID);
+      try {
+
+        const res = await printer.printFile(pendingInput.fileUrl, pendingInput.fileType);
+        messageDB.logFileActivity(senderId, 'unknown', pendingInput.fileType, 'PRINTED', res.success ? 'SUCCESS' : 'FAIL', res.message);
+        await sendMessage(apiState, senderId, res.message, userUID);
+      } catch (e) {
+        await sendMessage(apiState, senderId, "❌ Lỗi: " + e.message, userUID);
+      }
+    } else {
+      await sendMessage(apiState, senderId, "❌ Đã hủy lệnh in.", userUID);
+    }
+
+    autoReplyState.pendingInputs.delete(`${userUID}_${senderId}`);
+    if (triggerDB.deleteInputState) triggerDB.deleteInputState(userUID, senderId);
+    return;
+  }
+
+  // 2. CONFIRM PRINT BATCH
+  if (pendingInput.type === 'CONFIRM_PRINT_BATCH') {
+    const text = content.toLowerCase().trim();
+    let indicesToPrint = [];
+    let isPrintCommand = false;
+
+    // Case 1: Print All ("in", "yes", "ok"...)
+    if (['yes', 'y', 'có', 'co', 'ok', 'in', 'đồng ý'].includes(text)) {
+      indicesToPrint = pendingInput.files.map((_, i) => i);
+      isPrintCommand = true;
+    }
+    // Case 2: Print specific files ("in 1", "in 1 2"...)
+    else if (text.startsWith('in ')) {
+      const parts = text.substring(3).trim().split(/\s+/);
+      parts.forEach(p => {
+        const idx = parseInt(p) - 1; // 1-based to 0-based
+        if (!isNaN(idx) && idx >= 0 && idx < pendingInput.files.length) {
+          indicesToPrint.push(idx);
+        }
+      });
+      isPrintCommand = true;
+    }
+
+    if (isPrintCommand && indicesToPrint.length > 0) {
+      // Remove duplicates & Sort
+      indicesToPrint = [...new Set(indicesToPrint)].sort((a, b) => a - b);
+
+      await sendMessage(apiState, senderId, `✅ Đang tiến hành in ${indicesToPrint.length} file...`, userUID);
+      let success = 0, fail = 0;
+
+      for (const i of indicesToPrint) {
+        const f = pendingInput.files[i];
+        try {
+          const pType = (f.type === 'image' || ['jpg', 'png', 'jpeg'].includes(f.ext)) ? 'image' : f.ext;
+          // Double check whitelist
+          if (['pdf', 'image', 'doc', 'docx', 'xls', 'xlsx'].includes(pType)) {
+            console.log(`    🖨️ Auto-printing ${pType}...`);
+            const res = await printer.printFile(f.url, pType);
+            messageDB.logFileActivity(senderId, f.name || 'unknown', pType, 'PRINTED', res.success ? 'SUCCESS' : 'FAIL', res.message);
+            if (res.success) success++; else fail++;
+          } else {
+            fail++;
+          }
+        } catch (e) { fail++; }
+      }
+
+      if (fail === 0) await sendMessage(apiState, senderId, "✅ Đã in xong!", userUID);
+      else await sendMessage(apiState, senderId, `⚠️ Đã in ${success} file. Lỗi ${fail} file.`, userUID);
+    } else if (isPrintCommand && indicesToPrint.length === 0) {
+      await sendMessage(apiState, senderId, "⚠️ Không tìm thấy file số bạn chọn. Vui lòng nhập đúng số thứ tự (Ví dụ: In 1).", userUID);
+      return; // Keep state to retry
+    } else {
+      await sendMessage(apiState, senderId, "❌ Đã hủy lệnh in.", userUID);
+    }
+
+    autoReplyState.pendingInputs.delete(`${userUID}_${senderId}`);
+    if (triggerDB.deleteInputState) triggerDB.deleteInputState(userUID, senderId);
+    return;
+  }
+}
+
+async function processFileBatch(apiState, senderId, userUID, files) {
+  if (!files || files.length === 0) return;
+  console.log(`📦 Processing batch of ${files.length} files from ${senderId}`);
+
+  // Build Summary
+  let summary = `Đã nhận ${files.length} file/ảnh:\n`;
+  files.forEach((f, i) => {
+    summary += `${i + 1}. ${f.name} (${f.ext})\n`;
+  });
+
+  // Check if any file needs confirmation
+  let needConfirm = false;
+  let hasPrint = false;
+
+  for (const f of files) {
+    const configLines = (f.triggerContent || '').split('\n');
+    for (const line of configLines) {
+      const parts = line.split(':');
+      if (parts.length >= 2) {
+        const key = parts[0].trim().toLowerCase();
+        const val = parts.slice(1).join(':');
+        if ((key === f.ext || (key === 'image' && f.type === 'image') || key === 'default')) {
+          if (val.includes('{confirm_print}')) needConfirm = true;
+          if (val.includes('{print}')) hasPrint = true;
+        }
+      }
+    }
+  }
+
+  if (needConfirm) {
+    summary += `\n❓ Gõ "In" để in tất cả.\n👉 Gõ "In 1" hoặc "In 1 2" để in file tương ứng.`;
+    const stateKey = `${userUID}_${senderId}`;
+    const stateData = {
+      type: 'CONFIRM_PRINT_BATCH',
+      files: files,
+      timestamp: Date.now()
+    };
+    autoReplyState.pendingInputs.set(stateKey, stateData);
+    if (triggerDB.saveInputState) triggerDB.saveInputState(userUID, senderId, stateData);
+  } else if (hasPrint) {
+    summary += `\n✅ Đang tự động in...`;
+  }
+
+  await sendMessage(apiState, senderId, summary, userUID);
+
+  // If hasPrint && !needConfirm => Auto print all supported
+  if (!needConfirm && hasPrint) {
+    for (const f of files) {
+      try {
+        const pType = (f.type === 'image' || ['jpg', 'png', 'jpeg'].includes(f.ext)) ? 'image' : f.ext;
+        if (['pdf', 'image', 'doc', 'docx', 'xls', 'xlsx'].includes(pType)) {
+          const res = await printer.printFile(f.url, pType);
+          messageDB.logFileActivity(senderId, f.name, pType, 'PRINTED', res.success ? 'SUCCESS' : 'FAIL', res.message);
+        }
+      } catch (e) { }
+    }
   }
 }
 

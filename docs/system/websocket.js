@@ -2,10 +2,15 @@
 const WebSocket = require('ws');
 const { handleAutoReplyMessage } = require('../autoReply.js');
 const { loadFriends } = require('../chat-function/friends');
+const { ThreadType } = require('zca-js');
 const triggerDB = require('../triggerDB');
+const messageDB = require('../messageDB'); // SQLite message storage
 const backup = require('./backup');
 const fs = require('fs');
 const path = require('path');
+
+// ✅ Fix JSON.stringify BigInt error
+BigInt.prototype.toJSON = function () { return this.toString() };
 
 // ============================================
 // FILE TYPE HELPER FUNCTIONS
@@ -102,6 +107,12 @@ backup.initBackup();
 // INIT TRIGGER DATABASE
 // ============================================
 triggerDB.init();
+
+// ============================================
+// INIT MESSAGE DATABASE
+// ============================================
+messageDB.init();
+
 
 // ============================================
 // BROADCAST HELPER
@@ -639,10 +650,16 @@ function startWebSocketServer(apiState, httpServer) {
           }
 
           const triggerData = msg.trigger || {
-            triggerName: msg.keywords?.[0] || 'New Trigger',
-            triggerKey: msg.keywords?.join(',') || '',
-            triggerContent: msg.response || '',
-            enabled: true
+            triggerName: msg.name || msg.triggerName || msg.keywords?.[0] || 'New Trigger',
+            triggerKey: msg.triggerKey || msg.keywords?.join(',') || '',
+            triggerContent: msg.content || msg.triggerContent || msg.response || '',
+            enabled: msg.enabled !== undefined ? msg.enabled : true,
+            cooldown: msg.cooldown || 2000,
+            startTime: msg.startTime,
+            endTime: msg.endTime,
+            dateStart: msg.dateStart,
+            dateEnd: msg.dateEnd,
+            setMode: msg.setMode || 0
           };
 
           // Thêm userUID
@@ -878,13 +895,20 @@ function startWebSocketServer(apiState, httpServer) {
         // GET MESSAGES
         // ============================================
         else if (msg.type === 'get_messages') {
-          const messages = apiState.messageStore.get(msg.uid) || [];
+          // ✅ Load from SQLite first, fallback to memory
+          let messages = messageDB.getMessages(msg.uid, 100);
+
+          // If SQLite empty, try memory store (backward compatibility)
+          if (messages.length === 0) {
+            messages = apiState.messageStore.get(msg.uid) || [];
+          }
+
           ws.send(JSON.stringify({
             type: 'messages_history',
             uid: msg.uid,
             messages: messages
           }));
-          console.log(`📤 Sent ${messages.length} messages for ${msg.uid}`);
+          console.log(`📤 Sent ${messages.length} messages for ${msg.uid} (from ${messages.length > 0 ? 'SQLite' : 'memory'})`);
         }
 
         // ============================================
@@ -893,10 +917,10 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'send_message') {
           (async () => {
             try {
-              const { ThreadType } = require('zca-js');
+              const threadId = /^\d+$/.test(msg.uid) ? BigInt(msg.uid) : msg.uid;
               await apiState.api.sendMessage(
                 { msg: msg.text },
-                msg.uid,
+                threadId,
                 ThreadType.User
               );
 
@@ -905,6 +929,7 @@ function startWebSocketServer(apiState, httpServer) {
                 content: msg.text,
                 timestamp: Date.now(),
                 senderId: apiState.currentUser?.uid,
+                receiverId: msg.uid,
                 isSelf: true
               };
 
@@ -912,6 +937,9 @@ function startWebSocketServer(apiState, httpServer) {
                 apiState.messageStore.set(msg.uid, []);
               }
               apiState.messageStore.get(msg.uid).push(sentMsg);
+
+              // ✅ Save to SQLite
+              messageDB.saveMessage(msg.uid, sentMsg);
 
               // Send to sender (confirmation)
               ws.send(JSON.stringify({
@@ -948,6 +976,121 @@ function startWebSocketServer(apiState, httpServer) {
             type: 'conversation_deleted',
             uid: msg.uid
           }));
+        }
+
+        // ============================================
+        // SEND CHAT IMAGE
+        // ============================================
+        else if (msg.type === 'send_chat_image') {
+          if (!apiState.api) {
+            ws.send(JSON.stringify({ type: 'send_error', error: 'Chưa đăng nhập Zalo' }));
+            return;
+          }
+
+          (async () => {
+            try {
+              console.log(`📤 Sending image to ${msg.uid}: ${msg.fileName}`);
+
+              // Extract base64 data
+              const base64Data = msg.data.split(',')[1];
+              const buffer = Buffer.from(base64Data, 'base64');
+
+              // Save temp file
+              const tempDir = path.join(__dirname, '../data/temp');
+              if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+              const safeName = (msg.fileName || 'image.png').replace(/[^\w.-]/g, '_');
+              const tempPath = path.join(tempDir, `img_${Date.now()}_${safeName}`);
+              fs.writeFileSync(tempPath, buffer);
+
+              // Send via Zalo API
+              // UID BigInt conversion if it's numeric only (for Zalo 2.x stability)
+              const threadId = /^\d+$/.test(msg.uid) ? BigInt(msg.uid) : msg.uid;
+
+              const result = await apiState.api.sendMessage(
+                { msg: '', attachments: [tempPath] },
+                threadId,
+                ThreadType.User
+              );
+
+              // Clean up temp file
+              if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+
+              ws.send(JSON.stringify({
+                type: 'sent_ok',
+                uid: msg.uid,
+                message: {
+                  msgId: result?.msgId || `sent_${Date.now()}`,
+                  content: '[Hình ảnh]',
+                  timestamp: Date.now(),
+                  isSelf: true,
+                  type: 'image'
+                }
+              }));
+
+              console.log(`✅ Image sent to ${msg.uid}`);
+            } catch (err) {
+              console.error('❌ Send image error:', err.message);
+              ws.send(JSON.stringify({ type: 'send_error', error: err.message }));
+            }
+          })();
+        }
+
+        // ============================================
+        // SEND CHAT FILE
+        // ============================================
+        else if (msg.type === 'send_chat_file') {
+          if (!apiState.api) {
+            ws.send(JSON.stringify({ type: 'send_error', error: 'Chưa đăng nhập Zalo' }));
+            return;
+          }
+
+          (async () => {
+            try {
+              console.log(`📤 Sending file to ${msg.uid}: ${msg.fileName}`);
+
+              // Extract base64 data
+              const base64Data = msg.data.split(',')[1];
+              const buffer = Buffer.from(base64Data, 'base64');
+
+              // Save temp file
+              const tempDir = path.join(__dirname, '../data/temp');
+              if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+              const safeName = (msg.fileName || 'file').replace(/[^\w.-]/g, '_');
+              const tempPath = path.join(tempDir, `f_${Date.now()}_${safeName}`);
+              fs.writeFileSync(tempPath, buffer);
+
+              // Send via Zalo API
+              const threadId = /^\d+$/.test(msg.uid) ? BigInt(msg.uid) : msg.uid;
+
+              const result = await apiState.api.sendMessage(
+                { msg: '', attachments: [tempPath] },
+                threadId,
+                ThreadType.User
+              );
+
+              // Clean up temp file
+              if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+
+              ws.send(JSON.stringify({
+                type: 'sent_ok',
+                uid: msg.uid,
+                message: {
+                  msgId: result?.msgId || `sent_${Date.now()}`,
+                  content: `[📎 File: ${msg.fileName}]`,
+                  timestamp: Date.now(),
+                  isSelf: true,
+                  type: 'file'
+                }
+              }));
+
+              console.log(`✅ File sent to ${msg.uid}`);
+            } catch (err) {
+              console.error('❌ Send file error:', err.message);
+              ws.send(JSON.stringify({ type: 'send_error', error: err.message }));
+            }
+          })();
         }
 
         // ============================================
@@ -2489,6 +2632,47 @@ function startWebSocketServer(apiState, httpServer) {
 
           console.log(`🗑️ Deleted ${deleted} templates`);
           ws.send(JSON.stringify({ type: 'templates_deleted', count: deleted }));
+        }
+
+        // ========================================
+        // DASHBOARD STATS & LOGS
+        // ========================================
+        else if (msg.type === 'get_dashboard_stats') {
+          try {
+            const stats = messageDB.getDashboardStats();
+            const topUsers = messageDB.getTopUsers();
+            ws.send(JSON.stringify({
+              type: 'dashboard_stats_response',
+              stats,
+              topUsers
+            }));
+          } catch (e) { console.error('Stats Error:', e); }
+        }
+
+
+        else if (msg.type === 'get_friend_requests') {
+          try {
+            let pending = [];
+            if (apiState.api && typeof apiState.api.getPendingFriendRequests === 'function') {
+              pending = await apiState.api.getPendingFriendRequests();
+            } else if (apiState.api && typeof apiState.api.getFriendRequests === 'function') {
+              pending = await apiState.api.getFriendRequests();
+            }
+            ws.send(JSON.stringify({ type: 'friend_requests_response', requests: pending || [] }));
+          } catch (e) { console.error('Friend Req Error:', e); ws.send(JSON.stringify({ type: 'friend_requests_response', requests: [] })); }
+        }
+
+        else if (msg.type === 'delete_conversation') {
+          const uid = msg.uid;
+          if (uid) {
+            messageDB.deleteConversation(uid);
+            ws.send(JSON.stringify({ type: 'delete_conversation_success', uid }));
+          }
+        }
+
+        else if (msg.type === 'get_file_logs') {
+          const logs = messageDB.getFileLogs();
+          ws.send(JSON.stringify({ type: 'file_logs_response', logs }));
         }
 
         // ========================================

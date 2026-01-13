@@ -3,6 +3,7 @@
 // ✅ FIX: Xử lý nhận ảnh từ user
 const { Zalo } = require('zca-js');
 const { processAutoReply } = require('./autoReply.js');
+const messageDB = require('./messageDB'); // SQLite message storage
 const fs = require('fs');
 const path = require('path');
 
@@ -195,6 +196,9 @@ function setupMessageListener(apiState) {
         }
         apiState.messageStore.get(senderId).push(msgObj);
 
+        // ✅ Lưu vào SQLite
+        messageDB.saveMessage(senderId, msgObj);
+
         // Broadcast tin nhắn mới
         broadcast(apiState, {
           type: 'new_message',
@@ -204,12 +208,12 @@ function setupMessageListener(apiState) {
 
         console.log(`📨 Tin nhắn ${isGroup ? 'nhóm' : ''} từ ${senderId}: ${message.data.content.substring(0, 50)}...`);
 
-        // Check if sender is stranger and auto-accept is enabled
-        if (!isGroup && !msgObj.isSelf && apiState.autoAcceptFriendEnabled) {
+        // Check if sender is stranger and auto-accept/add is enabled
+        if (!isGroup && !msgObj.isSelf) {
           const isFriend = apiState.friends?.some(f => f.userId === senderId);
           if (!isFriend) {
-            console.log(`👥 Stranger detected: ${senderId}, attempting auto-accept...`);
-            autoAcceptFriendRequest(apiState, senderId);
+            console.log(`👥 Stranger detected: ${senderId}, triggering Smart Friend Handler...`);
+            handleSmartFriendRequest(apiState, senderId);
           }
         }
 
@@ -233,8 +237,73 @@ function setupMessageListener(apiState) {
 
         // Xác định loại message
         if (content && typeof content === 'object') {
-          // Image message - check for image properties
-          if (content.href || content.hdUrl || content.normalUrl || content.thumbUrl || content.oriUrl) {
+          // 🔍 DEBUG: Log raw content để xem cấu trúc message
+          console.log('📋 RAW CONTENT:', JSON.stringify(content, null, 2).substring(0, 1000));
+
+          // ✅ Parse params nếu là JSON string
+          let parsedParams = {};
+          if (content.params && typeof content.params === 'string') {
+            try {
+              parsedParams = JSON.parse(content.params);
+            } catch (e) { }
+          }
+
+          // ✅ FILE detection - check title có extension hoặc params có fileExt
+          const hasFileExt = parsedParams.fileExt && !['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(parsedParams.fileExt.toLowerCase());
+          const titleHasExt = content.title && /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|mp3|wav|mp4|avi|txt|csv)$/i.test(content.title);
+
+          if (hasFileExt || titleHasExt || content.fileName || content.fileUrl) {
+            msgObj.type = 'file';
+
+            // Xác định loại file
+            const fileName = content.fileName || content.title || 'unknown';
+            const fileExt = fileName.split('.').pop().toLowerCase();
+
+            // Map extension to type
+            const extTypeMap = {
+              'pdf': 'pdf',
+              'doc': 'word', 'docx': 'word',
+              'xls': 'excel', 'xlsx': 'excel', 'csv': 'excel',
+              'ppt': 'powerpoint', 'pptx': 'powerpoint',
+              'zip': 'archive', 'rar': 'archive', '7z': 'archive',
+              'mp3': 'audio', 'wav': 'audio', 'ogg': 'audio',
+              'mp4': 'video', 'avi': 'video', 'mkv': 'video', 'mov': 'video',
+              'jpg': 'image', 'jpeg': 'image', 'png': 'image', 'gif': 'image', 'webp': 'image'
+            };
+
+            const fileType = extTypeMap[fileExt] || 'other';
+            const fileIcon = {
+              pdf: '📄', word: '📝', excel: '📊', powerpoint: '📽️',
+              archive: '📦', audio: '🎵', video: '🎬', image: '🖼️', other: '📎'
+            }[fileType];
+
+            msgObj.content = `[${fileIcon} File: ${fileName}]`;
+            msgObj.fileData = {
+              fileUrl: content.fileUrl || content.url || content.href || null,
+              fileName: fileName,
+              fileSize: parsedParams.fileSize || content.fileSize || content.totalSize || null,
+              fileType: fileType,
+              fileExt: parsedParams.fileExt || fileExt,
+              checksum: parsedParams.checksum || content.checksum || null,
+              params: content.params || null
+            };
+
+            console.log(`📎 File từ ${senderId}:`);
+            console.log(`   Tên: ${fileName}`);
+            console.log(`   Loại: ${fileType} (${fileExt})`);
+            console.log(`   URL: ${msgObj.fileData.fileUrl || 'N/A'}`);
+            console.log(`   Size: ${content.fileSize || content.totalSize || 'N/A'}`);
+
+            // Broadcast sự kiện nhận file
+            broadcast(apiState, {
+              type: 'file_received',
+              uid: senderId,
+              fileData: msgObj.fileData,
+              msgId: msgObj.msgId
+            });
+          }
+          // ✅ IMAGE message - check for image properties (không có fileName)
+          else if (content.href || content.hdUrl || content.normalUrl || content.thumbUrl || content.oriUrl) {
             msgObj.type = 'image';
             msgObj.content = '[Hình ảnh]';
             msgObj.imageData = {
@@ -257,11 +326,14 @@ function setupMessageListener(apiState) {
             console.log(`   Original URL: ${content.oriUrl || 'N/A'}`);
             console.log(`   Normal URL: ${content.normalUrl || 'N/A'}`);
             console.log(`   Thumb URL: ${content.thumbUrl || 'N/A'}`);
+            console.log(`   Thumb URL: ${content.thumbUrl || 'N/A'}`);
             console.log(`   Best URL: ${msgObj.imageUrl}`);
+
+            // Log Activity
+            messageDB.logFileActivity(senderId, 'image.jpg', 'image', 'RECEIVED', 'SUCCESS', msgObj.imageUrl);
           }
-          // File message
-          // File message - Xử lý đầy đủ các loại file
-          else if (content.fileUrl || content.fileName || content.url || content.href) {
+          // File message - FALLBACK (nếu có url hoặc href nhưng không có các thuộc tính image)
+          else if (content.url || content.href) {
             msgObj.type = 'file';
 
             // Xác định loại file
@@ -301,7 +373,11 @@ function setupMessageListener(apiState) {
             console.log(`   Tên: ${fileName}`);
             console.log(`   Loại: ${fileType} (${fileExt})`);
             console.log(`   URL: ${msgObj.fileData.fileUrl || 'N/A'}`);
+            console.log(`   URL: ${msgObj.fileData.fileUrl || 'N/A'}`);
             console.log(`   Size: ${content.fileSize || content.totalSize || 'N/A'}`);
+
+            // Log Activity
+            messageDB.logFileActivity(senderId, fileName, fileExt, 'RECEIVED', 'SUCCESS', msgObj.fileData.fileUrl);
 
             // Broadcast sự kiện nhận file
             broadcast(apiState, {
@@ -359,6 +435,15 @@ function setupMessageListener(apiState) {
         }
         apiState.messageStore.get(senderId).push(msgObj);
 
+        // ✅ Lưu vào SQLite (bao gồm cả ảnh/file)
+        messageDB.saveMessage(senderId, {
+          ...msgObj,
+          attachmentType: msgObj.type,
+          attachmentPath: msgObj.imageUrl || msgObj.fileData?.fileUrl || null,
+          attachmentName: msgObj.fileData?.fileName || null,
+          attachmentSize: msgObj.fileData?.fileSize || msgObj.imageData?.fileSize || null
+        });
+
         // Broadcast tin nhắn mới
         broadcast(apiState, {
           type: 'new_message',
@@ -376,6 +461,18 @@ function setupMessageListener(apiState) {
             msgId: msgObj.msgId
           });
         }
+
+        // Check if sender is stranger and auto-accept/add is enabled
+        if (!isGroup && !msgObj.isSelf) {
+          const isFriend = apiState.friends?.some(f => f.userId === senderId);
+          if (!isFriend) {
+            console.log(`👥 Stranger detected (Media/File): ${senderId}, triggering Smart Friend Handler...`);
+            handleSmartFriendRequest(apiState, senderId);
+          }
+        }
+
+        // AUTO REPLY FOR FILES/IMAGES
+        processAutoReply(apiState, message);
       }
 
     } catch (err) {
@@ -412,7 +509,7 @@ async function setupFriendRequestListener(apiState) {
       console.log('🔔 Friend request event received:', data);
       const userId = data?.userId || data?.uid || data?.fromUid;
       if (userId) {
-        await autoAcceptFriendRequest(apiState, userId);
+        await handleSmartFriendRequest(apiState, userId);
       }
     });
     console.log('✅ friend_request event listener registered');
@@ -472,7 +569,7 @@ async function checkAndAcceptPendingFriendRequests(apiState) {
         for (const request of pendingRequests) {
           const userId = request.userId || request.uid || request.fromUid || request.id;
           if (userId) {
-            await autoAcceptFriendRequest(apiState, userId);
+            await handleSmartFriendRequest(apiState, userId);
           }
         }
       }
@@ -486,7 +583,7 @@ async function checkAndAcceptPendingFriendRequests(apiState) {
         for (const request of requests) {
           const userId = request.userId || request.uid || request.fromUid || request.id;
           if (userId) {
-            await autoAcceptFriendRequest(apiState, userId);
+            await handleSmartFriendRequest(apiState, userId);
           }
         }
       }
@@ -497,75 +594,149 @@ async function checkAndAcceptPendingFriendRequests(apiState) {
   }
 }
 
-// Helper function to auto-accept friend request from stranger
-async function autoAcceptFriendRequest(apiState, userId) {
+// Helper function to implementation Smart Friend Request (Accept or Add)
+async function handleSmartFriendRequest(apiState, userId) {
   const triggerDB = require('./triggerDB');
 
   if (!apiState.currentUser?.uid) return;
   if (!userId) return;
 
-  // Initialize tracking set to prevent duplicate accepts
-  if (!apiState.acceptedFriendRequests) {
-    apiState.acceptedFriendRequests = new Set();
+  // Initialize tracking
+  if (!apiState.processedSmartFriend) {
+    apiState.processedSmartFriend = new Set();
   }
 
-  // Check if already accepted to avoid duplicates
-  if (apiState.acceptedFriendRequests.has(userId)) {
-    return; // Already processed this user
-  }
+  // Debug Log
+  console.log(`🔍 Smart Friend: Handling ${userId}`);
 
-  // Get auto-accept friend trigger
+  // Prevent spamming requests/accepts in same session? 
+  // Disable cache for testing "bất kì tin nhắn"
+  // if (apiState.processedSmartFriend.has(userId)) {
+  //   console.log(`ℹ️ Smart Friend: Already processed ${userId}`);
+  //   return;
+  // }
+
+  // Get auto-friend trigger
   const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
   const autoFriendTrigger = allTriggers.find(t =>
     t.triggerKey === '__builtin_auto_friend__' &&
     t.enabled === true
   );
 
-  if (!autoFriendTrigger) return;
+  if (!autoFriendTrigger) {
+    console.log('ℹ️ Smart Friend: Trigger disabled or not found');
+    return;
+  }
 
-  // Mark as processed immediately to prevent duplicate attempts
-  apiState.acceptedFriendRequests.add(userId);
+  // Mark processed - WAIT, only mark if ACTION taken?
+  // apiState.processedSmartFriend.add(userId);
 
   try {
-    console.log(`👥 Auto-accepting friend request from: ${userId}`);
+    let pendingRequest = false;
+    let alreadySent = false;
 
-    // Accept friend request
-    await apiState.api.acceptFriendRequest(userId);
-    console.log(`✅ Accepted friend request from: ${userId}`);
+    console.log('🔍 Check Pending Requests...');
 
-    // Send welcome message if configured
-    const welcomeMsg = autoFriendTrigger.triggerContent?.trim();
-    if (welcomeMsg) {
-      // Wait a bit for friend to be added
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    // 1. Check if they sent us a request
+    try {
+      if (typeof apiState.api.getPendingFriendRequests === 'function') {
+        const pending = await apiState.api.getPendingFriendRequests();
+        console.log(`   Pending List: ${pending?.length}`);
+        if (pending && Array.isArray(pending)) {
+          pendingRequest = pending.some(r => (r.userId || r.fromUid || r.id) === userId);
+        }
+      }
+      // Fallback or double check with getFriendRequests
+      if (!pendingRequest && typeof apiState.api.getFriendRequests === 'function') {
+        const reqs = await apiState.api.getFriendRequests();
+        console.log(`   Req List: ${reqs?.length}`);
+        if (reqs && Array.isArray(reqs)) {
+          pendingRequest = reqs.some(r => (r.userId || r.fromUid || r.id) === userId);
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Check pending requests failed:', e.message);
+    }
 
-      // Replace variables
-      const friend = apiState.friends?.find(f => f.userId === userId);
-      const friendName = friend?.displayName || 'bạn';
-      const currentTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    if (pendingRequest) {
+      // ACCEPT
+      console.log(`✅ Found pending request from ${userId}. Accepting...`);
+      await apiState.api.acceptFriendRequest(userId);
+      apiState.processedSmartFriend.add(userId);
 
-      const message = welcomeMsg
-        .replace(/{name}/g, friendName)
-        .replace(/{time}/g, currentTime);
+      // Broadcast
+      broadcast(apiState, { type: 'friend_accepted', userId: userId, timestamp: Date.now() });
 
-      try {
-        // Use sendMessage with correct parameters - threadId for DM is the userId
-        await apiState.api.sendMessage(message, userId);
-        console.log(`📤 Sent welcome message to: ${userId}`);
-      } catch (msgError) {
-        console.error(`⚠️ Could not send welcome message to ${userId}:`, msgError.message);
+      // Send Welcome Message
+      const welcomeMsg = autoFriendTrigger.triggerContent?.trim();
+      if (welcomeMsg) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const friend = apiState.friends?.find(f => f.userId === userId);
+        const friendName = friend?.displayName || 'bạn';
+        const currentTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        const msg = welcomeMsg.replace(/{name}/g, friendName).replace(/{time}/g, currentTime);
+        try { await apiState.api.sendMessage(msg, userId); } catch (e) { }
+      }
+      return;
+    } else {
+      console.log('   No pending request found.');
+    }
+
+    // 2. Check if we ALREADY sent a request
+    try {
+      if (typeof apiState.api.getSentFriendRequest === 'function') {
+        const sent = await apiState.api.getSentFriendRequest();
+        // sent is expected to be object { [uid]: info } or array
+        if (sent) {
+          if (sent[userId]) alreadySent = true;
+          else if (Array.isArray(sent) && sent.some(s => s.userId === userId)) alreadySent = true;
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Check sent requests failed:', e.message);
+    }
+
+    if (alreadySent) {
+      console.log(`ℹ️ Request already sent to ${userId}. Skipping.`);
+      return;
+    }
+
+    // 3. SEND REQUEST
+    console.log(`➕ Sending friend request to ${userId}...`);
+
+    let success = false;
+    const msg = autoFriendTrigger.triggerContent || "Chào bạn, mình kết bạn nhé!";
+
+    // Define potential methods - THỨ TỰ ĐÚNG: (msg, userId) như trong autoReply.js
+    const strategies = [
+      { name: 'sendFriendRequest(msg, uid)', fn: 'sendFriendRequest', args: [msg, userId] },
+      { name: 'addFriend(msg, uid)', fn: 'addFriend', args: [msg, userId] },
+      { name: 'sendFriendRequest(uid, msg)', fn: 'sendFriendRequest', args: [userId, msg] },
+      { name: 'addFriend(uid, msg)', fn: 'addFriend', args: [userId, msg] }
+    ];
+
+    for (const strategy of strategies) {
+      const fn = apiState.api[strategy.fn];
+      if (typeof fn === 'function') {
+        try {
+          console.log(`   Trying ${strategy.name}...`);
+          await fn.apply(apiState.api, strategy.args);
+          console.log(`✅ Friend request sent success!`);
+          apiState.processedSmartFriend.add(userId);
+          success = true;
+          break;
+        } catch (e) {
+          console.warn(`   ⚠️ Method ${strategy.name} failed: ${e.message}`);
+        }
       }
     }
 
-    // Broadcast activity
-    broadcast(apiState, {
-      type: 'friend_accepted',
-      userId: userId,
-      timestamp: Date.now()
-    });
+    if (!success) {
+      console.error('❌ All friend request methods failed. Please check zca-js version or API support.');
+    }
 
   } catch (error) {
-    console.error(`❌ Auto-accept friend error for ${userId}:`, error.message);
+    console.error(`❌ Smart Friend Handler error for ${userId}:`, error.message);
   }
 }
 
@@ -604,6 +775,16 @@ async function loginZalo(apiState) {
       avatar: profile.avatar || `https://graph.zalo.me/v2.0/avatar/${uid}?size=240`
     };
 
+    // Load friends list for Smart Features
+    try {
+      console.log('👥 Loading friends list...');
+      const friendsFn = apiState.api.getFriends;
+      if (typeof friendsFn === 'function') {
+        apiState.friends = await friendsFn();
+        console.log(`✅ Loaded ${apiState.friends?.length || 0} friends.`);
+      }
+    } catch (e) { console.warn('⚠️ Could not load friends:', e.message); }
+
     broadcast(apiState, {
       type: 'current_user',
       user: apiState.currentUser
@@ -622,7 +803,7 @@ module.exports = {
   loginZalo,
   setupMessageListener,
   setupFriendRequestListener,
-  autoAcceptFriendRequest,
+  handleSmartFriendRequest,
   broadcast,
   imageMetadataGetter
 };

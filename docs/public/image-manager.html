@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🖼️ Image Manager Test</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -14,17 +19,20 @@
       padding: 20px;
     }
 
-    .container { max-width: 1400px; margin: 0 auto; }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
 
     .header {
-      background: rgba(255,255,255,0.95);
+      background: rgba(255, 255, 255, 0.95);
       border-radius: 16px;
       padding: 24px 32px;
       margin-bottom: 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     }
 
     .header h1 {
@@ -34,10 +42,28 @@
       -webkit-text-fill-color: transparent;
     }
 
-    .header-stats { display: flex; gap: 24px; font-size: 14px; color: #666; }
-    .header-stats .stat { display: flex; align-items: center; gap: 6px; }
-    .header-stats .stat-value { font-weight: 600; color: #333; }
-    .header-actions { display: flex; gap: 12px; }
+    .header-stats {
+      display: flex;
+      gap: 24px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .header-stats .stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-stats .stat-value {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
 
     .btn {
       padding: 12px 24px;
@@ -56,19 +82,27 @@
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
     }
+
     .btn-primary:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
     }
-    .btn-secondary { background: #f0f0f0; color: #333; }
-    .btn-secondary:hover { background: #e0e0e0; }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
 
     .card {
-      background: rgba(255,255,255,0.95);
+      background: rgba(255, 255, 255, 0.95);
       border-radius: 16px;
       padding: 24px;
       margin-bottom: 24px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     }
 
     .upload-zone {
@@ -80,14 +114,33 @@
       cursor: pointer;
       background: #fafafa;
     }
-    .upload-zone:hover, .upload-zone.dragover {
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
       border-color: #667eea;
       background: #f0f4ff;
     }
-    .upload-zone .icon { font-size: 64px; margin-bottom: 16px; opacity: 0.6; }
-    .upload-zone h3 { font-size: 18px; color: #333; margin-bottom: 8px; }
-    .upload-zone p { font-size: 14px; color: #888; }
-    .upload-zone input[type="file"] { display: none; }
+
+    .upload-zone .icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+
+    .upload-zone h3 {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .upload-zone p {
+      font-size: 14px;
+      color: #888;
+    }
+
+    .upload-zone input[type="file"] {
+      display: none;
+    }
 
     .upload-note {
       margin-top: 12px;
@@ -112,11 +165,13 @@
       transition: all 0.3s ease;
       position: relative;
     }
+
     .image-card:hover {
       border-color: #667eea;
       box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
       transform: translateY(-4px);
     }
+
     .image-card.selected {
       border-color: #11998e;
       box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.2);
@@ -133,19 +188,23 @@
       cursor: zoom-in;
       position: relative;
     }
+
     .image-card .image-preview img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       transition: transform 0.3s;
     }
-    .image-card:hover .image-preview img { transform: scale(1.05); }
+
+    .image-card:hover .image-preview img {
+      transform: scale(1.05);
+    }
 
     .image-card .zoom-hint {
       position: absolute;
       bottom: 8px;
       right: 8px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0, 0, 0, 0.6);
       color: white;
       padding: 4px 8px;
       border-radius: 4px;
@@ -153,13 +212,16 @@
       opacity: 0;
       transition: opacity 0.2s;
     }
-    .image-card:hover .zoom-hint { opacity: 1; }
+
+    .image-card:hover .zoom-hint {
+      opacity: 1;
+    }
 
     .image-card .image-dimensions {
       position: absolute;
       top: 8px;
       left: 8px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0, 0, 0, 0.6);
       color: white;
       padding: 4px 8px;
       border-radius: 4px;
@@ -179,16 +241,26 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       opacity: 0;
       transition: opacity 0.2s;
       z-index: 10;
     }
-    .image-card:hover .select-checkbox,
-    .image-card.selected .select-checkbox { opacity: 1; }
-    .image-card.selected .select-checkbox { background: #11998e; color: white; }
 
-    .image-card .image-info { padding: 12px; }
+    .image-card:hover .select-checkbox,
+    .image-card.selected .select-checkbox {
+      opacity: 1;
+    }
+
+    .image-card.selected .select-checkbox {
+      background: #11998e;
+      color: white;
+    }
+
+    .image-card .image-info {
+      padding: 12px;
+    }
+
     .image-card .image-name {
       font-weight: 600;
       font-size: 14px;
@@ -198,6 +270,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .image-card .image-var {
       font-family: monospace;
       font-size: 12px;
@@ -208,7 +281,11 @@
       display: inline-block;
       margin-bottom: 8px;
     }
-    .image-card .image-meta { font-size: 11px; color: #888; }
+
+    .image-card .image-meta {
+      font-size: 11px;
+      color: #888;
+    }
 
     .image-card .image-actions {
       padding: 8px 12px;
@@ -216,6 +293,7 @@
       display: flex;
       gap: 8px;
     }
+
     .image-card .image-actions button {
       flex: 1;
       padding: 6px;
@@ -225,18 +303,59 @@
       cursor: pointer;
       transition: all 0.2s;
     }
-    .btn-copy { background: #e3f2fd; color: #1976d2; }
-    .btn-copy:hover { background: #bbdefb; }
-    .btn-edit { background: #fff3e0; color: #ef6c00; }
-    .btn-edit:hover { background: #ffe0b2; }
-    .btn-delete { background: #ffebee; color: #c62828; }
-    .btn-delete:hover { background: #ffcdd2; }
 
-    .empty-state { text-align: center; padding: 60px 20px; color: #888; }
-    .empty-state .icon { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+    .btn-copy {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
 
-    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-    .search-box { flex: 1; min-width: 250px; position: relative; }
+    .btn-copy:hover {
+      background: #bbdefb;
+    }
+
+    .btn-edit {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .btn-edit:hover {
+      background: #ffe0b2;
+    }
+
+    .btn-delete {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .btn-delete:hover {
+      background: #ffcdd2;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+    }
+
+    .empty-state .icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+      position: relative;
+    }
+
     .search-box input {
       width: 100%;
       padding: 12px 16px 12px 44px;
@@ -244,7 +363,12 @@
       border-radius: 10px;
       font-size: 14px;
     }
-    .search-box input:focus { outline: none; border-color: #667eea; }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
     .search-box .icon {
       position: absolute;
       left: 14px;
@@ -256,7 +380,10 @@
 
     .modal-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background: rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
@@ -266,7 +393,11 @@
       visibility: hidden;
       transition: all 0.3s ease;
     }
-    .modal-overlay.active { opacity: 1; visibility: visible; }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
 
     .modal {
       background: white;
@@ -278,7 +409,10 @@
       transform: scale(0.9);
       transition: transform 0.3s ease;
     }
-    .modal-overlay.active .modal { transform: scale(1); }
+
+    .modal-overlay.active .modal {
+      transform: scale(1);
+    }
 
     .modal-header {
       padding: 20px 24px;
@@ -287,16 +421,26 @@
       justify-content: space-between;
       align-items: center;
     }
-    .modal-header h2 { font-size: 20px; color: #333; }
+
+    .modal-header h2 {
+      font-size: 20px;
+      color: #333;
+    }
+
     .modal-close {
-      width: 36px; height: 36px;
+      width: 36px;
+      height: 36px;
       border: none;
       background: #f5f5f5;
       border-radius: 50%;
       cursor: pointer;
       font-size: 20px;
     }
-    .modal-body { padding: 24px; }
+
+    .modal-body {
+      padding: 24px;
+    }
+
     .modal-footer {
       padding: 16px 24px;
       border-top: 1px solid #eee;
@@ -305,8 +449,17 @@
       gap: 12px;
     }
 
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
     .form-input {
       width: 100%;
       padding: 12px 16px;
@@ -314,8 +467,18 @@
       border-radius: 10px;
       font-size: 14px;
     }
-    .form-input:focus { outline: none; border-color: #667eea; }
-    .form-hint { font-size: 12px; color: #888; margin-top: 6px; }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: 6px;
+    }
+
     .preview-image {
       width: 100%;
       max-height: 200px;
@@ -325,7 +488,10 @@
       margin-bottom: 16px;
     }
 
-    .upload-progress { margin-top: 20px; }
+    .upload-progress {
+      margin-top: 20px;
+    }
+
     .progress-item {
       background: #f5f5f5;
       border-radius: 8px;
@@ -335,38 +501,99 @@
       align-items: center;
       gap: 12px;
     }
-    .progress-item .thumbnail { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; }
-    .progress-item .info { flex: 1; }
-    .progress-item .name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
-    .progress-bar { height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden; }
-    .progress-bar .fill { height: 100%; background: linear-gradient(135deg, #667eea, #764ba2); transition: width 0.3s; }
-    .progress-item .status { font-size: 12px; color: #888; }
-    .progress-item.success .status { color: #10b981; }
-    .progress-item.error .status { color: #ef4444; }
 
-    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; }
+    .progress-item .thumbnail {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+
+    .progress-item .info {
+      flex: 1;
+    }
+
+    .progress-item .name {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar .fill {
+      height: 100%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      transition: width 0.3s;
+    }
+
+    .progress-item .status {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .progress-item.success .status {
+      color: #10b981;
+    }
+
+    .progress-item.error .status {
+      color: #ef4444;
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 2000;
+    }
+
     .toast {
       background: white;
       padding: 16px 24px;
       border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
       margin-bottom: 12px;
       animation: slideIn 0.3s ease;
       min-width: 300px;
     }
-    .toast.success { border-left: 4px solid #10b981; }
-    .toast.error { border-left: 4px solid #ef4444; }
-    .toast.info { border-left: 4px solid #3b82f6; }
+
+    .toast.success {
+      border-left: 4px solid #10b981;
+    }
+
+    .toast.error {
+      border-left: 4px solid #ef4444;
+    }
+
+    .toast.info {
+      border-left: 4px solid #3b82f6;
+    }
+
     @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
     }
 
     /* ========== LIGHTBOX WITH ZOOM ========== */
     .lightbox {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.95);
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.95);
       display: flex;
       flex-direction: column;
       z-index: 3000;
@@ -374,17 +601,28 @@
       visibility: hidden;
       transition: all 0.3s ease;
     }
-    .lightbox.active { opacity: 1; visibility: visible; }
+
+    .lightbox.active {
+      opacity: 1;
+      visibility: visible;
+    }
 
     .lightbox-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 16px 24px;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       color: white;
     }
-    .lightbox-info { display: flex; align-items: center; gap: 20px; font-size: 14px; }
+
+    .lightbox-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 14px;
+    }
+
     .lightbox-info .name {
       font-weight: 600;
       max-width: 300px;
@@ -392,18 +630,27 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
     .lightbox-info .dimensions {
       font-family: monospace;
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
       padding: 4px 12px;
       border-radius: 4px;
     }
-    .lightbox-info .size { opacity: 0.8; }
-    .lightbox-controls { display: flex; gap: 8px; }
+
+    .lightbox-info .size {
+      opacity: 0.8;
+    }
+
+    .lightbox-controls {
+      display: flex;
+      gap: 8px;
+    }
 
     .lightbox-btn {
-      width: 40px; height: 40px;
-      background: rgba(255,255,255,0.1);
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.1);
       border: none;
       border-radius: 8px;
       color: white;
@@ -414,7 +661,10 @@
       align-items: center;
       justify-content: center;
     }
-    .lightbox-btn:hover { background: rgba(255,255,255,0.2); }
+
+    .lightbox-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
 
     .lightbox-body {
       flex: 1;
@@ -425,13 +675,17 @@
       position: relative;
       cursor: grab;
     }
-    .lightbox-body.dragging { cursor: grabbing; }
+
+    .lightbox-body.dragging {
+      cursor: grabbing;
+    }
 
     .lightbox-image-container {
       position: relative;
       transform-origin: center center;
       transition: transform 0.1s ease-out;
     }
+
     .lightbox-image-container img {
       max-width: none;
       max-height: none;
@@ -442,34 +696,53 @@
 
     .lightbox-footer {
       padding: 12px 24px;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 16px;
     }
-    .zoom-slider { display: flex; align-items: center; gap: 12px; color: white; }
+
+    .zoom-slider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+    }
+
     .zoom-slider input[type="range"] {
       width: 200px;
       height: 4px;
       -webkit-appearance: none;
-      background: rgba(255,255,255,0.3);
+      background: rgba(255, 255, 255, 0.3);
       border-radius: 2px;
       cursor: pointer;
     }
+
     .zoom-slider input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 16px; height: 16px;
+      width: 16px;
+      height: 16px;
       background: white;
       border-radius: 50%;
       cursor: pointer;
     }
-    .zoom-level { font-family: monospace; min-width: 50px; text-align: center; }
-    .lightbox-hint { color: rgba(255,255,255,0.6); font-size: 12px; }
+
+    .zoom-level {
+      font-family: monospace;
+      min-width: 50px;
+      text-align: center;
+    }
+
+    .lightbox-hint {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+    }
 
     .connection-badge {
       position: fixed;
-      bottom: 20px; left: 20px;
+      bottom: 20px;
+      left: 20px;
       padding: 8px 16px;
       border-radius: 20px;
       font-size: 12px;
@@ -479,8 +752,16 @@
       gap: 8px;
       z-index: 100;
     }
-    .connection-badge.connected { background: #d1fae5; color: #059669; }
-    .connection-badge.disconnected { background: #fee2e2; color: #dc2626; }
+
+    .connection-badge.connected {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .connection-badge.disconnected {
+      background: #fee2e2;
+      color: #dc2626;
+    }
 
     .bulk-actions {
       background: linear-gradient(135deg, #667eea, #764ba2);
@@ -492,24 +773,39 @@
       gap: 16px;
       margin-bottom: 20px;
     }
-    .bulk-actions.active { display: flex; }
+
+    .bulk-actions.active {
+      display: flex;
+    }
+
     .bulk-actions button {
       padding: 8px 16px;
       border: none;
       border-radius: 8px;
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
       color: white;
       font-size: 13px;
       cursor: pointer;
     }
 
     @media (max-width: 768px) {
-      .header { flex-direction: column; gap: 16px; text-align: center; }
-      .images-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-      .lightbox-info .name { max-width: 150px; }
+      .header {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+
+      .images-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      }
+
+      .lightbox-info .name {
+        max-width: 150px;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div class="header">
@@ -533,7 +829,8 @@
         <p>Hỗ trợ: JPG, PNG, GIF, WebP (Tối đa 10MB/ảnh)</p>
         <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFileSelect(event)">
       </div>
-      <div class="upload-note">✨ <strong>Chất lượng gốc:</strong> Ảnh được lưu nguyên bản, không nén, không resize.</div>
+      <div class="upload-note">✨ <strong>Chất lượng gốc:</strong> Ảnh được lưu nguyên bản, không nén, không resize.
+      </div>
       <div class="upload-progress" id="uploadProgress"></div>
     </div>
 
@@ -620,7 +917,12 @@
   </div>
 
   <script>
-    var API_BASE_URL = 'http://' + (location.hostname || 'localhost') + ':3000';
+    // Detect environment for API URL
+    var isProduction = location.protocol === 'https:' ||
+      !['localhost', '127.0.0.1'].includes(location.hostname);
+    var API_BASE_URL = isProduction
+      ? (location.protocol + '//' + location.host)
+      : ('http://' + (location.hostname || 'localhost') + ':3000');
     var ws = null;
     var images = [];
     var selectedImages = new Set();
@@ -629,7 +931,7 @@
     var isDragging = false;
     var dragStartX = 0, dragStartY = 0;
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       setupWebSocket();
       setupDragDrop();
       setupLightboxEvents();
@@ -638,24 +940,43 @@
     // Use same port as HTTP server
     function setupWebSocket() {
       try {
-        var wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + (location.hostname || 'localhost') + ':' + WS_PORT;
+        var wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+        // Detect if running on production (HTTPS) or local development
+        var isProduction = location.protocol === 'https:' ||
+          location.hostname.includes('render.com') ||
+          location.hostname.includes('onrender.com') ||
+          !['localhost', '127.0.0.1'].includes(location.hostname);
+
+        // On production, use location.host (no port). On local, use port 3000
+        var wsHost = isProduction ? location.host : (location.hostname || 'localhost') + ':3000';
+        var wsUrl = wsProtocol + '//' + wsHost;
+
+        console.log('🔌 Image Manager connecting to:', wsUrl);
         ws = new WebSocket(wsUrl);
-        ws.onopen = function() {
+        ws.onopen = function () {
+          console.log('✅ WebSocket connected');
           updateConnectionBadge(true);
           ws.send(JSON.stringify({ type: 'get_images' }));
         };
-        ws.onmessage = function(e) {
-          try { handleMessage(JSON.parse(e.data)); } catch(err) {}
+        ws.onmessage = function (e) {
+          try { handleMessage(JSON.parse(e.data)); } catch (err) { console.error('Message error:', err); }
         };
-        ws.onclose = function() {
+        ws.onerror = function (e) {
+          console.error('❌ WebSocket error:', e);
+        };
+        ws.onclose = function () {
+          console.log('⚠️ WebSocket disconnected, reconnecting in 3s...');
           updateConnectionBadge(false);
           setTimeout(setupWebSocket, 3000);
         };
-      } catch(e) {}
+      } catch (e) {
+        console.error('❌ WebSocket setup error:', e);
+      }
     }
 
     function handleMessage(msg) {
-      switch(msg.type) {
+      switch (msg.type) {
         case 'images_list':
           images = msg.images || [];
           renderImages();
@@ -690,16 +1011,16 @@
 
     function setupDragDrop() {
       var zone = document.getElementById('uploadZone');
-      ['dragenter','dragover','dragleave','drop'].forEach(function(e) {
-        zone.addEventListener(e, function(ev) { ev.preventDefault(); ev.stopPropagation(); });
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (e) {
+        zone.addEventListener(e, function (ev) { ev.preventDefault(); ev.stopPropagation(); });
       });
-      ['dragenter','dragover'].forEach(function(e) {
-        zone.addEventListener(e, function() { zone.classList.add('dragover'); });
+      ['dragenter', 'dragover'].forEach(function (e) {
+        zone.addEventListener(e, function () { zone.classList.add('dragover'); });
       });
-      ['dragleave','drop'].forEach(function(e) {
-        zone.addEventListener(e, function() { zone.classList.remove('dragover'); });
+      ['dragleave', 'drop'].forEach(function (e) {
+        zone.addEventListener(e, function () { zone.classList.remove('dragover'); });
       });
-      zone.addEventListener('drop', function(e) { handleFiles(e.dataTransfer.files); });
+      zone.addEventListener('drop', function (e) { handleFiles(e.dataTransfer.files); });
     }
 
     function handleFileSelect(e) {
@@ -713,12 +1034,12 @@
       for (var i = 0; i < files.length; i++) {
         var file = files[i];
         if (!file.type.startsWith('image/')) { toast('❌ ' + file.name + ' không phải ảnh', 'error'); continue; }
-        if (file.size > 10*1024*1024) { toast('❌ ' + file.name + ' quá lớn', 'error'); continue; }
+        if (file.size > 10 * 1024 * 1024) { toast('❌ ' + file.name + ' quá lớn', 'error'); continue; }
         var fid = 'file_' + Date.now() + '_' + i;
-        (function(f, id) {
+        (function (f, id) {
           var tr = new FileReader();
-          tr.onload = function(e) {
-            progress.innerHTML += '<div class="progress-item" id="'+id+'"><img class="thumbnail" src="'+e.target.result+'"><div class="info"><div class="name">'+escapeHtml(f.name)+'</div><div class="progress-bar"><div class="fill" style="width:0%"></div></div></div><div class="status">Đang tải...</div></div>';
+          tr.onload = function (e) {
+            progress.innerHTML += '<div class="progress-item" id="' + id + '"><img class="thumbnail" src="' + e.target.result + '"><div class="info"><div class="name">' + escapeHtml(f.name) + '</div><div class="progress-bar"><div class="fill" style="width:0%"></div></div></div><div class="status">Đang tải...</div></div>';
             uploadOriginalFile(f, id);
           };
           tr.readAsDataURL(f);
@@ -728,7 +1049,7 @@
 
     function uploadOriginalFile(file, fileId) {
       var reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = function (e) {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({
             type: 'upload_image',
@@ -751,7 +1072,7 @@
       if (!item) return;
       item.querySelector('.progress-bar .fill').style.width = pct + '%';
       var st = item.querySelector('.status');
-      if (status === 'success') { item.classList.add('success'); st.textContent = '✅ Hoàn tất'; setTimeout(function(){item.remove();}, 2000); }
+      if (status === 'success') { item.classList.add('success'); st.textContent = '✅ Hoàn tất'; setTimeout(function () { item.remove(); }, 2000); }
       else if (status === 'error') { item.classList.add('error'); st.textContent = '❌ Lỗi'; }
       else { st.textContent = pct + '%'; }
     }
@@ -759,42 +1080,42 @@
     function renderImages() {
       var c = document.getElementById('imagesContainer');
       var s = document.getElementById('searchInput').value.toLowerCase();
-      var f = images.filter(function(i) {
+      var f = images.filter(function (i) {
         if (!s) return true;
-        return (i.name||'').toLowerCase().includes(s) || (i.variableName||'').toLowerCase().includes(s);
+        return (i.name || '').toLowerCase().includes(s) || (i.variableName || '').toLowerCase().includes(s);
       });
       if (f.length === 0) {
-        c.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🖼️</div><h3>'+(images.length===0?'Chưa có ảnh':'Không tìm thấy')+'</h3></div>';
+        c.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🖼️</div><h3>' + (images.length === 0 ? 'Chưa có ảnh' : 'Không tìm thấy') + '</h3></div>';
         return;
       }
-      c.innerHTML = f.map(function(img) {
+      c.innerHTML = f.map(function (img) {
         var sel = selectedImages.has(img.id);
         var url = API_BASE_URL + '/api/images/' + img.id;
         var dim = (img.width && img.height) ? img.width + '×' + img.height : '';
-        return '<div class="image-card'+(sel?' selected':'')+'" data-id="'+img.id+'">'+
-          '<div class="select-checkbox" onclick="toggleSelect(event,'+img.id+')">'+(sel?'✓':'')+'</div>'+
-          (dim?'<div class="image-dimensions">'+dim+'</div>':'')+
-          '<div class="image-preview" onclick="openLightbox('+img.id+')">'+
-            '<img src="'+escapeHtml(url)+'" alt="'+escapeHtml(img.name)+'" loading="lazy">'+
-            '<div class="zoom-hint">🔍 Click để zoom</div>'+
-          '</div>'+
-          '<div class="image-info">'+
-            '<div class="image-name">'+escapeHtml(img.name)+'</div>'+
-            (img.variableName?'<div class="image-var">{'+escapeHtml(img.variableName)+'}</div>':'')+
-            '<div class="image-meta">'+formatFileSize(img.fileSize)+' • '+formatDate(img.createdAt)+'</div>'+
-          '</div>'+
-          '<div class="image-actions">'+
-            '<button class="btn-copy" onclick="copyImageUrl('+img.id+')">📋 Copy</button>'+
-            '<button class="btn-edit" onclick="editImage('+img.id+')">✏️</button>'+
-            '<button class="btn-delete" onclick="deleteImage('+img.id+')">🗑️</button>'+
-          '</div>'+
-        '</div>';
+        return '<div class="image-card' + (sel ? ' selected' : '') + '" data-id="' + img.id + '">' +
+          '<div class="select-checkbox" onclick="toggleSelect(event,' + img.id + ')">' + (sel ? '✓' : '') + '</div>' +
+          (dim ? '<div class="image-dimensions">' + dim + '</div>' : '') +
+          '<div class="image-preview" onclick="openLightbox(' + img.id + ')">' +
+          '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(img.name) + '" loading="lazy">' +
+          '<div class="zoom-hint">🔍 Click để zoom</div>' +
+          '</div>' +
+          '<div class="image-info">' +
+          '<div class="image-name">' + escapeHtml(img.name) + '</div>' +
+          (img.variableName ? '<div class="image-var">{' + escapeHtml(img.variableName) + '}</div>' : '') +
+          '<div class="image-meta">' + formatFileSize(img.fileSize) + ' • ' + formatDate(img.createdAt) + '</div>' +
+          '</div>' +
+          '<div class="image-actions">' +
+          '<button class="btn-copy" onclick="copyImageUrl(' + img.id + ')">📋 Copy</button>' +
+          '<button class="btn-edit" onclick="editImage(' + img.id + ')">✏️</button>' +
+          '<button class="btn-delete" onclick="deleteImage(' + img.id + ')">🗑️</button>' +
+          '</div>' +
+          '</div>';
       }).join('');
     }
 
     function updateStats() {
       document.getElementById('totalImages').textContent = images.length;
-      document.getElementById('totalSize').textContent = formatFileSize(images.reduce(function(s,i){return s+(i.fileSize||0);},0));
+      document.getElementById('totalSize').textContent = formatFileSize(images.reduce(function (s, i) { return s + (i.fileSize || 0); }, 0));
     }
     function filterImages() { renderImages(); }
 
@@ -811,12 +1132,12 @@
     }
     function clearSelection() { selectedImages.clear(); renderImages(); updateBulkActions(); }
     function bulkDelete() {
-      if (!selectedImages.size || !confirm('Xóa '+selectedImages.size+' ảnh?')) return;
-      if (ws) ws.send(JSON.stringify({ type:'delete_images', imageIds:Array.from(selectedImages) }));
+      if (!selectedImages.size || !confirm('Xóa ' + selectedImages.size + ' ảnh?')) return;
+      if (ws) ws.send(JSON.stringify({ type: 'delete_images', imageIds: Array.from(selectedImages) }));
     }
 
     function editImage(id) {
-      var img = images.find(function(i){return i.id===id;});
+      var img = images.find(function (i) { return i.id === id; });
       if (!img) return;
       document.getElementById('editImageId').value = id;
       document.getElementById('editPreview').src = API_BASE_URL + '/api/images/' + id;
@@ -840,13 +1161,13 @@
     }
     function deleteImage(id) {
       if (!confirm('Xóa ảnh này?')) return;
-      if (ws) ws.send(JSON.stringify({ type:'delete_image', imageId:id }));
+      if (ws) ws.send(JSON.stringify({ type: 'delete_image', imageId: id }));
     }
     function copyImageUrl(id) {
-      navigator.clipboard.writeText(API_BASE_URL + '/api/images/' + id).then(function(){toast('📋 Đã copy!','success');});
+      navigator.clipboard.writeText(API_BASE_URL + '/api/images/' + id).then(function () { toast('📋 Đã copy!', 'success'); });
     }
     function refreshImages() {
-      if (ws) { ws.send(JSON.stringify({ type:'get_images' })); toast('🔄 Đang làm mới...','info'); }
+      if (ws) { ws.send(JSON.stringify({ type: 'get_images' })); toast('🔄 Đang làm mới...', 'info'); }
     }
 
     function openModal(id) { document.getElementById(id).classList.add('active'); }
@@ -855,27 +1176,27 @@
     // ========== LIGHTBOX WITH ZOOM ==========
     function setupLightboxEvents() {
       var body = document.getElementById('lightboxBody');
-      body.addEventListener('wheel', function(e) {
+      body.addEventListener('wheel', function (e) {
         e.preventDefault();
         setZoom(currentZoom + (e.deltaY > 0 ? -15 : 15));
       }, { passive: false });
-      body.addEventListener('dblclick', function() {
+      body.addEventListener('dblclick', function () {
         currentZoom === 100 ? setZoom(200) : resetZoom();
       });
-      body.addEventListener('mousedown', function(e) {
+      body.addEventListener('mousedown', function (e) {
         if (e.button !== 0) return;
         isDragging = true;
         dragStartX = e.clientX - panX;
         dragStartY = e.clientY - panY;
         body.classList.add('dragging');
       });
-      document.addEventListener('mousemove', function(e) {
+      document.addEventListener('mousemove', function (e) {
         if (!isDragging) return;
         panX = e.clientX - dragStartX;
         panY = e.clientY - dragStartY;
         updateTransform();
       });
-      document.addEventListener('mouseup', function() {
+      document.addEventListener('mouseup', function () {
         isDragging = false;
         var b = document.getElementById('lightboxBody');
         if (b) b.classList.remove('dragging');
@@ -883,14 +1204,14 @@
     }
 
     function openLightbox(imageId) {
-      var img = images.find(function(i){return i.id===imageId;});
+      var img = images.find(function (i) { return i.id === imageId; });
       if (!img) return;
       var url = API_BASE_URL + '/api/images/' + imageId;
       document.getElementById('lightboxName').textContent = img.name || 'Untitled';
       document.getElementById('lightboxDimensions').textContent = (img.width && img.height) ? img.width + ' × ' + img.height + ' px' : 'Loading...';
       document.getElementById('lightboxSize').textContent = formatFileSize(img.fileSize);
       var limg = document.getElementById('lightboxImg');
-      limg.onload = function() {
+      limg.onload = function () {
         if (!img.width || !img.height) {
           document.getElementById('lightboxDimensions').textContent = limg.naturalWidth + ' × ' + limg.naturalHeight + ' px';
         }
@@ -920,16 +1241,16 @@
       var img = document.getElementById('lightboxImg');
       var body = document.getElementById('lightboxBody');
       if (!img.naturalWidth) return;
-      var scale = Math.min((body.clientWidth-40)/img.naturalWidth, (body.clientHeight-40)/img.naturalHeight, 1) * 100;
+      var scale = Math.min((body.clientWidth - 40) / img.naturalWidth, (body.clientHeight - 40) / img.naturalHeight, 1) * 100;
       panX = 0; panY = 0;
       setZoom(scale);
     }
     function viewOriginal() { panX = 0; panY = 0; setZoom(100); }
     function updateTransform() {
-      document.getElementById('imageContainer').style.transform = 'translate('+panX+'px,'+panY+'px) scale('+(currentZoom/100)+')';
+      document.getElementById('imageContainer').style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + (currentZoom / 100) + ')';
     }
 
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
       var lb = document.getElementById('lightbox').classList.contains('active');
       if (e.key === 'Escape') { lb ? closeLightbox() : closeModal('editModal'); }
       if (lb) {
@@ -941,21 +1262,22 @@
       }
     });
 
-    function escapeHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+    function escapeHtml(s) { return s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : ''; }
     function formatFileSize(b) {
       if (!b) return '0 B';
-      var k = 1024, s = ['B','KB','MB','GB'], i = Math.floor(Math.log(b)/Math.log(k));
-      return (b/Math.pow(k,i)).toFixed(1) + ' ' + s[i];
+      var k = 1024, s = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(b) / Math.log(k));
+      return (b / Math.pow(k, i)).toFixed(1) + ' ' + s[i];
     }
     function formatDate(t) { return t ? new Date(t).toLocaleDateString('vi-VN') : ''; }
     function toast(m, t) {
       var c = document.getElementById('toastContainer');
       var d = document.createElement('div');
-      d.className = 'toast ' + (t||'info');
+      d.className = 'toast ' + (t || 'info');
       d.innerHTML = m;
       c.appendChild(d);
-      setTimeout(function() { d.style.opacity='0'; setTimeout(function(){d.remove();},300); }, 3000);
+      setTimeout(function () { d.style.opacity = '0'; setTimeout(function () { d.remove(); }, 300); }, 3000);
     }
   </script>
 </body>
+
 </html>
