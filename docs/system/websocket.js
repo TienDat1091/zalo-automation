@@ -568,16 +568,32 @@ function startWebSocketServer(apiState, httpServer) {
     console.log('🔌 WebSocket server started on port 8080');
   }
 
-  wss.on('connection', (ws) => {
-    console.log('✅ New WebSocket connection');
+  wss.on('connection', (ws, req) => {
+    // Extract Client IP (support Render/Proxy)
+    let clientIP = req.socket.remoteAddress;
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      clientIP = forwarded.split(',')[0].trim();
+    }
+    ws.clientIP = clientIP;
+
+    console.log(`✅ New WebSocket connection from: ${clientIP}`);
     apiState.clients.add(ws);
 
-    // Send current user info if logged in
+    // Send current user info ONLY if authorized
+    // If authorizedIP is set, MUST match. If null, anyone can connect (but dashboard will claim it).
     if (apiState.currentUser) {
-      ws.send(JSON.stringify({
-        type: 'current_user',
-        user: apiState.currentUser
-      }));
+      if (apiState.authorizedIP && clientIP !== apiState.authorizedIP) {
+        console.log(`🔒 Gating WebSocket info for unauthorized IP: ${clientIP}`);
+        // Do NOT send current_user
+        // Send a message indicating "not authorized" or just let them see QR
+        ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false }));
+      } else {
+        ws.send(JSON.stringify({
+          type: 'current_user',
+          user: apiState.currentUser
+        }));
+      }
 
       // Migrate old data if needed
       migrateOldData(apiState.currentUser.uid);
@@ -592,6 +608,12 @@ function startWebSocketServer(apiState, httpServer) {
         // USER INFO
         // ============================================
         if (msg.type === 'get_current_user') {
+          // IP Gating
+          if (apiState.authorizedIP && ws.clientIP !== apiState.authorizedIP) {
+            ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false }));
+            return;
+          }
+
           if (apiState.currentUser) {
             // Ensure built-in triggers exist for this user
             ensureBuiltInTriggers(apiState.currentUser.uid);

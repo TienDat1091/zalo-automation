@@ -762,7 +762,9 @@ async function loginZalo(apiState) {
     } catch (e) { }
 
     apiState.isLoggedIn = true;
-    console.log('🎉 Đăng nhập thành công!');
+    // Reset authorizedIP so the new user (who just scanned QR) can claim the session
+    apiState.authorizedIP = null;
+    console.log('🎉 Đăng nhập thành công! Session unlocked for new owner.');
     console.log('📷 Image sending:', sharp ? 'ENABLED (sharp loaded)' : 'LIMITED (sharp not installed)');
 
     const uid = apiState.api.getOwnId().toString();
