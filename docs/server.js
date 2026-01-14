@@ -38,8 +38,8 @@ apiState.loginZalo = () => loginZalo(apiState);
 // Simple IP check middleware cho dashboard và protected pages
 app.use((req, res, next) => {
   // Skip cho login page, static files, QR, API endpoints
-  const skipPaths = ['/', '/assets', '/qr.png', '/ping', '/health', '/api/'];
-  if (skipPaths.some(p => req.path.startsWith(p))) {
+  const skipPaths = ['/assets', '/qr.png', '/ping', '/health', '/api/'];
+  if (req.path === '/' || skipPaths.some(p => req.path.startsWith(p))) {
     return next();
   }
 
