@@ -44,8 +44,15 @@ app.use((req, res, next) => {
   }
 
   // Check IP cho dashboard và protected pages
+  const clientIP = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+
+  // Capture IP on first access after login
+  if (apiState.isLoggedIn && !apiState.authorizedIP) {
+    apiState.authorizedIP = clientIP;
+    console.log(`✅ Session locked to IP: ${clientIP}`);
+  }
+
   if (apiState.authorizedIP && apiState.isLoggedIn) {
-    const clientIP = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
 
     if (clientIP !== apiState.authorizedIP) {
       console.log(`⚠️ Unauthorized IP detected: ${clientIP} (Expected: ${apiState.authorizedIP})`);
