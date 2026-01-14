@@ -123,6 +123,12 @@ app.get('/ping', (req, res) => {
   res.json({ pong: true, time: Date.now() });
 });
 
+// Endpoint to get client IP
+app.get('/api/my-ip', (req, res) => {
+  const clientIP = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+  res.json({ ip: clientIP });
+});
+
 // QR code handler - check both working directory and __dirname
 app.get('/qr.png', (req, res) => {
   // zca-js saves qr.png to current working directory

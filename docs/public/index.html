@@ -1,27 +1,35 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Zalo Login</title>
   <link rel="stylesheet" href="assets/style_index.css" />
 </head>
+
 <body>
   <div class="box">
     <h2>🔐 Zalo Login</h2>
     <p class="subtitle">Quét mã QR để đăng nhập</p>
-    
+
     <div class="qr-container">
       <img id="qr" src="/qr.png?t=0" alt="QR Code" />
     </div>
-    
+
     <div class="loading">
       <div class="spinner"></div>
       <span id="statusText">Đang chờ quét mã...</span>
     </div>
-    
+
+    <!-- IP Display -->
+    <div
+      style="margin-top: 15px; font-size: 14px; color: #666; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 8px;">
+      🌐 IP của bạn: <strong id="myIP">Đang kiểm tra...</strong>
+    </div>
+
     <div class="status" id="statusBox" style="display: none;"></div>
-    
+
     <div class="instructions">
       <strong>📱 Hướng dẫn:</strong>
       <ol>
@@ -39,13 +47,25 @@
     const qrImg = document.querySelector('#qr');
     const statusText = document.querySelector('#statusText');
     const statusBox = document.querySelector('#statusBox');
+    const myIpEl = document.querySelector('#myIP');
     let qrRefreshInterval;
+
+    // Fetch Client IP
+    fetch('/api/my-ip')
+      .then(res => res.json())
+      .then(data => {
+        myIpEl.textContent = data.ip;
+        console.log('My IP:', data.ip);
+      })
+      .catch(err => {
+        myIpEl.textContent = 'Không xác định';
+      });
 
     // Xử lý khi WebSocket kết nối
     ws.onopen = () => {
       console.log('✅ Đã kết nối WebSocket');
       updateStatus('Đang chờ quét mã...', 'waiting');
-      
+
       // Auto refresh QR mỗi 3 giây nếu chưa login
       qrRefreshInterval = setInterval(() => {
         if (document.body.dataset.logged !== 'true') {
@@ -56,14 +76,14 @@
 
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      
+
       if (data.type === 'current_user') {
         console.log('✅ Đăng nhập thành công:', data.user.name);
         document.body.dataset.logged = 'true';
         clearInterval(qrRefreshInterval);
-        
+
         updateStatus('✅ Đăng nhập thành công! Đang chuyển hướng...', 'success');
-        
+
         // Chuyển sang dashboard sau 1 giây
         setTimeout(() => {
           const params = new URLSearchParams({
@@ -91,7 +111,7 @@
 
     function updateStatus(message, type) {
       statusText.textContent = message;
-      
+
       if (type === 'success') {
         statusBox.style.display = 'block';
         statusBox.className = 'status success';
@@ -116,4 +136,5 @@
     };
   </script>
 </body>
+
 </html>
