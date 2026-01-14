@@ -29,10 +29,32 @@ const apiState = {
   currentUser: null,
   isLoggedIn: false,
   messageStore: new Map(),
-  clients: new Set()
+  clients: new Set(),
+  authorizedIP: null // IP được authorize khi login thành công
 };
 
 apiState.loginZalo = () => loginZalo(apiState);
+
+// Simple IP check middleware cho dashboard và protected pages
+app.use((req, res, next) => {
+  // Skip cho login page, static files, QR, API endpoints
+  const skipPaths = ['/', '/assets', '/qr.png', '/ping', '/health', '/api/'];
+  if (skipPaths.some(p => req.path.startsWith(p))) {
+    return next();
+  }
+
+  // Check IP cho dashboard và protected pages
+  if (apiState.authorizedIP && apiState.isLoggedIn) {
+    const clientIP = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+
+    if (clientIP !== apiState.authorizedIP) {
+      console.log(`⚠️ Unauthorized IP detected: ${clientIP} (Expected: ${apiState.authorizedIP})`);
+      return res.redirect('/');
+    }
+  }
+
+  next();
+});
 
 // Middleware
 app.use((req, res, next) => {
