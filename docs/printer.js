@@ -1,5 +1,21 @@
-const pdfPrinter = require('pdf-to-printer');
-const imagesToPdf = require('images-to-pdf'); // Requires: npm install images-to-pdf
+// Windows-only modules - optional (chỉ cần cho local printing)
+let pdfPrinter = null;
+let imagesToPdf = null;
+
+try {
+    pdfPrinter = require('pdf-to-printer');
+    console.log('✅ pdf-to-printer loaded (Windows local printing available)');
+} catch (e) {
+    console.log('⚠️ pdf-to-printer not available (Linux/Mac - use print agent instead)');
+}
+
+try {
+    imagesToPdf = require('images-to-pdf');
+    console.log('✅ images-to-pdf loaded');
+} catch (e) {
+    console.log('⚠️ images-to-pdf not available (use print agent instead)');
+}
+
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
