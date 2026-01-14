@@ -9,6 +9,9 @@ const { loadFriends } = require('./chat-function/friends.js');
 
 // Create Express app
 const app = express();
+// Enable trust proxy for Render to get real client IP
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -44,18 +47,26 @@ app.use((req, res, next) => {
   }
 
   // Check IP cho dashboard và protected pages
-  const clientIP = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+  let clientIP = req.ip || req.connection.remoteAddress;
+
+  // Handle x-forwarded-for specifically if needed (trust proxy handles most cases)
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    clientIP = forwarded.split(',')[0].trim();
+  }
+
+  // Debug log
+  // console.log(`🔍 IP Check: Path=${req.path} | IP=${clientIP} | Authorized=${apiState.authorizedIP} | LoggedIn=${apiState.isLoggedIn}`);
 
   // Capture IP on first access after login
   if (apiState.isLoggedIn && !apiState.authorizedIP) {
     apiState.authorizedIP = clientIP;
-    console.log(`✅ Session locked to IP: ${clientIP}`);
+    console.log(`✅ Session LOCKED to IP: ${clientIP} (User: ${apiState.currentUser?.name})`);
   }
 
   if (apiState.authorizedIP && apiState.isLoggedIn) {
-
     if (clientIP !== apiState.authorizedIP) {
-      console.log(`⚠️ Unauthorized IP detected: ${clientIP} (Expected: ${apiState.authorizedIP})`);
+      console.log(`⛔ BLOCKING IP: ${clientIP} (Expected: ${apiState.authorizedIP}) -> Redirecting`);
       return res.redirect('/');
     }
   }
