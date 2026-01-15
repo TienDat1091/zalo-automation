@@ -26,19 +26,56 @@ app.use((req, res, next) => {
   next();
 });
 
-// API state
+const sessionManager = require('./system/SessionManager');
+
+// API state (Legacy/Global fallback)
 const apiState = {
   api: null,
   currentUser: null,
   isLoggedIn: false,
   messageStore: new Map(),
   clients: new Set(),
-  authorizedIP: null // IP được authorize khi login thành công
+  authorizedIP: null
 };
 
-apiState.loginZalo = () => loginZalo(apiState);
+// Start Global Fallback Login (optional, or remove if fully multi-user)
+apiState.loginZalo = async (req) => {
+  // Forward to loginZalo with session if available, else legacy
+  const target = req ? req.zaloSession : apiState;
+  if (target) {
+    return loginZalo(target);
+  }
+};
+
+// Session & Zalo Session Middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'zalo-automation-secret-2026',
+  resave: false,
+  saveUninitialized: true, // Create session for new users
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    secure: false, // Set true if HTTPS
+    httpOnly: true
+  }
+}));
+
+app.use((req, res, next) => {
+  // Attach Zalo Session
+  const sessionId = req.sessionID;
+  if (sessionId) {
+    let zaloSession = sessionManager.getSession(sessionId);
+    if (!zaloSession) {
+      zaloSession = sessionManager.createSession(sessionId);
+    }
+    req.zaloSession = zaloSession;
+    // Debug
+    // console.log(`🔗 Request linked to Session: ${sessionId} (Logged: ${zaloSession.isLoggedIn})`);
+  }
+  next();
+});
 
 // Simple IP check middleware cho dashboard và protected pages
+// Updated to use req.zaloSession instead of global apiState
 app.use((req, res, next) => {
   // Skip cho login page, static files, QR, API endpoints
   const skipPaths = ['/assets', '/qr.png', '/ping', '/health', '/api/'];
@@ -46,35 +83,28 @@ app.use((req, res, next) => {
     return next();
   }
 
-  // Check IP cho dashboard và protected pages
-  let clientIP = req.ip || req.connection.remoteAddress;
+  // Use session specific state
+  const currentState = req.zaloSession || apiState;
 
-  // Handle x-forwarded-for specifically if needed (trust proxy handles most cases)
-  const forwarded = req.headers['x-forwarded-for'];
-  if (forwarded) {
-    clientIP = forwarded.split(',')[0].trim();
-  }
-
-  // Debug log
-  // console.log(`🔍 IP Check: Path=${req.path} | IP=${clientIP} | Authorized=${apiState.authorizedIP} | LoggedIn=${apiState.isLoggedIn}`);
-
-  // Capture IP on first access after login
-  if (apiState.isLoggedIn && !apiState.authorizedIP) {
-    apiState.authorizedIP = clientIP;
-    console.log(`✅ Session LOCKED to IP: ${clientIP} (User: ${apiState.currentUser?.name})`);
-  }
-
-  // BẢO VỆ NGHIÊM NGẶT:
-  // 1. Nếu chưa login -> Redirect về trang chủ
-  if (!apiState.isLoggedIn) {
-    // console.log(`⛔ Access denied (Not logged in): ${clientIP} -> Redirecting`);
+  // STRICT PROTECTION
+  if (!currentState.isLoggedIn) {
     return res.redirect('/');
   }
 
-  // 2. Nếu đã login nhưng sai IP -> Redirect về trang chủ
-  if (apiState.authorizedIP && apiState.isLoggedIn) {
-    if (clientIP !== apiState.authorizedIP) {
-      console.log(`⛔ BLOCKING IP: ${clientIP} (Expected: ${apiState.authorizedIP}) -> Redirecting`);
+  // IP Lock Logic (Scoped to session)
+  let clientIP = req.ip || req.connection.remoteAddress;
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) clientIP = forwarded.split(',')[0].trim();
+
+  // If new session (just logged in), lock IP
+  if (currentState.isLoggedIn && !currentState.authorizedIP) {
+    currentState.authorizedIP = clientIP;
+    console.log(`✅ Session ${req.sessionID} LOCKED to IP: ${clientIP}`);
+  }
+
+  if (currentState.authorizedIP && currentState.isLoggedIn) {
+    if (clientIP !== currentState.authorizedIP) {
+      console.log(`⛔ BLOCKING IP: ${clientIP} for Session ${req.sessionID}`);
       return res.redirect('/');
     }
   }

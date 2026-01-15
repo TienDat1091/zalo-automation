@@ -9,8 +9,15 @@ const backup = require('./backup');
 const fs = require('fs');
 const path = require('path');
 
+const sessionManager = require('./SessionManager');
 // ✅ Fix JSON.stringify BigInt error
 BigInt.prototype.toJSON = function () { return this.toString() };
+
+function getSessionIdFromCookie(cookieString) {
+  if (!cookieString) return null;
+  const match = cookieString.match(/connect\.sid=s%3A([^.]+)/);
+  return match ? match[1] : null;
+}
 
 // ============================================
 // FILE TYPE HELPER FUNCTIONS
@@ -556,7 +563,7 @@ function migrateOldData(userUID) {
 // ============================================
 // WEBSOCKET SERVER
 // ============================================
-function startWebSocketServer(apiState, httpServer) {
+function startWebSocketServer(legacyApiState, httpServer) {
   // If httpServer is provided, attach to it. Otherwise create on port 8080 (fallback)
   const wss = httpServer
     ? new WebSocket.Server({ server: httpServer })
@@ -569,15 +576,29 @@ function startWebSocketServer(apiState, httpServer) {
   }
 
   wss.on('connection', (ws, req) => {
-    // Extract Client IP (support Render/Proxy)
+    // Extract Client IP
     let clientIP = req.socket.remoteAddress;
     const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded) {
-      clientIP = forwarded.split(',')[0].trim();
-    }
-    ws.clientIP = clientIP;
+    if (forwarded) clientIP = forwarded.split(',')[0].trim();
+    ws.clientIP = clientIP; // Store for IP Gating
 
-    console.log(`✅ New WebSocket connection from: ${clientIP}`);
+    // Resolve Session from Cookie
+    const sessionId = getSessionIdFromCookie(req.headers.cookie);
+    let zaloSession = null;
+    if (sessionId) {
+      zaloSession = sessionManager.getSession(sessionId);
+      if (!zaloSession) {
+        zaloSession = sessionManager.createSession(sessionId);
+      }
+    }
+
+    // Attach session to WS
+    ws.zaloSession = zaloSession;
+
+    // Determine which state to use for this connection (Session or Legacy)
+    const apiState = ws.zaloSession || legacyApiState;
+
+    console.log(`✅ New WebSocket connection from: ${clientIP} (Session: ${sessionId || 'None'})`);
     apiState.clients.add(ws);
 
     // Send current user info ONLY if authorized

@@ -743,10 +743,35 @@ async function handleSmartFriendRequest(apiState, userId) {
 // ========================================
 // LOGIN FUNCTION - Với imageMetadataGetter
 // ========================================
-async function loginZalo(apiState) {
-  if (apiState.isLoggedIn) return;
+// Import SessionManager (try/catch for backward compatibility during refactor)
+let sessionManager;
+try {
+  sessionManager = require('./system/SessionManager');
+} catch (e) { console.warn('SessionManager not found'); }
+
+// Main login function
+// Supports both legacy (apiState) and new (session) modes
+async function loginZalo(apiStateOrSession) {
+  const isSessionMode = apiStateOrSession.id !== undefined; // Check if it's a session object
+  const targetState = apiStateOrSession;
+
+  console.log(`🚀 Starting Zalo Login (${isSessionMode ? 'Session Mode: ' + targetState.id : 'Legacy Mode'})`);
+
+  if (sessionManager && sessionManager.isLocked()) {
+    console.warn('⚠️ System is busy with another login (QR generation). Please wait.');
+    throw new Error('System busy. Please try again in 10 seconds.');
+  }
+
+  if (sessionManager) sessionManager.lock();
 
   try {
+    // Check if already logged in
+    if (targetState.api) {
+      console.log('✅ Already logged in!');
+      if (sessionManager) sessionManager.unlock();
+      return targetState.api;
+    }
+
     console.log('🔄 Đang tạo mã QR đăng nhập...');
 
     // ✅ Khởi tạo Zalo với imageMetadataGetter để hỗ trợ gửi ảnh
@@ -754,24 +779,29 @@ async function loginZalo(apiState) {
       imageMetadataGetter: imageMetadataGetter
     });
 
-    apiState.api = await zalo.loginQR();
+    // Login QR (will generate qr.png in CWD)
+    targetState.api = await zalo.loginQR();
 
     // Xóa file QR
     try {
       fs.unlinkSync('qr.png');
     } catch (e) { }
 
-    apiState.isLoggedIn = true;
-    // Reset authorizedIP so the new user (who just scanned QR) can claim the session
-    apiState.authorizedIP = null;
-    console.log('🎉 Đăng nhập thành công! Session unlocked for new owner.');
+    targetState.isLoggedIn = true;
+
+    // Legacy support: reset authorizedIP
+    if (targetState.authorizedIP !== undefined) {
+      targetState.authorizedIP = null;
+    }
+
+    console.log('🎉 Đăng nhập thành công! Session unlocked.');
     console.log('📷 Image sending:', sharp ? 'ENABLED (sharp loaded)' : 'LIMITED (sharp not installed)');
 
-    const uid = apiState.api.getOwnId().toString();
-    const info = await apiState.api.getUserInfo(uid);
+    const uid = targetState.api.getOwnId().toString();
+    const info = await targetState.api.getUserInfo(uid);
     const profile = info.changed_profiles?.[uid] || info;
 
-    apiState.currentUser = {
+    targetState.currentUser = {
       uid,
       name: profile.displayName || profile.zaloName || "Không rõ tên",
       avatar: profile.avatar || `https://graph.zalo.me/v2.0/avatar/${uid}?size=240`
@@ -780,25 +810,57 @@ async function loginZalo(apiState) {
     // Load friends list for Smart Features
     try {
       console.log('👥 Loading friends list...');
-      const friendsFn = apiState.api.getFriends;
+      const friendsFn = targetState.api.getFriends;
       if (typeof friendsFn === 'function') {
-        apiState.friends = await friendsFn();
-        console.log(`✅ Loaded ${apiState.friends?.length || 0} friends.`);
+        targetState.friends = await friendsFn();
+        console.log(`✅ Loaded ${targetState.friends?.length || 0} friends.`);
       }
     } catch (e) { console.warn('⚠️ Could not load friends:', e.message); }
 
-    broadcast(apiState, {
-      type: 'current_user',
-      user: apiState.currentUser
-    });
+    // Setup listeners (Auto reply, etc.)
+    // Note: Listener logic might need adjustment for multi-session
+    // For now, we attach listeners to the session's API instance
 
-    setupMessageListener(apiState);
-    setupFriendRequestListener(apiState);
+    // Broadcast user info to all connected clients OF THIS SESSION
+    if (isSessionMode && targetState.clients) {
+      const json = JSON.stringify({
+        type: 'current_user',
+        user: targetState.currentUser
+      });
+      targetState.clients.forEach(ws => {
+        if (ws.readyState === 1) ws.send(json);
+      });
+    } else {
+      // Legacy broadcast
+      const { broadcast } = require('./system/websocket');
+      // Need to handle circular dependency if broadcast is imported here
+      // Assuming existing code handles it or passed apiState has clients
+      if (targetState.clients) {
+        const json = JSON.stringify({
+          type: 'current_user',
+          user: targetState.currentUser
+        });
+        targetState.clients.forEach(ws => {
+          if (ws.readyState === 1) ws.send(json);
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Login failed:', error);
+    throw error;
+  } finally {
+    if (sessionManager) sessionManager.unlock();
+  }
+}
+
+setupMessageListener(apiState);
+setupFriendRequestListener(apiState);
 
   } catch (err) {
-    console.error('❌ Lỗi login QR:', err.message);
-    setTimeout(() => loginZalo(apiState), 10000);
-  }
+  console.error('❌ Lỗi login QR:', err.message);
+  setTimeout(() => loginZalo(apiState), 10000);
+}
 }
 
 module.exports = {
