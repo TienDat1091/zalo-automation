@@ -114,7 +114,7 @@ app.use((req, res, next) => {
 
   next();
 });
-});
+
 
 // Middleware
 app.use((req, res, next) => {
