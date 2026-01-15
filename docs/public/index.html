@@ -89,14 +89,15 @@
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
 
-      if (data.type === 'current_user') {
-        console.log('✅ Đăng nhập thành công:', data.user.name);
+      // If already logged in, redirect to dashboard
+      if (data.type === 'current_user' && data.user) {
+        console.log('✅ Đã đăng nhập:', data.user.name);
         document.body.dataset.logged = 'true';
         clearInterval(qrRefreshInterval);
 
-        updateStatus('✅ Đăng nhập thành công! Đang chuyển hướng...', 'success');
+        updateStatus('✅ Đã đăng nhập! Đang chuyển hướng...', 'success');
 
-        // Chuyển sang dashboard sau 1 giây
+        // Chuyển sang dashboard ngay
         setTimeout(() => {
           const params = new URLSearchParams({
             name: data.user.name,
