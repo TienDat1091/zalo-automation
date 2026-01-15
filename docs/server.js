@@ -64,6 +64,14 @@ app.use((req, res, next) => {
     console.log(`✅ Session LOCKED to IP: ${clientIP} (User: ${apiState.currentUser?.name})`);
   }
 
+  // BẢO VỆ NGHIÊM NGẶT:
+  // 1. Nếu chưa login -> Redirect về trang chủ
+  if (!apiState.isLoggedIn) {
+    // console.log(`⛔ Access denied (Not logged in): ${clientIP} -> Redirecting`);
+    return res.redirect('/');
+  }
+
+  // 2. Nếu đã login nhưng sai IP -> Redirect về trang chủ
   if (apiState.authorizedIP && apiState.isLoggedIn) {
     if (clientIP !== apiState.authorizedIP) {
       console.log(`⛔ BLOCKING IP: ${clientIP} (Expected: ${apiState.authorizedIP}) -> Redirecting`);
