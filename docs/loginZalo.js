@@ -772,15 +772,16 @@ async function loginZalo(apiState) {
       fs.unlinkSync('qr.png');
     } catch (e) { }
 
-    // 🔄 Handle takeover: Notify old session before switching
-    if (targetState.pendingTakeover) {
-      console.log('🔄 TAKEOVER: New login successful. Disconnecting old session...');
+    // 🔄 SIMPLE RULE: New login = kick out old IP
+    // Notify ALL old clients about forced logout
+    if (targetState.clients && targetState.clients.size > 0) {
+      console.log(`🔄 Kicking out ${targetState.clients.size} old client(s)...`);
 
-      // Notify all old clients about forced logout
       const logoutMsg = JSON.stringify({
         type: 'force_logout',
         message: 'Tài khoản đã được đăng nhập từ thiết bị khác'
       });
+
       targetState.clients.forEach(ws => {
         try {
           if (ws.readyState === 1) ws.send(logoutMsg);
@@ -789,18 +790,14 @@ async function loginZalo(apiState) {
 
       // Clear old clients
       targetState.clients.clear();
-
-      // Switch IP to new user
-      targetState.authorizedIP = targetState.pendingTakeoverIP || null;
-      console.log(`🔒 IP switched to: ${targetState.authorizedIP}`);
-
-      // Clear takeover flags
-      targetState.pendingTakeover = false;
-      targetState.pendingTakeoverIP = null;
-    } else {
-      // Normal login - reset authorizedIP to be captured on first dashboard access
-      targetState.authorizedIP = null;
     }
+
+    // Reset IP - will be locked to first dashboard access
+    targetState.authorizedIP = null;
+
+    // Clear any pending takeover flags
+    targetState.pendingTakeover = false;
+    targetState.pendingTakeoverIP = null;
 
     targetState.isLoggedIn = true;
 
