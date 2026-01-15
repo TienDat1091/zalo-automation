@@ -188,11 +188,64 @@ app.get('/session-locked', (req, res) => {
           Nếu bạn là chủ sở hữu, hãy khởi động lại server để reset IP lock.
         </p>
         <a href="/" class="btn">🏠 Về trang chủ</a>
+        <a href="/force-new-login" class="btn" style="background: #ff6b6b; margin-left: 10px;">🔄 Đăng nhập tài khoản khác</a>
       </div>
     </body>
     </html>
   `);
 });
+
+// 🔄 Force New Login - Reset current session and start fresh QR login
+app.get('/force-new-login', async (req, res) => {
+  console.log('🔄 Force new login requested...');
+
+  // Reset apiState
+  if (apiState.api) {
+    try {
+      // Try to logout if API supports it
+      if (typeof apiState.api.logout === 'function') {
+        await apiState.api.logout();
+      }
+    } catch (e) {
+      console.log('⚠️ Logout API not available:', e.message);
+    }
+  }
+
+  // Reset all state
+  apiState.api = null;
+  apiState.currentUser = null;
+  apiState.isLoggedIn = false;
+  apiState.authorizedIP = null;
+  apiState.messageStore = new Map();
+
+  // Notify all connected clients about logout
+  const logoutMsg = JSON.stringify({ type: 'force_logout', message: 'Session reset by new login' });
+  apiState.clients.forEach(ws => {
+    try {
+      if (ws.readyState === 1) ws.send(logoutMsg);
+    } catch (e) { }
+  });
+
+  console.log('✅ Session reset. Starting new login...');
+
+  // Start new login
+  loginZalo(apiState).catch(err => {
+    console.error('❌ New login failed:', err.message);
+  });
+
+  // Redirect to login page
+  res.redirect('/');
+});
+
+// 📊 API to check session status
+app.get('/api/session-status', (req, res) => {
+  res.json({
+    isLoggedIn: apiState.isLoggedIn,
+    hasUser: !!apiState.currentUser,
+    authorizedIP: apiState.authorizedIP ? '***locked***' : null
+  });
+});
+
 
 
 
