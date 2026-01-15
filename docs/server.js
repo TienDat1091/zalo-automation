@@ -62,35 +62,39 @@ app.use(session({
 
 
 // Simple IP check middleware cho dashboard và protected pages
-// Updated to use req.zaloSession instead of global apiState
+// Single-user mode: use global apiState only
 app.use((req, res, next) => {
   // Skip cho login page, static files, QR, API endpoints
   const skipPaths = ['/assets', '/qr.png', '/ping', '/health', '/api/'];
-  if (req.path === '/' || skipPaths.some(p => req.path.startsWith(p))) {
+
+  // Check if path starts with any skip path (handle query strings too)
+  const pathWithoutQuery = req.path.split('?')[0];
+  if (pathWithoutQuery === '/' || skipPaths.some(p => pathWithoutQuery.startsWith(p))) {
     return next();
   }
 
-  // Use session specific state
-  const currentState = req.zaloSession || apiState;
+  // Use global apiState only (single user mode)
+  const currentState = apiState;
 
   // STRICT PROTECTION
   if (!currentState.isLoggedIn) {
     return res.redirect('/');
   }
 
-  // IP Lock Logic (Scoped to session)
+  // IP Lock Logic
   let clientIP = req.ip || req.connection.remoteAddress;
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) clientIP = forwarded.split(',')[0].trim();
 
-  // If new session (just logged in), lock IP
+  // If just logged in, lock IP
   if (currentState.isLoggedIn && !currentState.authorizedIP) {
     currentState.authorizedIP = clientIP;
-    console.log(`✅ Session ${req.sessionID} LOCKED to IP: ${clientIP}`);
+    console.log(`✅ IP LOCKED to: ${clientIP}`);
   }
 
   next();
 });
+
 
 
 // Middleware
