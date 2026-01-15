@@ -596,6 +596,25 @@ function startWebSocketServer(apiState, httpServer) {
 
       // Migrate old data if needed
       migrateOldData(apiState.currentUser.uid);
+    } else {
+      // 🔄 No current user - start login process if not already running
+      if (!apiState.isLoggedIn && !apiState.loginInProgress) {
+        console.log('📱 No user logged in, starting login process...');
+        apiState.loginInProgress = true;
+
+        const { loginZalo } = require('../loginZalo');
+        loginZalo(apiState)
+          .then(() => {
+            apiState.loginInProgress = false;
+          })
+          .catch(err => {
+            console.error('❌ Auto-login failed:', err.message);
+            apiState.loginInProgress = false;
+          });
+      }
+
+      // Tell client there's no user yet
+      ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false, waitingForQR: true }));
     }
 
     ws.on('message', async (raw) => {
