@@ -112,14 +112,8 @@ app.use((req, res, next) => {
     console.log(`✅ Session ${req.sessionID} LOCKED to IP: ${clientIP}`);
   }
 
-  if (currentState.authorizedIP && currentState.isLoggedIn) {
-    if (clientIP !== currentState.authorizedIP) {
-      console.log(`⛔ BLOCKING IP: ${clientIP} for Session ${req.sessionID}`);
-      return res.redirect('/');
-    }
-  }
-
   next();
+});
 });
 
 // Middleware

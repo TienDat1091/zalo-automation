@@ -743,32 +743,17 @@ async function handleSmartFriendRequest(apiState, userId) {
 // ========================================
 // LOGIN FUNCTION - Với imageMetadataGetter
 // ========================================
-// Import SessionManager (try/catch for backward compatibility during refactor)
-let sessionManager;
-try {
-  sessionManager = require('./system/SessionManager');
-} catch (e) { console.warn('SessionManager not found'); }
 
 // Main login function
-// Supports both legacy (apiState) and new (session) modes
-async function loginZalo(apiStateOrSession) {
-  const isSessionMode = apiStateOrSession.id !== undefined; // Check if it's a session object
-  const targetState = apiStateOrSession;
+async function loginZalo(apiState) {
+  const targetState = apiState; // Use global state directly
 
-  console.log(`🚀 Starting Zalo Login (${isSessionMode ? 'Session Mode: ' + targetState.id : 'Legacy Mode'})`);
-
-  if (sessionManager && sessionManager.isLocked()) {
-    console.warn('⚠️ System is busy with another login (QR generation). Please wait.');
-    throw new Error('System busy. Please try again in 10 seconds.');
-  }
-
-  if (sessionManager) sessionManager.lock();
+  console.log('🚀 Starting Zalo Login (Single-User Mode)');
 
   try {
     // Check if already logged in
     if (targetState.api) {
       console.log('✅ Already logged in!');
-      if (sessionManager) sessionManager.unlock();
       return targetState.api;
     }
 
