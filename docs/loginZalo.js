@@ -773,9 +773,10 @@ async function loginZalo(apiState) {
     } catch (e) { }
 
     // 🔄 SIMPLE RULE: New login = kick out old IP (ONLY if there was a previous session)
-    // Notify old clients about forced logout ONLY if there was an existing authorized IP
+    // Send force_logout to OLD clients (they will disconnect themselves)
+    // DON'T clear clients - new client is waiting to receive current_user broadcast!
     if (targetState.authorizedIP && targetState.clients && targetState.clients.size > 0) {
-      console.log(`🔄 Kicking out ${targetState.clients.size} old client(s) from IP ${targetState.authorizedIP}...`);
+      console.log(`🔄 Sending force_logout to clients from old IP ${targetState.authorizedIP}...`);
 
       const logoutMsg = JSON.stringify({
         type: 'force_logout',
@@ -788,8 +789,8 @@ async function loginZalo(apiState) {
         } catch (e) { }
       });
 
-      // Clear old clients
-      targetState.clients.clear();
+      // NOTE: Don't clear clients here - they will be removed on disconnect
+      // The new client waiting for QR needs to receive the broadcast!
     }
 
     // Reset IP - will be locked to first dashboard access
