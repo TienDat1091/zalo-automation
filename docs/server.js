@@ -40,13 +40,7 @@ const apiState = {
 };
 
 // Start Global Fallback Login (optional, or remove if fully multi-user)
-apiState.loginZalo = async (req) => {
-  // Forward to loginZalo with session if available, else legacy
-  const target = req ? req.zaloSession : apiState;
-  if (target) {
-    return loginZalo(target);
-  }
-};
+// apiState.loginZalo wrapper removed (using direct loginZalo call)
 
 // Session & Zalo Session Middleware
 const isSecure = process.env.RENDER || process.env.NODE_ENV === 'production';
@@ -64,25 +58,8 @@ app.use(session({
   proxy: true // Trust the proxy
 }));
 
-app.use((req, res, next) => {
-  // Attach Zalo Session
-  const sessionId = req.sessionID;
-  const isSetup = req.path.startsWith('/assets') || req.path === '/qr.png';
+// Session attachment middleware removed
 
-  if (sessionId) {
-    let zaloSession = sessionManager.getSession(sessionId);
-    if (!zaloSession) {
-      zaloSession = sessionManager.createSession(sessionId);
-    }
-    req.zaloSession = zaloSession;
-
-    // Debug Login Flow only (reduce noise)
-    if (!isSetup) {
-      console.log(`🔗 Req [${req.method} ${req.path}] -> Session: ${sessionId} | LoggedIn: ${zaloSession.isLoggedIn}`);
-    }
-  }
-  next();
-});
 
 // Simple IP check middleware cho dashboard và protected pages
 // Updated to use req.zaloSession instead of global apiState
