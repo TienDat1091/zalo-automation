@@ -64,8 +64,8 @@ app.use(session({
 // Simple IP check middleware cho dashboard và protected pages
 // Single-user mode: use global apiState only
 app.use((req, res, next) => {
-  // Skip cho login page, static files, QR, API endpoints
-  const skipPaths = ['/assets', '/qr.png', '/ping', '/health', '/api/', '/session-locked'];
+  // Skip cho login page, static files, QR, API endpoints, force-login
+  const skipPaths = ['/assets', '/qr.png', '/ping', '/health', '/api/', '/session-locked', '/force-new-login'];
 
   // Check if path starts with any skip path (handle query strings too)
   const pathWithoutQuery = req.path.split('?')[0];
