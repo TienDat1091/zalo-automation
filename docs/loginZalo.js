@@ -803,11 +803,10 @@ async function loginZalo(apiState) {
     } catch (e) { console.warn('⚠️ Could not load friends:', e.message); }
 
     // Setup listeners (Auto reply, etc.)
-    // Note: Listener logic might need adjustment for multi-session
-    // For now, we attach listeners to the session's API instance
+    // Note: Single-user mode - listeners attached to global apiState
 
-    // Broadcast user info to all connected clients OF THIS SESSION
-    if (isSessionMode && targetState.clients) {
+    // Broadcast user info to all connected clients
+    if (targetState.clients) {
       const json = JSON.stringify({
         type: 'current_user',
         user: targetState.currentUser
@@ -815,20 +814,6 @@ async function loginZalo(apiState) {
       targetState.clients.forEach(ws => {
         if (ws.readyState === 1) ws.send(json);
       });
-    } else {
-      // Legacy broadcast
-      const { broadcast } = require('./system/websocket');
-      // Need to handle circular dependency if broadcast is imported here
-      // Assuming existing code handles it or passed apiState has clients
-      if (targetState.clients) {
-        const json = JSON.stringify({
-          type: 'current_user',
-          user: targetState.currentUser
-        });
-        targetState.clients.forEach(ws => {
-          if (ws.readyState === 1) ws.send(json);
-        });
-      }
     }
 
     // Setup listeners (Auto reply, etc.)
@@ -838,9 +823,8 @@ async function loginZalo(apiState) {
   } catch (error) {
     console.error('❌ Login failed:', error);
     throw error;
-  } finally {
-    if (sessionManager) sessionManager.unlock();
   }
+  // finally block removed - no sessionManager to unlock
 }
 
 module.exports = {
