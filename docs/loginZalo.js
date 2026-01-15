@@ -846,21 +846,16 @@ async function loginZalo(apiStateOrSession) {
       }
     }
 
+    // Setup listeners (Auto reply, etc.)
+    setupMessageListener(targetState);
+    setupFriendRequestListener(targetState);
+
   } catch (error) {
     console.error('❌ Login failed:', error);
     throw error;
   } finally {
     if (sessionManager) sessionManager.unlock();
   }
-}
-
-setupMessageListener(apiState);
-setupFriendRequestListener(apiState);
-
-  } catch (err) {
-  console.error('❌ Lỗi login QR:', err.message);
-  setTimeout(() => loginZalo(apiState), 10000);
-}
 }
 
 module.exports = {
