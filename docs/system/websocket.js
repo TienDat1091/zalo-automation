@@ -15,7 +15,546 @@ const sessionManager = null; // SessionManager removed
 // FILE TYPE HELPER FUNCTIONS
 // ============================================
 
-// ... (Helper functions remain same)
+// ============================================
+// FILE TYPE HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Get file extension from MIME type
+ * @param {string} mimeType - MIME type (e.g., 'image/png')
+ * @returns {string} File extension with dot (e.g., '.png')
+ */
+function getExtFromMime(mimeType) {
+  const mimeToExt = {
+    // Images
+    'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'image/svg+xml': '.svg',
+    'image/bmp': '.bmp',
+    'image/tiff': '.tiff',
+    // Documents
+    'application/pdf': '.pdf',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'application/vnd.ms-powerpoint': '.ppt',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+    // Text
+    'text/plain': '.txt',
+    'text/csv': '.csv',
+    'text/html': '.html',
+    'application/json': '.json',
+    'application/xml': '.xml',
+    // Archives
+    'application/zip': '.zip',
+    'application/x-rar-compressed': '.rar',
+    'application/x-7z-compressed': '.7z',
+    // Audio
+    'audio/mpeg': '.mp3',
+    'audio/wav': '.wav',
+    'audio/ogg': '.ogg',
+    // Video
+    'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/avi': '.avi'
+  };
+  return mimeToExt[mimeType] || '.bin';
+}
+
+/**
+ * Get file type category from MIME type
+ * @param {string} mimeType - MIME type (e.g., 'image/png')
+ * @returns {string} File type category (e.g., 'image', 'document', 'video')
+ */
+function getFileTypeFromMime(mimeType) {
+  if (!mimeType) return 'other';
+
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('text/')) return 'text';
+
+  // Document types
+  if (mimeType.includes('pdf') ||
+    mimeType.includes('word') ||
+    mimeType.includes('excel') ||
+    mimeType.includes('spreadsheet') ||
+    mimeType.includes('powerpoint') ||
+    mimeType.includes('presentation')) {
+    return 'document';
+  }
+
+  // Archive types
+  if (mimeType.includes('zip') ||
+    mimeType.includes('rar') ||
+    mimeType.includes('7z') ||
+    mimeType.includes('tar') ||
+    mimeType.includes('gzip')) {
+    return 'archive';
+  }
+
+  return 'other';
+}
+
+
+// ============================================
+// INIT BACKUP SYSTEM (Before database init)
+// ============================================
+backup.initBackup();
+
+// ============================================
+// INIT TRIGGER DATABASE
+// ============================================
+triggerDB.init();
+
+// ============================================
+// INIT MESSAGE DATABASE
+// ============================================
+messageDB.init();
+
+
+// ============================================
+// BROADCAST HELPER
+// ============================================
+function broadcast(apiState, data) {
+  try {
+    const json = JSON.stringify(data);
+    apiState.clients.forEach(ws => {
+      try {
+        if (ws.readyState === 1) ws.send(json);
+      } catch (e) {
+        // Ignore disconnected clients
+      }
+    });
+  } catch (e) {
+    console.error('❌ Broadcast error:', e.message);
+  }
+}
+
+// ============================================
+// PRINT AGENT MANAGEMENT
+// ============================================
+const printAgents = new Set(); // Lưu các print agent đã kết nối
+
+/**
+ * Gửi lệnh in đến print agent
+ * @param {object} printRequest - { fileUrl, fileName, senderId }
+ * @returns {boolean} - true nếu có print agent nhận lệnh
+ */
+function sendToPrintAgent(printRequest) {
+  const hasAgent = printAgents.size > 0;
+
+  if (!hasAgent) {
+    console.log('⚠️ No print agent connected');
+    return false;
+  }
+
+  const requestId = `print_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const message = JSON.stringify({
+    type: 'print_request',
+    requestId,
+    ...printRequest
+  });
+
+  let sent = false;
+  printAgents.forEach(agent => {
+    try {
+      if (agent.readyState === 1) {
+        agent.send(message);
+        sent = true;
+        console.log(`🖨️ Print request sent to agent: ${printRequest.fileName}`);
+      }
+    } catch (e) {
+      console.error('❌ Failed to send to print agent:', e.message);
+    }
+  });
+
+  return sent;
+}
+
+/**
+ * Kiểm tra có print agent kết nối không
+ * @returns {boolean}
+ */
+function hasPrintAgent() {
+  return printAgents.size > 0;
+}
+
+// ============================================
+// AUTO-CREATE BUILT-IN TRIGGERS
+// ============================================
+function ensureBuiltInTriggers(userUID) {
+  if (!userUID) return;
+
+  const allTriggers = triggerDB.getTriggersByUser(userUID);
+
+  // Check if built-in triggers exist
+  const hasAutoMessage = allTriggers.some(t => t.triggerKey === '__builtin_auto_message__');
+  const hasAutoFriend = allTriggers.some(t => t.triggerKey === '__builtin_auto_friend__');
+
+  // Create Auto Message trigger if not exists
+  if (!hasAutoMessage) {
+    console.log('📌 Creating built-in trigger: Auto Message');
+    triggerDB.createTrigger({
+      triggerName: 'Tự động gửi tin nhắn',
+      triggerKey: '__builtin_auto_message__',
+      triggerContent: 'Xin chào! Tôi sẽ phản hồi bạn sớm nhất có thể.',
+      triggerUserID: userUID,
+      enabled: false,
+      scope: 0,
+      cooldown: 30000,
+      timeStartActive: '00:00',
+      timeEndActive: '23:59',
+      setMode: 0
+    });
+  }
+
+  // Create Auto Accept Friend trigger if not exists
+  if (!hasAutoFriend) {
+    console.log('📌 Creating built-in trigger: Auto Accept Friend');
+    triggerDB.createTrigger({
+      triggerName: 'Chấp nhận kết bạn',
+      triggerKey: '__builtin_auto_friend__',
+      triggerContent: 'Chào bạn! Cảm ơn bạn đã kết bạn với mình.',
+      triggerUserID: userUID,
+      enabled: false,
+      scope: 0,
+      cooldown: 30000,
+      timeStartActive: '00:00',
+      timeEndActive: '23:59',
+      setMode: 0
+    });
+  }
+}
+
+// ============================================
+// FILE CONTENT READER - Đọc nội dung file để preview
+// ============================================
+function readFileContentForPreview(filePath, mimeType, fileType) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    return null;
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+
+  // Text files - đọc trực tiếp
+  if (['.txt', '.csv', '.json', '.html', '.xml', '.md', '.js', '.css', '.log'].includes(ext)) {
+    try {
+      return fs.readFileSync(filePath, 'utf-8');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Word document (.docx)
+  if (ext === '.docx') {
+    try {
+      const AdmZip = require('adm-zip');
+      const zip = new AdmZip(filePath);
+      const docXml = zip.readAsText('word/document.xml');
+
+      // Extract text từ XML
+      const textContent = docXml
+        .replace(/<w:p[^>]*>/g, '\n')
+        .replace(/<w:tab[^>]*>/g, '\t')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+
+      return textContent || '[Không có nội dung văn bản]';
+    } catch (e) {
+      return '[Không thể đọc file Word: ' + e.message + ']';
+    }
+  }
+
+  // Excel (.xlsx)
+  if (ext === '.xlsx' || ext === '.xls') {
+    try {
+      const XLSX = require('xlsx');
+      const workbook = XLSX.readFile(filePath);
+      let content = '';
+
+      workbook.SheetNames.forEach((sheetName, idx) => {
+        if (idx > 0) content += '\n\n';
+        content += '=== Sheet: ' + sheetName + ' ===\n';
+        const sheet = workbook.Sheets[sheetName];
+        content += XLSX.utils.sheet_to_csv(sheet);
+      });
+
+      return content || '[Không có dữ liệu]';
+    } catch (e) {
+      return '[Không thể đọc file Excel: ' + e.message + ']';
+    }
+  }
+
+  // PDF
+  if (ext === '.pdf') {
+    return '[File PDF - Vui lòng tải xuống để xem nội dung]';
+  }
+
+  // Image files
+  if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'].includes(ext)) {
+    return '[File hình ảnh - Vui lòng tải xuống để xem]';
+  }
+
+  // Archive files
+  if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(ext)) {
+    return '[File nén - Vui lòng tải xuống để xem nội dung]';
+  }
+
+  // Other binary files
+  return '[File nhị phân - Vui lòng tải xuống để xem]';
+}
+
+// ============================================
+// AI TEST CONNECTION
+// ============================================
+async function testAIConnection(ws, params) {
+  const { provider, model, apiKey, endpoint, prompt, systemPrompt, temperature, maxTokens, configId, isPlaygroundTest } = params;
+  const startTime = Date.now();
+
+  console.log(`🧠 Testing AI: ${provider} / ${model}`);
+
+  try {
+    let response, tokens;
+
+    switch (provider) {
+      case 'gemini':
+        response = await testGemini(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+        break;
+      case 'openai':
+        response = await testOpenAI(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+        break;
+      case 'claude':
+        response = await testClaude(apiKey, model, prompt, systemPrompt, temperature, maxTokens);
+        break;
+      case 'custom':
+        response = await testCustomAPI(apiKey, model, endpoint, prompt, systemPrompt, temperature, maxTokens);
+        break;
+      default:
+        throw new Error('Unknown provider: ' + provider);
+    }
+
+    const duration = Date.now() - startTime;
+    console.log(`✅ AI test success (${duration}ms)`);
+
+    // Update config status if configId provided
+    if (configId) {
+      triggerDB.updateAIConfigStatus(configId, 'connected');
+    }
+
+    ws.send(JSON.stringify({
+      type: 'ai_test_result',
+      success: true,
+      response: response.text,
+      tokens: response.tokens,
+      duration: duration,
+      configId: configId,
+      isPlaygroundTest: isPlaygroundTest
+    }));
+
+  } catch (error) {
+    console.error(`❌ AI test failed: ${error.message}`);
+
+    // Update config status if configId provided
+    if (configId) {
+      triggerDB.updateAIConfigStatus(configId, 'error');
+    }
+
+    ws.send(JSON.stringify({
+      type: 'ai_test_result',
+      success: false,
+      error: error.message,
+      configId: configId,
+      isPlaygroundTest: isPlaygroundTest
+    }));
+  }
+}
+
+// Test Google Gemini
+async function testGemini(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+
+  const modelName = model || 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+  const requestBody = {
+    contents: [{
+      parts: [{ text: prompt }]
+    }],
+    generationConfig: {
+      temperature: temperature || 0.7,
+      maxOutputTokens: maxTokens || 1024
+    }
+  };
+
+  // Add system instruction if provided
+  if (systemPrompt) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemPrompt }]
+    };
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody)
+  });
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(data.error.message || 'Gemini API error');
+  }
+
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const tokens = data.usageMetadata?.totalTokenCount || null;
+
+  return { text, tokens };
+}
+
+// Test OpenAI
+async function testOpenAI(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+
+  const modelName = model || 'gpt-3.5-turbo';
+  const url = 'https://api.openai.com/v1/chat/completions';
+
+  const messages = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: prompt });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: messages,
+      temperature: temperature || 0.7,
+      max_tokens: maxTokens || 1024
+    })
+  });
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(data.error.message || 'OpenAI API error');
+  }
+
+  const text = data.choices?.[0]?.message?.content || '';
+  const tokens = data.usage?.total_tokens || null;
+
+  return { text, tokens };
+}
+
+// Test Anthropic Claude
+async function testClaude(apiKey, model, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+
+  const modelName = model || 'claude-3-haiku-20240307';
+  const url = 'https://api.anthropic.com/v1/messages';
+
+  const requestBody = {
+    model: modelName,
+    max_tokens: maxTokens || 1024,
+    messages: [{ role: 'user', content: prompt }]
+  };
+
+  if (systemPrompt) {
+    requestBody.system = systemPrompt;
+  }
+
+  if (temperature !== undefined) {
+    requestBody.temperature = temperature;
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(data.error.message || 'Claude API error');
+  }
+
+  const text = data.content?.[0]?.text || '';
+  const tokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
+
+  return { text, tokens: tokens || null };
+}
+
+// Test Custom API (OpenAI-compatible)
+async function testCustomAPI(apiKey, model, endpoint, prompt, systemPrompt, temperature, maxTokens) {
+  const fetch = require('node-fetch');
+
+  if (!endpoint) {
+    throw new Error('Custom endpoint is required');
+  }
+
+  const messages = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: prompt });
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model || 'default',
+      messages: messages,
+      temperature: temperature || 0.7,
+      max_tokens: maxTokens || 1024
+    })
+  });
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(data.error.message || 'API error');
+  }
+
+  // Try to parse response in OpenAI format
+  const text = data.choices?.[0]?.message?.content || data.response || data.text || JSON.stringify(data);
+  const tokens = data.usage?.total_tokens || null;
+
+  return { text, tokens };
+}
+
+// ============================================
+// MIGRATE OLD JSON DATA (nếu có)
+// ============================================
+function migrateOldData(userUID) {
+  const oldFilePath = path.join(__dirname, '..', 'data', 'triggers', `triggers_${userUID}.json`);
+  if (fs.existsSync(oldFilePath)) {
+    console.log('🔄 Found old JSON data, migrating to SQLite...');
+    triggerDB.migrateFromJSON(oldFilePath, userUID);
+  }
+}
 
 // ============================================
 // WEBSOCKET SERVER
