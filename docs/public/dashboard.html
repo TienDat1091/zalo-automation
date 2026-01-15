@@ -483,6 +483,16 @@
 
   <script src="assets/websocket-helper.js"></script>
   <script>
+    // ========== 🔒 CLEAN URL - Ẩn thông tin nhạy cảm ==========
+    (function () {
+      // Xóa query string khỏi URL ngay lập tức
+      if (window.location.search) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        console.log('🔒 URL cleaned - sensitive params removed');
+      }
+    })();
+
     // ========== GLOBAL VARIABLES ==========
     const ITEM_HEIGHT = 74;
     const BUFFER_SIZE = 20;
