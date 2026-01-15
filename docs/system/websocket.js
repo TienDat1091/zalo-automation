@@ -601,6 +601,37 @@ function startWebSocketServer(legacyApiState, httpServer) {
     console.log(`✅ New WebSocket connection from: ${clientIP} (Session: ${sessionId || 'None'})`);
     apiState.clients.add(ws);
 
+    // Explicit login request handler (Multi-User)
+    ws.on('message', async (raw) => {
+      try {
+        const msg = JSON.parse(raw);
+        if (msg.type === 'request_login') {
+          console.log(`📥 Client requested login (Session: ${apiState.id || 'Legacy'})`);
+
+          // Only start login if not already logged in
+          if (!apiState.isLoggedIn) {
+            try {
+              // Dynamically import loginZalo to avoid circular dependency issues if any
+              const { loginZalo } = require('../loginZalo');
+
+              // This will hold the lock and generate QR
+              // Error if busy -> catch below
+              loginZalo(apiState).catch(err => {
+                console.error("Login trigger failed:", err.message);
+                ws.send(JSON.stringify({ type: 'login_error', message: err.message }));
+              });
+
+              ws.send(JSON.stringify({ type: 'login_started' }));
+            } catch (e) {
+              console.error("Require loginZalo failed:", e);
+            }
+          } else {
+            ws.send(JSON.stringify({ type: 'current_user', user: apiState.currentUser }));
+          }
+        }
+      } catch (e) { }
+    });
+
     // Send current user info ONLY if authorized
     // If authorizedIP is set, MUST match. If null, anyone can connect (but dashboard will claim it).
     if (apiState.currentUser) {
