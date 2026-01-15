@@ -65,7 +65,7 @@ app.use(session({
 // Single-user mode: use global apiState only
 app.use((req, res, next) => {
   // Skip cho login page, static files, QR, API endpoints
-  const skipPaths = ['/assets', '/qr.png', '/ping', '/health', '/api/'];
+  const skipPaths = ['/assets', '/qr.png', '/ping', '/health', '/api/', '/session-locked'];
 
   // Check if path starts with any skip path (handle query strings too)
   const pathWithoutQuery = req.path.split('?')[0];
@@ -76,7 +76,7 @@ app.use((req, res, next) => {
   // Use global apiState only (single user mode)
   const currentState = apiState;
 
-  // STRICT PROTECTION
+  // STRICT PROTECTION - Not logged in
   if (!currentState.isLoggedIn) {
     return res.redirect('/');
   }
@@ -86,14 +86,114 @@ app.use((req, res, next) => {
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) clientIP = forwarded.split(',')[0].trim();
 
-  // If just logged in, lock IP
+  // If just logged in, lock IP to first accessor
   if (currentState.isLoggedIn && !currentState.authorizedIP) {
     currentState.authorizedIP = clientIP;
-    console.log(`✅ IP LOCKED to: ${clientIP}`);
+    console.log(`🔒 IP LOCKED to: ${clientIP}`);
+  }
+
+  // 🛡️ BLOCK unauthorized IPs
+  if (currentState.authorizedIP && clientIP !== currentState.authorizedIP) {
+    console.log(`⛔ BLOCKED IP: ${clientIP} (Authorized: ${currentState.authorizedIP})`);
+    return res.redirect('/session-locked');
   }
 
   next();
 });
+
+// 🔒 Session Locked Page - Show when unauthorized IP tries to access
+app.get('/session-locked', (req, res) => {
+  let clientIP = req.ip || req.connection.remoteAddress;
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) clientIP = forwarded.split(',')[0].trim();
+
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>🔒 Session Locked</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+        }
+        .container {
+          text-align: center;
+          padding: 40px;
+          max-width: 500px;
+        }
+        .lock-icon {
+          font-size: 80px;
+          margin-bottom: 20px;
+          animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-10px); }
+          75% { transform: translateX(10px); }
+        }
+        h1 {
+          font-size: 28px;
+          margin-bottom: 16px;
+          color: #ff6b6b;
+        }
+        p {
+          font-size: 16px;
+          opacity: 0.9;
+          margin-bottom: 20px;
+          line-height: 1.6;
+        }
+        .ip-info {
+          background: rgba(255,255,255,0.1);
+          padding: 15px;
+          border-radius: 10px;
+          margin: 20px 0;
+          font-family: monospace;
+          font-size: 14px;
+        }
+        .btn {
+          display: inline-block;
+          padding: 12px 30px;
+          background: #4CAF50;
+          color: white;
+          text-decoration: none;
+          border-radius: 25px;
+          font-weight: 600;
+          transition: all 0.3s;
+          margin-top: 20px;
+        }
+        .btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="lock-icon">🔒</div>
+        <h1>Session Đã Bị Khóa</h1>
+        <p>Phiên làm việc này đã được khóa cho một thiết bị khác. Bạn không thể truy cập từ IP hiện tại.</p>
+        <div class="ip-info">
+          📍 IP của bạn: <strong>${clientIP}</strong>
+        </div>
+        <p style="font-size: 14px; opacity: 0.7;">
+          Nếu bạn là chủ sở hữu, hãy khởi động lại server để reset IP lock.
+        </p>
+        <a href="/" class="btn">🏠 Về trang chủ</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 
 
 
