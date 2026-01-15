@@ -49,28 +49,37 @@ apiState.loginZalo = async (req) => {
 };
 
 // Session & Zalo Session Middleware
+const isSecure = process.env.RENDER || process.env.NODE_ENV === 'production';
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'zalo-automation-secret-2026',
   resave: false,
   saveUninitialized: true, // Create session for new users
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
-    secure: false, // Set true if HTTPS
-    httpOnly: true
-  }
+    secure: isSecure ? true : false, // Secure MUST be true on Render (HTTPS)
+    httpOnly: true,
+    sameSite: 'lax'
+  },
+  proxy: true // Trust the proxy
 }));
 
 app.use((req, res, next) => {
   // Attach Zalo Session
   const sessionId = req.sessionID;
+  const isSetup = req.path.startsWith('/assets') || req.path === '/qr.png';
+
   if (sessionId) {
     let zaloSession = sessionManager.getSession(sessionId);
     if (!zaloSession) {
       zaloSession = sessionManager.createSession(sessionId);
     }
     req.zaloSession = zaloSession;
-    // Debug
-    // console.log(`🔗 Request linked to Session: ${sessionId} (Logged: ${zaloSession.isLoggedIn})`);
+
+    // Debug Login Flow only (reduce noise)
+    if (!isSetup) {
+      console.log(`🔗 Req [${req.method} ${req.path}] -> Session: ${sessionId} | LoggedIn: ${zaloSession.isLoggedIn}`);
+    }
   }
   next();
 });
