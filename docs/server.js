@@ -188,7 +188,6 @@ app.get('/session-locked', (req, res) => {
           Nếu bạn là chủ sở hữu, hãy khởi động lại server để reset IP lock.
         </p>
         <a href="/" class="btn">🏠 Về trang chủ</a>
-        <a href="/force-new-login" class="btn" style="background: #ff6b6b; margin-left: 10px;">🔄 Đăng nhập tài khoản khác</a>
       </div>
     </body>
     </html>
