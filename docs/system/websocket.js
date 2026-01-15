@@ -604,6 +604,28 @@ function startWebSocketServer(apiState, httpServer) {
         // console.log('📨 WebSocket message:', msg.type); // Optional log
 
         // ============================================
+        // TAKEOVER LOGIN REQUEST - Generate new QR for session takeover
+        // ============================================
+        if (msg.type === 'request_takeover_login') {
+          console.log('🔄 Takeover login request received - starting new QR...');
+
+          // Import loginZalo dynamically
+          const { loginZalo } = require('../loginZalo');
+
+          // Start new login (old session still running, will switch on success)
+          loginZalo(apiState).catch(err => {
+            console.error('❌ Takeover login failed:', err.message);
+            ws.send(JSON.stringify({
+              type: 'login_error',
+              message: 'Không thể tạo QR mới: ' + err.message
+            }));
+          });
+
+          ws.send(JSON.stringify({ type: 'takeover_login_started' }));
+          return;
+        }
+
+        // ============================================
         // USER INFO
         // ============================================
         if (msg.type === 'get_current_user') {

@@ -66,6 +66,18 @@
       console.log('✅ Đã kết nối WebSocket');
       updateStatus('Đang chờ quét mã...', 'waiting');
 
+      // Check if this is a takeover login request
+      const urlParams = new URLSearchParams(window.location.search);
+      const isTakeover = urlParams.get('takeover') === 'pending';
+
+      if (isTakeover) {
+        console.log('🔄 Takeover mode - requesting new QR...');
+        updateStatus('🔄 Đang tạo mã QR mới...', 'waiting');
+        ws.send(JSON.stringify({ type: 'request_takeover_login' }));
+        // Clean URL
+        window.history.replaceState({}, document.title, '/');
+      }
+
       // Auto refresh QR mỗi 3 giây nếu chưa login
       qrRefreshInterval = setInterval(() => {
         if (document.body.dataset.logged !== 'true') {

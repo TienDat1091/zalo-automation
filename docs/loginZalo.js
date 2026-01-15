@@ -772,14 +772,39 @@ async function loginZalo(apiState) {
       fs.unlinkSync('qr.png');
     } catch (e) { }
 
-    targetState.isLoggedIn = true;
+    // 🔄 Handle takeover: Notify old session before switching
+    if (targetState.pendingTakeover) {
+      console.log('🔄 TAKEOVER: New login successful. Disconnecting old session...');
 
-    // Legacy support: reset authorizedIP
-    if (targetState.authorizedIP !== undefined) {
+      // Notify all old clients about forced logout
+      const logoutMsg = JSON.stringify({
+        type: 'force_logout',
+        message: 'Tài khoản đã được đăng nhập từ thiết bị khác'
+      });
+      targetState.clients.forEach(ws => {
+        try {
+          if (ws.readyState === 1) ws.send(logoutMsg);
+        } catch (e) { }
+      });
+
+      // Clear old clients
+      targetState.clients.clear();
+
+      // Switch IP to new user
+      targetState.authorizedIP = targetState.pendingTakeoverIP || null;
+      console.log(`🔒 IP switched to: ${targetState.authorizedIP}`);
+
+      // Clear takeover flags
+      targetState.pendingTakeover = false;
+      targetState.pendingTakeoverIP = null;
+    } else {
+      // Normal login - reset authorizedIP to be captured on first dashboard access
       targetState.authorizedIP = null;
     }
 
-    console.log('🎉 Đăng nhập thành công! Session unlocked.');
+    targetState.isLoggedIn = true;
+
+    console.log('🎉 Đăng nhập thành công! Session ready.');
     console.log('📷 Image sending:', sharp ? 'ENABLED (sharp loaded)' : 'LIMITED (sharp not installed)');
 
     const uid = targetState.api.getOwnId().toString();
