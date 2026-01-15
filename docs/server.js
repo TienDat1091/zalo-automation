@@ -27,7 +27,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const sessionManager = require('./system/SessionManager');
+const sessionManager = null; // SessionManager removed
 
 // API state (Legacy/Global fallback)
 const apiState = {
