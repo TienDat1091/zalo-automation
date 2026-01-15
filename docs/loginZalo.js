@@ -772,10 +772,10 @@ async function loginZalo(apiState) {
       fs.unlinkSync('qr.png');
     } catch (e) { }
 
-    // 🔄 SIMPLE RULE: New login = kick out old IP
-    // Notify ALL old clients about forced logout
-    if (targetState.clients && targetState.clients.size > 0) {
-      console.log(`🔄 Kicking out ${targetState.clients.size} old client(s)...`);
+    // 🔄 SIMPLE RULE: New login = kick out old IP (ONLY if there was a previous session)
+    // Notify old clients about forced logout ONLY if there was an existing authorized IP
+    if (targetState.authorizedIP && targetState.clients && targetState.clients.size > 0) {
+      console.log(`🔄 Kicking out ${targetState.clients.size} old client(s) from IP ${targetState.authorizedIP}...`);
 
       const logoutMsg = JSON.stringify({
         type: 'force_logout',
