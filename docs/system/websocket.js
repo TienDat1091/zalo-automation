@@ -2813,6 +2813,46 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ========================================
+        // SEND TEXT MESSAGE
+        // ========================================
+        else if (msg.type === 'send_message') {
+          if (!apiState.api) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+
+          const userId = String(msg.to || msg.uid);
+          const text = msg.text || msg.content || '';
+
+          console.log(`📤 Sending message to ${userId}: "${text.substring(0, 50)}..."`);
+
+          try {
+            const { ThreadType } = require('zca-js');
+            await apiState.api.sendMessage(
+              { msg: text },
+              userId,
+              ThreadType.User
+            );
+
+            console.log(`✅ Message sent successfully`);
+            ws.send(JSON.stringify({
+              type: 'sent_ok',
+              message: {
+                content: text,
+                timestamp: Date.now(),
+                isSelf: true
+              }
+            }));
+          } catch (err) {
+            console.error(`❌ Error sending message:`, err.message);
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: `Failed to send message: ${err.message}`
+            }));
+          }
+        }
+
+        // ========================================
         // SEND FILE/IMAGE
         // ========================================
         else if (msg.type === 'send_file' || msg.type === 'send_image') {
