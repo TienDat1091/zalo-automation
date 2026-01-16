@@ -514,6 +514,39 @@
     let dbInstance = null;
     let currentUserUID = null;
 
+    // ========== CLEAR DASHBOARD DATA ==========
+    function clearDashboardData() {
+      console.log('🧹 Clearing dashboard data for account switch...');
+
+      // Clear friend lists
+      friends = [];
+      allFriends = [];
+      filteredFriends = [];
+      friendsRendered = false;
+
+      // Clear messages
+      allMessages.clear();
+      messageStore.clear();
+      currentMessages = [];
+      selectedFriend = null;
+
+      // Clear UI
+      document.getElementById('friendsList').innerHTML = `
+        <div class="loading-friends">
+          <div class="spinner"></div>
+          <div>Đang tải danh sách...</div>
+        </div>
+      `;
+      document.getElementById('messagesContainer').innerHTML = `
+        <div class="empty-chat">
+          <div class="icon">💬</div>
+          <div>Chọn một cuộc trò chuyện để bắt đầu</div>
+        </div>
+      `;
+
+      console.log('✅ Dashboard data cleared');
+    }
+
     // ========== MOVE TO TOP FUNCTION ==========
     function moveConversationToTop(userId) {
       console.log(`⬆️ Moving conversation to top: ${userId}`);
@@ -543,20 +576,45 @@
         const data = JSON.parse(e.data);
 
         if (data.type === 'current_user') {
-          currentUserUID = data.user.uid;
-          currentUserId = data.user.uid; // Update global var
-          console.log('👤 Current User:', currentUserUID);
+          const newUserUID = data.user.uid;
+          currentUserId = newUserUID; // Update global var
+
+          // 🔄 Check if user changed - clear data if so
+          if (currentUserUID && currentUserUID !== newUserUID) {
+            console.log(`🔄 User changed from ${currentUserUID} to ${newUserUID}`);
+            clearDashboardData();
+          }
+
+          console.log('👤 Current User:', newUserUID);
           document.getElementById('userName').textContent = data.user.name || "User";
           document.getElementById('userAvatar').src = data.user.avatar || "https://via.placeholder.com/50";
           document.getElementById('userUid').textContent = 'UID: ' + data.user.uid;
           document.getElementById('userInfo').style.display = 'flex';
 
-          initIndexedDB(data.user.uid).catch(err => {
+          initIndexedDB(newUserUID).then(async () => {
+            // 📊 Try to load cached friends first
+            try {
+              if (typeof loadFriendsFromIndexedDB === 'function') {
+                const cachedFriends = await loadFriendsFromIndexedDB();
+                if (cachedFriends && cachedFriends.length > 0) {
+                  console.log(`💾 Using ${cachedFriends.length} cached friends`);
+                  friends = cachedFriends;
+                  allFriends = [...friends];
+                  filteredFriends = [...friends];
+                  friendsRendered = true;
+                  renderFriendsVirtual();
+                }
+              }
+            } catch (err) {
+              console.warn('⚠️ Failed to load cached friends:', err);
+            }
+
+            // Still request fresh list from server
+            console.log('🔄 Requesting fresh friends list from server...');
+            ws.send(JSON.stringify({ type: 'get_friends' }));
+          }).catch(err => {
             console.error('❌ Failed to init DB:', err);
           });
-
-          console.log('🔄 Auto-requesting friends list after login...');
-          ws.send(JSON.stringify({ type: 'get_friends' }));
         }
 
         if (data.type === 'friend_requests_response') {
@@ -568,6 +626,13 @@
           friends = data.friends || [];
           allFriends = [...friends];
           filteredFriends = [...friends];
+
+          // 💾 Save friends to IndexedDB
+          if (typeof saveFriendsToIndexedDB === 'function') {
+            saveFriendsToIndexedDB(friends).catch(err => {
+              console.error('Failed to save friends:', err);
+            });
+          }
 
           console.log('✅ Rendering friends list immediately...');
           friendsRendered = true;
