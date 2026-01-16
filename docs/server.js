@@ -8,6 +8,9 @@ const { loginZalo } = require('./loginZalo.js');
 const { startWebSocketServer, triggerDB } = require('./system/websocket.js');
 const { loadFriends } = require('./chat-function/friends.js');
 
+// ✅ FIX: Patch BigInt serialization globally to prevent "Do not know how to serialize a BigInt"
+BigInt.prototype.toJSON = function () { return this.toString(); };
+
 // Create Express app
 const app = express();
 // Enable trust proxy for Render to get real client IP
