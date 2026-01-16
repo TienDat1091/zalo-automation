@@ -572,6 +572,35 @@ body {
   transform: scale(0.95);
 }
 
+/* Emoji and Attach buttons */
+.emoji-btn,
+.attach-btn {
+  background: #f5f5f5 !important;
+  border: none;
+  width: 40px !important;
+  height: 40px;
+  border-radius: 50% !important;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  padding: 0 !important;
+}
+
+.emoji-btn:hover,
+.attach-btn:hover {
+  background: #e0e0e0 !important;
+  transform: scale(1.1) !important;
+}
+
+.emoji-btn:active,
+.attach-btn:active {
+  transform: scale(0.95) !important;
+}
+
 /* ==================== SPINNER/LOADING ==================== */
 .spinner {
   border: 3px solid #f3f3f3;
