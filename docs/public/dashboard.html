@@ -351,8 +351,12 @@
 </head>
 
 <body>
+  <!-- 📱 Mobile UI Elements -->
+  <button class="mobile-toggle" id="mobileToggle" onclick="toggleMobileSidebar()">☰</button>
+  <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
+
   <div class="container">
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <h1>Zalo Messenger</h1>
         <div class="user-info" id="userInfo" style="display:none;">
@@ -409,6 +413,7 @@
 
     <div class="chat-area">
       <div class="chat-header" id="chatHeader" style="display:none;">
+        <button class="mobile-back-btn" onclick="closeMobileSidebar()">← Danh sách</button>
         <img id="chatAvatar" src="" alt="Avatar">
         <div class="info">
           <div class="name" id="chatName">Chọn bạn bè</div>
@@ -1301,6 +1306,39 @@
          `;
       });
       list.innerHTML = html;
+    }
+
+    // ========== 📱 MOBILE RESPONSIVE FUNCTIONS ==========
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobileOverlay');
+
+      if (sidebar.classList.contains('mobile-active')) {
+        closeMobileSidebar();
+      } else {
+        sidebar.classList.add('mobile-active');
+        overlay.classList.add('active');
+      }
+    }
+
+    function closeMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobileOverlay');
+
+      sidebar.classList.remove('mobile-active');
+      overlay.classList.remove('active');
+    }
+
+    // Auto-close sidebar when selecting a friend on mobile
+    const originalSelectFriend = window.selectFriend;
+    if (originalSelectFriend) {
+      window.selectFriend = function (...args) {
+        originalSelectFriend.apply(this, args);
+        // Close sidebar on mobile after selecting friend
+        if (window.innerWidth <= 768) {
+          closeMobileSidebar();
+        }
+      };
     }
   </script>
   <script src="IndexedDB.js"></script>
