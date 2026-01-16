@@ -5,7 +5,7 @@ function isDBReady() {
 async function initIndexedDB(userUID) {
   return new Promise((resolve, reject) => {
     const dbName = `ZaloChat_${userUID}`;
-    const request = indexedDB.open(dbName, 3);
+    const request = indexedDB.open(dbName, 2); // Version 2 - messages only
 
     request.onerror = () => {
       if (request.error.name === 'VersionError') {
@@ -44,13 +44,7 @@ async function initIndexedDB(userUID) {
       messagesStore.createIndex('msgId', 'msgId', { unique: false });
       messagesStore.createIndex('timestamp', 'timestamp', { unique: false });
 
-      // Friends store (new)
-      const friendsStore = db.createObjectStore('friends', {
-        keyPath: 'userId'
-      });
-      friendsStore.createIndex('displayName', 'displayName', { unique: false });
-
-      console.log('✅ Created IndexedDB stores: messages, friends');
+      console.log('✅ Created IndexedDB store: messages (only)');
     };
   });
 }
@@ -170,85 +164,6 @@ function openAutoReplyViewer() {
 
   const url = `trigger-manager.html?userUID=${currentUserUID}&dbName=ZaloChat_${currentUserUID}`;
   window.open(url, '_blank');
-}
-
-// ===============================================
-// FRIENDS MANAGEMENT IN INDEXEDDB
-// ===============================================
-
-async function saveFriendsToIndexedDB(friendsList) {
-  if (!isDBReady()) {
-    console.warn('⚠️ DB not ready, cannot save friends');
-    return;
-  }
-
-  try {
-    const transaction = dbInstance.transaction(['friends'], 'readwrite');
-    const store = transaction.objectStore('friends');
-
-    // Clear existing friends first
-    store.clear();
-
-    // Save all friends
-    for (const friend of friendsList) {
-      store.add({
-        userId: friend.userId,
-        displayName: friend.displayName,
-        avatar: friend.avatar,
-        zaloName: friend.zaloName,
-        // Add any other friend properties you need
-      });
-    }
-
-    console.log(`✅ Saved ${friendsList.length} friends to IndexedDB`);
-  } catch (err) {
-    console.error('❌ Error saving friends:', err);
-  }
-}
-
-async function loadFriendsFromIndexedDB() {
-  if (!isDBReady()) {
-    console.warn('⚠️ DB not ready, cannot load friends');
-    return [];
-  }
-
-  return new Promise((resolve, reject) => {
-    try {
-      const transaction = dbInstance.transaction(['friends'], 'readonly');
-      const store = transaction.objectStore('friends');
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const friends = request.result || [];
-        console.log(`📊 Loaded ${friends.length} friends from IndexedDB`);
-        resolve(friends);
-      };
-
-      request.onerror = () => {
-        console.error('❌ Error loading friends:', request.error);
-        reject(request.error);
-      };
-    } catch (err) {
-      console.error('❌ Error in loadFriendsFromIndexedDB:', err);
-      reject(err);
-    }
-  });
-}
-
-async function clearAllIndexedDBData() {
-  if (!isDBReady()) {
-    console.warn('⚠️ DB not ready');
-    return;
-  }
-
-  try {
-    const transaction = dbInstance.transaction(['messages', 'friends'], 'readwrite');
-    await transaction.objectStore('messages').clear();
-    await transaction.objectStore('friends').clear();
-    console.log('✅ Cleared all IndexedDB data');
-  } catch (err) {
-    console.error('❌ Error clearing IndexedDB:', err);
-  }
 }
 
 // ===============================================

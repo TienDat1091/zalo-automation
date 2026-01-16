@@ -352,7 +352,7 @@ function escapeJs(str) {
 }
 
 function sendMessage() {
-  console.log('📤 sendMessage() được gọi');
+  console.log('📤 sendMessage() được g��i');
 
   if (!selectedFriend) {
     console.log('⚠️ Chưa chọn người nhận');
@@ -360,38 +360,56 @@ function sendMessage() {
     return;
   }
 
-  // ✅ Gửi attachment nếu có (pendingAttachment được define trong dashboard.html)
-  if (typeof pendingAttachment !== 'undefined' && pendingAttachment) {
-    console.log('📎 Sending attachment...');
-    if (typeof sendFileAttachment === 'function') {
-      sendFileAttachment();
-    }
-
-    // Nếu không có text thì chỉ gửi attachment
-    const input = document.getElementById('messageInput');
-    if (!input.value.trim()) {
-      input.value = '';
-      input.focus();
-      return;
-    }
-  }
-
   const input = document.getElementById('messageInput');
   const text = input.value.trim();
-  if (!text) {
-    console.log('⚠️ Không có text');
+
+  // Check for attachment from chat.js (window.currentAttachment)
+  const hasAttachment = typeof window.currentAttachment !== 'undefined' && window.currentAttachment;
+
+  if (!text && !hasAttachment) {
+    console.log('⚠️ Không có text hoặc attachment');
     return;
   }
 
+  if (hasAttachment) {
+    // Send file/image
+    const fileData = window.currentAttachment;
+    console.log(`📎 Sending ${fileData.type}: ${fileData.name}`);
+
+    ws.send(JSON.stringify({
+      type: fileData.type === 'image' ? 'send_image' : 'send_file',
+      to: selectedFriend.userId,
+      uid: selectedFriend.userId,
+      content: text || '',
+      fileData: fileData.data,
+      fileName: fileData.name,
+      fileType: fileData.mimeType,
+      timestamp: Date.now()
+    }));
+
+    // Clear attachment - call removeAttachment if available
+    if (typeof removeAttachment === 'function') {
+      removeAttachment();
+    }
+
+    input.value = '';
+    input.focus();
+    console.log('✅ Đã gửi file/image');
+    return;
+  }
+
+  // Send text message only
   console.log('➡️ Gửi tin nhắn qua WebSocket');
   ws.send(JSON.stringify({
     type: 'send_message',
     uid: selectedFriend.userId,
-    text: text
+    to: selectedFriend.userId,
+    text: text,
+    content: text
   }));
+
   input.value = '';
   console.log('✅ Đã gửi tin nhắn, clear input');
-
   input.focus();
 }
 
