@@ -387,14 +387,11 @@ function sendMessage() {
       timestamp: Date.now()
     }));
 
-    // Clear attachment - call removeAttachment if available
-    if (typeof removeAttachment === 'function') {
-      removeAttachment();
-    }
+    // Note: removeAttachment() will be called when receiving 'sent_ok' from server
 
     input.value = '';
     input.focus();
-    console.log('✅ Đã gửi file/image');
+    console.log('✅ Đã gửi file/image, đợi server confirm...');
     return;
   }
 

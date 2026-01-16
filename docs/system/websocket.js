@@ -2813,6 +2813,48 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ========================================
+        // SEND FILE/IMAGE
+        // ========================================
+        else if (msg.type === 'send_file' || msg.type === 'send_image') {
+          if (!apiState.apiClient) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+
+          console.log(`📎 Received ${msg.type} request to ${msg.to}`);
+
+          try {
+            // Convert base64 to buffer
+            const base64Data = msg.fileData.replace(/^data:[^;]+;base64,/, '');
+            const fileBuffer = Buffer.from(base64Data, 'base64');
+
+            // Send via zca-js
+            let result;
+            if (msg.type === 'send_image') {
+              result = await apiState.apiClient.sendMessageImage(msg.to, fileBuffer, msg.content || '');
+            } else {
+              result = await apiState.apiClient.sendMessageFile(msg.to, fileBuffer, msg.fileName, msg.content || '');
+            }
+
+            console.log(`✅ ${msg.type} sent successfully`);
+            ws.send(JSON.stringify({
+              type: 'sent_ok',
+              message: {
+                content: msg.content || `[${msg.fileName || 'Image'}]`,
+                timestamp: Date.now(),
+                isSelf: true
+              }
+            }));
+          } catch (err) {
+            console.error(`❌ Error sending ${msg.type}:`, err.message);
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: `Failed to send ${msg.type}: ${err.message}`
+            }));
+          }
+        }
+
+        // ========================================
         // FALLBACK - Unhandled message types
         // ========================================
         else {
