@@ -675,6 +675,12 @@
         if (data.type === 'sent_ok') {
           console.log('✅ sent_ok', data.message?.isAutoReply ? '(Auto Reply)' : '');
 
+          // Clear attachment after file/image send
+          if (typeof removeAttachment === 'function' && window.currentAttachment) {
+            removeAttachment();
+            console.log('🗑️ Attachment cleared');
+          }
+
           const uid = data.uid || data.message?.threadId || selectedFriend?.userId;
           if (!uid) return;
 
