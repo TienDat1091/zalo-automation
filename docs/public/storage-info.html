@@ -272,6 +272,55 @@
       </div>
     </div>
 
+    <!-- 💾 Data Backup & Management -->
+    <div class="card-container">
+      <div class="card-title">💾 Quản Lý Dữ Liệu</div>
+      <div style="margin-bottom: 15px;">
+        <div id="dataStats" style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px;">
+          <div
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; text-align: center;">
+            <div>
+              <div style="font-size: 24px; font-weight: bold; color: #1976d2;" id="dbMessages">...</div>
+              <div style="font-size: 12px; color: #666;">Tin nhắn</div>
+            </div>
+            <div>
+              <div style="font-size: 24px; font-weight: bold; color: #2e7d32;" id="dbFriends">...</div>
+              <div style="font-size: 12px; color: #666;">Bạn bè</div>
+            </div>
+            <div>
+              <div style="font-size: 24px; font-weight: bold; color: #ef6c00;" id="dbSize">...</div>
+              <div style="font-size: 12px; color: #666;">Dung lượng</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+          <button onclick="exportData()"
+            style="padding: 12px 20px; background: linear-gradient(135deg, #0068FF 0%, #0052CC 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s;">
+            <i class="fas fa-download"></i> Xuất Dữ Liệu (JSON)
+          </button>
+
+          <button onclick="document.getElementById('importFile').click()"
+            style="padding: 12px 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s;">
+            <i class="fas fa-upload"></i> Nhập Dữ Liệu
+          </button>
+
+          <button onclick="clearAllData()"
+            style="padding: 12px 20px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s;">
+            <i class="fas fa-trash-alt"></i> Xóa Tất Cả
+          </button>
+        </div>
+
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImport(event)">
+
+        <div
+          style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 6px; font-size: 13px; color: #856404;">
+          ⚠️ <strong>Lưu ý:</strong> Dữ liệu chỉ tồn tại trong trình duyệt. Xuất backup định kỳ để bảo vệ dữ liệu của
+          bạn.
+        </div>
+      </div>
+    </div>
+
     <!-- File Logs -->
     <div class="card-container">
       <div class="card-title">📝 Nhật Ký Hoạt Động File (Gần đây)</div>
@@ -376,7 +425,70 @@
 
     // Auto refresh every 10s
     setInterval(refreshData, 10000);
+
+    // ========== 💾 DATA BACKUP FUNCTIONS ==========
+
+    // Load data stats on page load
+    async function loadDataStats() {
+      if (typeof getDataStats === 'function') {
+        const stats = await getDataStats();
+        document.getElementById('dbMessages').textContent = stats.messages.toLocaleString();
+        document.getElementById('dbFriends').textContent = stats.friends.toLocaleString();
+        document.getElementById('dbSize').textContent = stats.dbSize;
+      }
+    }
+
+    // Export data
+    async function exportData() {
+      if (typeof exportAllDataAsJSON === 'function') {
+        await exportAllDataAsJSON();
+      } else {
+        alert('❌ Export function not available');
+      }
+    }
+
+    // Handle import file selection
+    async function handleImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (typeof importDataFromJSON === 'function') {
+        try {
+          await importDataFromJSON(file);
+          // Reload page after successful import
+          setTimeout(() => window.location.reload(), 2000);
+        } catch (err) {
+          console.error('Import error:', err);
+        }
+      } else {
+        alert('❌ Import function not available');
+      }
+
+      // Reset file input
+      event.target.value = '';
+    }
+
+    // Clear all data
+    async function clearAllData() {
+      if (!confirm('⚠️ Xóa TẤT CẢ dữ liệu?\n\nĐây là hành động không thể hoàn tác!\n\nBạn có chắc chắn?')) {
+        return;
+      }
+
+      if (typeof clearAllIndexedDBData === 'function') {
+        await clearAllIndexedDBData();
+        alert('✅ Đã xóa tất cả dữ liệu!\n\nVui lòng tải lại trang.');
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        alert('❌ Clear function not available');
+      }
+    }
+
+    // Load stats when page loads
+    setTimeout(loadDataStats, 1000);
+    // Refresh stats every 30s
+    setInterval(loadDataStats, 30000);
   </script>
+  <script src="../IndexedDB.js"></script>
 </body>
 
 </html>

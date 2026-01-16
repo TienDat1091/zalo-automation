@@ -251,3 +251,195 @@ async function clearAllIndexedDBData() {
   }
 }
 
+// ===============================================
+// BACKUP & EXPORT FUNCTIONS
+// ===============================================
+
+async function exportAllDataAsJSON() {
+  if (!isDBReady()) {
+    alert('❌ Database not ready');
+    return;
+  }
+
+  try {
+    console.log('📦 Exporting all data...');
+
+    // Get all messages
+    const messagesTransaction = dbInstance.transaction(['messages'], 'readonly');
+    const messagesStore = messagesTransaction.objectStore('messages');
+    const messagesRequest = messagesStore.getAll();
+
+    const messages = await new Promise((resolve, reject) => {
+      messagesRequest.onsuccess = () => resolve(messagesRequest.result);
+      messagesRequest.onerror = () => reject(messagesRequest.error);
+    });
+
+    // Get all friends
+    const friendsTransaction = dbInstance.transaction(['friends'], 'readonly');
+    const friendsStore = friendsTransaction.objectStore('friends');
+    const friendsRequest = friendsStore.getAll();
+
+    const friends = await new Promise((resolve, reject) => {
+      friendsRequest.onsuccess = () => resolve(friendsRequest.result);
+      friendsRequest.onerror = () => reject(friendsRequest.error);
+    });
+
+    // Create backup object
+    const backup = {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      userUID: currentUserUID,
+      dbName: `ZaloChat_${currentUserUID}`,
+      data: {
+        messages: messages,
+        friends: friends
+      },
+      stats: {
+        totalMessages: messages.length,
+        totalFriends: friends.length
+      }
+    };
+
+    // Convert to JSON and download
+    const jsonString = JSON.stringify(backup, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zalo-backup-${currentUserUID}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log(`✅ Exported ${backup.stats.totalMessages} messages and ${backup.stats.totalFriends} friends`);
+    alert(`✅ Backup successfully exported!\n\nMessages: ${backup.stats.totalMessages}\nFriends: ${backup.stats.totalFriends}`);
+
+    return backup;
+  } catch (err) {
+    console.error('❌ Export failed:', err);
+    alert('❌ Export failed: ' + err.message);
+  }
+}
+
+async function importDataFromJSON(file) {
+  if (!isDBReady()) {
+    alert('❌ Database not ready');
+    return;
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const backup = JSON.parse(e.target.result);
+
+        // Validate backup structure
+        if (!backup.version || !backup.data || !backup.data.messages || !backup.data.friends) {
+          throw new Error('Invalid backup file format');
+        }
+
+        console.log('📥 Importing backup...');
+        console.log(`User: ${backup.userUID}`);
+        console.log(`Messages: ${backup.data.messages.length}`);
+        console.log(`Friends: ${backup.data.friends.length}`);
+
+        // Confirm with user
+        const confirmMsg = `Import backup?\n\nUser: ${backup.userUID}\nMessages: ${backup.data.messages.length}\nFriends: ${backup.data.friends.length}\nDate: ${new Date(backup.timestamp).toLocaleString()}\n\n⚠️ This will REPLACE all existing data!`;
+
+        if (!confirm(confirmMsg)) {
+          console.log('❌ Import cancelled by user');
+          reject(new Error('Import cancelled'));
+          return;
+        }
+
+        // Clear existing data
+        await clearAllIndexedDBData();
+
+        // Import messages
+        const messagesTransaction = dbInstance.transaction(['messages'], 'readwrite');
+        const messagesStore = messagesTransaction.objectStore('messages');
+
+        for (const message of backup.data.messages) {
+          messagesStore.add(message);
+        }
+
+        await new Promise((resolve, reject) => {
+          messagesTransaction.oncomplete = resolve;
+          messagesTransaction.onerror = () => reject(messagesTransaction.error);
+        });
+
+        // Import friends
+        const friendsTransaction = dbInstance.transaction(['friends'], 'readwrite');
+        const friendsStore = friendsTransaction.objectStore('friends');
+
+        for (const friend of backup.data.friends) {
+          friendsStore.add(friend);
+        }
+
+        await new Promise((resolve, reject) => {
+          friendsTransaction.oncomplete = resolve;
+          friendsTransaction.onerror = () => reject(friendsTransaction.error);
+        });
+
+        console.log('✅ Import complete!');
+        alert(`✅ Import successful!\n\nMessages: ${backup.data.messages.length}\nFriends: ${backup.data.friends.length}\n\nPlease reload the page.`);
+
+        resolve(backup);
+      } catch (err) {
+        console.error('❌ Import failed:', err);
+        alert('❌ Import failed: ' + err.message);
+        reject(err);
+      }
+    };
+
+    reader.onerror = () => {
+      console.error('❌ File read error');
+      alert('❌ Failed to read file');
+      reject(reader.error);
+    };
+
+    reader.readAsText(file);
+  });
+}
+
+async function getDataStats() {
+  if (!isDBReady()) {
+    return { messages: 0, friends: 0, dbSize: 'Unknown' };
+  }
+
+  try {
+    const messagesTransaction = dbInstance.transaction(['messages'], 'readonly');
+    const messagesStore = messagesTransaction.objectStore('messages');
+    const messagesCount = await new Promise((resolve) => {
+      const request = messagesStore.count();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(0);
+    });
+
+    const friendsTransaction = dbInstance.transaction(['friends'], 'readonly');
+    const friendsStore = friendsTransaction.objectStore('friends');
+    const friendsCount = await new Promise((resolve) => {
+      const request = friendsStore.count();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(0);
+    });
+
+    // Estimate size
+    const estimate = await navigator.storage?.estimate?.();
+    const dbSize = estimate ? `${(estimate.usage / 1024 / 1024).toFixed(2)} MB` : 'Unknown';
+
+    return {
+      messages: messagesCount,
+      friends: friendsCount,
+      dbSize: dbSize,
+      dbName: `ZaloChat_${currentUserUID}`
+    };
+  } catch (err) {
+    console.error('Error getting stats:', err);
+    return { messages: 0, friends: 0, dbSize: 'Error' };
+  }
+}
+
