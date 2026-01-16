@@ -2828,19 +2828,46 @@ function startWebSocketServer(apiState, httpServer) {
             const base64Data = msg.fileData.replace(/^data:[^;]+;base64,/, '');
             const fileBuffer = Buffer.from(base64Data, 'base64');
 
-            // Send via zca-js
-            let result;
-            if (msg.type === 'send_image') {
-              result = await apiState.apiClient.sendMessageImage(msg.to, fileBuffer, msg.content || '');
-            } else {
-              result = await apiState.apiClient.sendMessageFile(msg.to, fileBuffer, msg.fileName, msg.content || '');
+            // Save to temp file (same approach as auto-reply flow)
+            const tempDir = path.join(__dirname, '..', 'data', 'temp');
+            if (!fs.existsSync(tempDir)) {
+              fs.mkdirSync(tempDir, { recursive: true });
             }
 
-            console.log(`✅ ${msg.type} sent successfully`);
+            const fileName = msg.fileName || `file_${Date.now()}`;
+            const tempFilePath = path.join(tempDir, fileName);
+            fs.writeFileSync(tempFilePath, fileBuffer);
+
+            console.log(`💾 Saved temp file: ${tempFilePath}`);
+
+            // Use attachments method (same as auto-reply flow)
+            const resolvedPath = path.resolve(tempFilePath);
+            console.log(`📤 Sending via attachments method: ${resolvedPath}`);
+
+            const { ThreadType } = require('zca-js');
+            await apiState.api.sendMessage(
+              {
+                msg: msg.content || "",
+                attachments: [resolvedPath]
+              },
+              msg.to,
+              ThreadType.User
+            );
+
+            console.log(`✅ ${msg.type} sent successfully via attachments!`);
+
+            // Clean up temp file after sending
+            setTimeout(() => {
+              if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+                console.log(`🗑️ Cleaned up temp file: ${tempFilePath}`);
+              }
+            }, 5000);
+
             ws.send(JSON.stringify({
               type: 'sent_ok',
               message: {
-                content: msg.content || `[${msg.fileName || 'Image'}]`,
+                content: msg.content || `[${msg.fileName || 'File'}]`,
                 timestamp: Date.now(),
                 isSelf: true
               }
