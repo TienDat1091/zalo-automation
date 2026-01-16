@@ -307,7 +307,7 @@ function sendMessage() {
         console.log(`📤 Sending ${fileData.type}: "${fileData.name}"`);
         ws.send(JSON.stringify({
           type: fileData.type === 'image' ? 'send_image' : 'send_file',
-          to: selectedFriend.userId,
+          to: String(selectedFriend.userId),
           content: text || '',
           fileData: fileData.data,
           fileName: fileData.name,
@@ -323,7 +323,7 @@ function sendMessage() {
       console.log(`📤 Sending message: "${text}"`);
       ws.send(JSON.stringify({
         type: 'send_message',
-        to: selectedFriend.userId,
+        to: String(selectedFriend.userId),
         content: text,
         timestamp: Date.now()
       }));

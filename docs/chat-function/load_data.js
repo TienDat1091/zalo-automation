@@ -378,8 +378,8 @@ function sendMessage() {
 
     ws.send(JSON.stringify({
       type: fileData.type === 'image' ? 'send_image' : 'send_file',
-      to: selectedFriend.userId,
-      uid: selectedFriend.userId,
+      to: String(selectedFriend.userId),
+      uid: String(selectedFriend.userId),
       content: text || '',
       fileData: fileData.data,
       fileName: fileData.name,
@@ -402,8 +402,8 @@ function sendMessage() {
   console.log('➡️ Gửi tin nhắn qua WebSocket');
   ws.send(JSON.stringify({
     type: 'send_message',
-    uid: selectedFriend.userId,
-    to: selectedFriend.userId,
+    uid: String(selectedFriend.userId),
+    to: String(selectedFriend.userId),
     text: text,
     content: text
   }));
