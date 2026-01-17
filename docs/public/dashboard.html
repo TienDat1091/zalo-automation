@@ -1315,15 +1315,25 @@
     }
 
     // ========== 📱 MOBILE RESPONSIVE FUNCTIONS ==========
+    // ========== 📱 SIDEBAR TOGGLE (Mobile + Desktop) ==========
     function toggleMobileSidebar() {
       const sidebar = document.getElementById('sidebar');
+      const container = document.querySelector('.container');
       const overlay = document.getElementById('mobileOverlay');
 
-      if (sidebar.classList.contains('mobile-active')) {
-        closeMobileSidebar();
-      } else {
-        sidebar.classList.add('mobile-active');
-        overlay.classList.add('active');
+      // Check if Mobile (< 768px)
+      if (window.innerWidth <= 768) {
+        if (sidebar.classList.contains('mobile-active')) {
+          closeMobileSidebar();
+        } else {
+          sidebar.classList.add('mobile-active');
+          overlay.classList.add('active');
+        }
+      }
+      // Desktop (> 768px)
+      else {
+        sidebar.classList.toggle('collapsed');
+        container.classList.toggle('sidebar-collapsed');
       }
     }
 

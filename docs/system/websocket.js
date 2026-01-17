@@ -2856,7 +2856,7 @@ function startWebSocketServer(apiState, httpServer) {
         // SEND FILE/IMAGE
         // ========================================
         else if (msg.type === 'send_file' || msg.type === 'send_image') {
-          if (!apiState.apiClient) {
+          if (!apiState.api) {
             ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
             return;
           }
