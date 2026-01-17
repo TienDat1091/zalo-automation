@@ -4,25 +4,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📦 Unified Manager - Zalo Automation</title>
+    <title>📊 Data Manager - Zalo Automation</title>
+    <link rel="stylesheet" href="/assets/style_bank_manager.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        body {
+            display: flex;
+            height: 100vh;
+            background: #f5f7fa;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-            height: 100vh;
+        /* Override header to be fixed */
+        .app-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%);
+            color: white;
+            padding: 16px 24px;
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .app-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
 
         /* Sidebar */
         .sidebar {
-            width: 220px;
-            background: #fff;
+            width: 200px;
+            background: white;
             border-right: 1px solid #e0e0e0;
             display: flex;
             flex-direction: column;
@@ -30,25 +62,19 @@
         }
 
         .sidebar-header {
-            padding: 20px;
-            background: #333;
-            color: white;
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
         }
 
-        .sidebar-header h1 {
-            font-size: 16px;
+        .sidebar-header h3 {
+            font-size: 14px;
+            color: #333;
             font-weight: 600;
-        }
-
-        .sidebar-header p {
-            font-size: 11px;
-            opacity: 0.7;
-            margin-top: 4px;
         }
 
         .nav-list {
             flex: 1;
-            padding: 12px 0;
+            padding: 8px;
             overflow-y: auto;
         }
 
@@ -56,14 +82,15 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 12px 20px;
+            padding: 10px 12px;
             cursor: pointer;
             border: none;
             background: none;
             width: 100%;
             text-align: left;
-            font-size: 14px;
+            font-size: 13px;
             color: #333;
+            border-radius: 6px;
             transition: all 0.2s;
         }
 
@@ -73,81 +100,22 @@
 
         .nav-item.active {
             background: #e3f2fd;
-            color: #1976d2;
+            color: #1565c0;
             font-weight: 500;
-            border-left: 3px solid #1976d2;
         }
 
         .nav-item .icon {
-            font-size: 18px;
-            width: 24px;
+            font-size: 16px;
+            width: 20px;
             text-align: center;
         }
 
-        .sidebar-footer {
-            padding: 12px 20px;
-            border-top: 1px solid #e0e0e0;
-        }
-
-        .sidebar-footer a {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #666;
-            text-decoration: none;
-            font-size: 13px;
-            padding: 8px 0;
-        }
-
-        .sidebar-footer a:hover {
-            color: #1976d2;
-        }
-
         /* Main Content */
-        .main-content {
+        .main-wrapper {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-        }
-
-        .content-header {
-            padding: 16px 24px;
-            background: white;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .content-header h2 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .content-header .actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: #1976d2;
-            color: white;
-        }
-
-        .btn-secondary {
-            background: #e0e0e0;
-            color: #333;
         }
 
         .content-frame {
@@ -163,149 +131,90 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: white;
+            background: #f5f7fa;
             color: #666;
         }
 
         .welcome-screen .icon {
-            font-size: 64px;
-            margin-bottom: 20px;
+            font-size: 48px;
+            margin-bottom: 16px;
             opacity: 0.5;
         }
 
         .welcome-screen h2 {
-            font-size: 24px;
+            font-size: 20px;
             color: #333;
             margin-bottom: 8px;
         }
 
         .welcome-screen p {
-            font-size: 14px;
+            font-size: 13px;
         }
 
-        /* Mobile Toggle */
-        .mobile-toggle {
-            display: none;
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 1001;
-            background: white;
-            border: none;
-            font-size: 24px;
-            padding: 8px 12px;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-        }
-
+        /* Mobile */
         @media (max-width: 768px) {
-            .mobile-toggle {
-                display: block;
-            }
-
             .sidebar {
-                position: fixed;
-                left: -220px;
-                top: 0;
-                height: 100%;
-                z-index: 1000;
-                transition: left 0.3s ease;
-            }
-
-            .sidebar.active {
-                left: 0;
-            }
-
-            .overlay {
                 display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 999;
-            }
-
-            .overlay.active {
-                display: block;
             }
         }
     </style>
 </head>
 
 <body>
-    <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
-    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-    <nav class="sidebar" id="sidebar">
+    <nav class="sidebar">
         <div class="sidebar-header">
-            <h1>📦 Unified Manager</h1>
-            <p>Quản lý tất cả trong một</p>
+            <h3>📊 Quản lý dữ liệu</h3>
         </div>
-
         <div class="nav-list">
-            <button class="nav-item" onclick="loadManager('bank-manager.html', '💳 Cổng Thanh Toán', this)">
+            <button class="nav-item" onclick="loadManager('bank-manager.html', this)">
                 <span class="icon">💳</span>
                 <span>Bank Manager</span>
             </button>
-
-            <button class="nav-item" onclick="loadManager('ai-manager.html', '🧠 AI Models', this)">
+            <button class="nav-item" onclick="loadManager('ai-manager.html', this)">
                 <span class="icon">🧠</span>
                 <span>AI Manager</span>
             </button>
-
-            <button class="nav-item" onclick="loadManager('file-manager.html', '📁 File Manager', this)">
+            <button class="nav-item" onclick="loadManager('file-manager.html', this)">
                 <span class="icon">📁</span>
                 <span>File Manager</span>
             </button>
-
-            <button class="nav-item" onclick="loadManager('image-manager.html', '🖼️ Image Manager', this)">
+            <button class="nav-item" onclick="loadManager('image-manager.html', this)">
                 <span class="icon">🖼️</span>
                 <span>Image Manager</span>
             </button>
-
-            <button class="nav-item" onclick="loadManager('table-manager.html', '📊 Table Manager', this)">
+            <button class="nav-item" onclick="loadManager('table-manager.html', this)">
                 <span class="icon">📊</span>
                 <span>Table Manager</span>
             </button>
-
-            <button class="nav-item" onclick="loadManager('google-sheets-manager.html', '📗 Sheets Manager', this)">
+            <button class="nav-item" onclick="loadManager('google-sheets-manager.html', this)">
                 <span class="icon">📗</span>
                 <span>Sheets Manager</span>
             </button>
-
-            <button class="nav-item" onclick="loadManager('email-manager.html', '📧 Email Manager', this)">
+            <button class="nav-item" onclick="loadManager('email-manager.html', this)">
                 <span class="icon">📧</span>
                 <span>Email Manager</span>
             </button>
         </div>
-
-        <div class="sidebar-footer">
-            <a href="/trigger-manager.html" target="_blank">
-                <span>⚡</span>
-                <span>Trigger Manager</span>
-            </a>
-            <a href="/dashboard.html" target="_blank">
-                <span>💬</span>
-                <span>Dashboard Chat</span>
-            </a>
-        </div>
     </nav>
 
-    <main class="main-content">
-        <div class="content-header" id="contentHeader" style="display: none;">
-            <h2 id="pageTitle">Manager</h2>
-            <div class="actions">
-                <button class="btn btn-secondary" onclick="openInNewTab()">🔗 Mở tab mới</button>
-                <button class="btn btn-secondary" onclick="reloadFrame()">🔄 Làm mới</button>
+    <main class="main-wrapper">
+        <header class="app-header">
+            <h1>📊 Data Manager</h1>
+            <div style="display: flex; gap: 8px;">
+                <a href="/trigger-manager.html" class="header-btn">
+                    <span>⚡</span>
+                    <span>Trigger Manager</span>
+                </a>
+                <a href="/dashboard.html" class="header-btn">
+                    <span>💬</span>
+                    <span>Dashboard</span>
+                </a>
             </div>
-        </div>
+        </header>
 
         <div class="welcome-screen" id="welcomeScreen">
-            <div class="icon">📦</div>
-            <h2>Chào mừng đến Unified Manager</h2>
+            <div class="icon">📊</div>
+            <h2>Data Manager</h2>
             <p>Chọn một mục từ menu bên trái để bắt đầu</p>
         </div>
 
@@ -315,55 +224,19 @@
     <script>
         let currentPage = '';
 
-        function loadManager(page, title, btn) {
+        function loadManager(page, btn) {
             currentPage = page;
 
             // Update nav active state
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             btn.classList.add('active');
 
-            // Update header
-            document.getElementById('pageTitle').textContent = title;
-            document.getElementById('contentHeader').style.display = 'flex';
-
             // Show iframe, hide welcome
             document.getElementById('welcomeScreen').style.display = 'none';
             const frame = document.getElementById('contentFrame');
             frame.style.display = 'block';
             frame.src = page;
-
-            // Close mobile sidebar
-            if (window.innerWidth <= 768) {
-                toggleSidebar();
-            }
         }
-
-        function openInNewTab() {
-            if (currentPage) {
-                window.open(currentPage, '_blank');
-            }
-        }
-
-        function reloadFrame() {
-            const frame = document.getElementById('contentFrame');
-            if (frame.src) {
-                frame.src = frame.src;
-            }
-        }
-
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('overlay').classList.toggle('active');
-        }
-
-        // Load from URL hash
-        window.addEventListener('load', () => {
-            const hash = window.location.hash.slice(1);
-            if (hash) {
-                const btn = document.querySelector(`[onclick*="${hash}"]`);
-                if (btn) btn.click();
-            }
-        });
     </script>
 </body>
 

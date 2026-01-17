@@ -20,35 +20,9 @@
     </div>
     <div class="header-actions">
       <button class="btn" onclick="showVariablesModal()" title="Xem tất cả biến đã lưu">📊 Biến</button>
-      <!-- <button class="btn" onclick="location.href='../public/trigger-manager.html'">📋 Danh sách</button> -->
-      <a href="bank-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
-        <span>Bank Manager</span>
-      </a>
-      <a href="google-sheets-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
-        <span></span>
-        <span>Sheet Manager</span>
-      </a>
-      <a href="table-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
-        <span></span>
-        <span>Table Manager</span>
-      </a>
-      <a href="image-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
-        <span></span>
-        <span>Image Manager</span>
-      </a>
-      </a>
-      <a href="ai-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
-        <span></span>
-        <span>AI Manager</span>
-      </a>
-      <a href="file-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
-        <span></span>
-        <span>File Manager</span>
-      </a>
-      </a>
-      <a href="email-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
-        <span></span>
-        <span>Gmail Manager</span>
+      <a href="unified-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
+        <span>📊</span>
+        <span>Data Manager</span>
       </a>
       <button class="btn btn-primary" onclick="showToast('✅ Tự động lưu!','success')">💾 Lưu</button>
     </div>
@@ -83,12 +57,41 @@
 
   <!-- Variables Modal -->
   <div id="variablesModal" class="modal-overlay" style="display:none;">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width: 800px;">
       <div class="modal-header">
         <h3>📊 Danh sách biến đã lưu</h3>
         <button class="modal-close-btn" onclick="closeVariablesModal()">✕</button>
       </div>
       <div class="modal-body">
+        <!-- Add Variable Form -->
+        <div id="addVariableForm" style="background: #f5f7fa; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <h4 style="margin-bottom: 12px; font-size: 14px;">➕ Thêm biến thủ công</h4>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 150px;">
+              <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Tên biến</label>
+              <input type="text" id="newVarName" placeholder="VD: user_email"
+                style="width: 100%; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+            </div>
+            <div style="flex: 2; min-width: 200px;">
+              <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Giá trị</label>
+              <input type="text" id="newVarValue" placeholder="VD: test@example.com"
+                style="width: 100%; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+            </div>
+            <div style="flex: 1; min-width: 100px;">
+              <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Loại</label>
+              <select id="newVarType"
+                style="width: 100%; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                <option value="text">text</option>
+                <option value="number">number</option>
+                <option value="email">email</option>
+                <option value="phone">phone</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+              <button class="btn btn-primary" onclick="addManualVariable()" style="padding: 8px 16px;">➕ Thêm</button>
+            </div>
+          </div>
+        </div>
         <div id="variablesContent">
           <div class="loading-spinner">Đang tải...</div>
         </div>

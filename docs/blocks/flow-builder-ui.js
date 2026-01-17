@@ -996,6 +996,50 @@
     }
   };
 
+  // ========================================
+  // ADD MANUAL VARIABLE
+  // ========================================
+  window.addManualVariable = function () {
+    var nameInput = document.getElementById('newVarName');
+    var valueInput = document.getElementById('newVarValue');
+    var typeSelect = document.getElementById('newVarType');
+
+    var varName = nameInput ? nameInput.value.trim() : '';
+    var varValue = valueInput ? valueInput.value.trim() : '';
+    var varType = typeSelect ? typeSelect.value : 'text';
+
+    if (!varName) {
+      showToast('❌ Vui lòng nhập tên biến', 'error');
+      return;
+    }
+
+    // Remove special characters from variable name
+    varName = varName.replace(/[^a-zA-Z0-9_]/g, '_');
+
+    if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+      window.ws.send(JSON.stringify({
+        type: 'set_variable',
+        variableName: varName,
+        variableValue: varValue,
+        variableType: varType,
+        conversationID: 'manual_' + Date.now(), // Use unique manual ID
+        triggerId: window.currentTriggerId || 0
+      }));
+
+      // Clear inputs
+      if (nameInput) nameInput.value = '';
+      if (valueInput) valueInput.value = '';
+      if (typeSelect) typeSelect.value = 'text';
+
+      showToast('✅ Đã thêm biến: {' + varName + '}', 'success');
+
+      // Refresh after 500ms
+      setTimeout(refreshVariables, 500);
+    } else {
+      showToast('❌ Chưa kết nối server', 'error');
+    }
+  };
+
   function escapeHtml(text) {
     var div = document.createElement('div');
     div.textContent = text || '';
