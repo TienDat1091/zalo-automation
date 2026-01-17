@@ -1,7 +1,7 @@
 // websocket.js - WebSocket server với SQLite TriggerDB
 const WebSocket = require('ws');
 const { handleAutoReplyMessage } = require('../autoReply.js');
-const { loadFriends } = require('../chat-function/friends');
+const { loadFriends, loadGroups } = require('../chat-function/friends');
 const { ThreadType } = require('zca-js');
 const triggerDB = require('../triggerDB');
 const messageDB = require('../messageDB'); // SQLite message storage
@@ -645,6 +645,66 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
+        // UPDATE AUTO DELETE CHAT (New Feature)
+        // ============================================
+        if (msg.type === 'update_auto_delete_chat') {
+          if (!apiState.api || !apiState.isLoggedIn) {
+            ws.send(JSON.stringify({
+              type: 'auto_delete_chat_error',
+              error: 'Chưa đăng nhập Zalo!'
+            }));
+            return;
+          }
+
+          const { ttl, threadId, threadType } = msg;
+
+          // Validate TTL - accept any non-negative number (custom values allowed)
+          if (typeof ttl !== 'number' || ttl < 0) {
+            ws.send(JSON.stringify({
+              type: 'auto_delete_chat_error',
+              error: `TTL không hợp lệ. Phải là số >= 0 (đơn vị: milliseconds)`
+            }));
+            return;
+          }
+
+          if (!threadId) {
+            ws.send(JSON.stringify({
+              type: 'auto_delete_chat_error',
+              error: 'Thiếu threadId!'
+            }));
+            return;
+          }
+
+          try {
+            console.log(`🗑️ Setting auto-delete chat: TTL=${ttl}, ThreadID=${threadId}`);
+            await apiState.api.updateAutoDeleteChat(ttl, threadId, threadType || ThreadType.User);
+
+            const ttlLabels = {
+              0: 'Không tự xóa',
+              86400000: '1 ngày',
+              604800000: '7 ngày',
+              1209600000: '14 ngày'
+            };
+
+            ws.send(JSON.stringify({
+              type: 'auto_delete_chat_updated',
+              threadId,
+              ttl,
+              ttlLabel: ttlLabels[ttl] || 'Không rõ',
+              message: `✅ Đã cài đặt tự xóa tin nhắn sau ${ttlLabels[ttl] || ttl + 'ms'}`
+            }));
+            console.log(`✅ Auto-delete chat updated for ${threadId}: ${ttlLabels[ttl]}`);
+          } catch (error) {
+            console.error('❌ Update auto-delete chat error:', error.message);
+            ws.send(JSON.stringify({
+              type: 'auto_delete_chat_error',
+              error: `Lỗi: ${error.message}`
+            }));
+          }
+          return;
+        }
+
+        // ============================================
         // USER INFO
         // ============================================
         if (msg.type === 'get_current_user') {
@@ -674,8 +734,18 @@ function startWebSocketServer(apiState, httpServer) {
         // GET/LOAD FRIENDS
         // ============================================
         else if (msg.type === 'load_friends' || msg.type === 'get_friends') {
-          console.log('👥 Loading friends list...');
-          loadFriends(apiState, ws);
+          const force = msg.force === true;
+          console.log(`👥 Loading friends list... (Force: ${force})`);
+          loadFriends(apiState, ws, force);
+        }
+
+        // ============================================
+        // GET/LOAD GROUPS (Nhóm chat)
+        // ============================================
+        else if (msg.type === 'load_groups' || msg.type === 'get_groups') {
+          const force = msg.force === true;
+          console.log(`👥 Loading groups list... (Force: ${force})`);
+          loadGroups(apiState, ws, force);
         }
 
         // ============================================
@@ -1237,6 +1307,10 @@ function startWebSocketServer(apiState, httpServer) {
           apiState.autoAcceptFriendEnabled = false;
           apiState.autoAcceptFriendWelcome = '';
 
+          // ✅ Reset groups persistence fix
+          apiState.groups = null;
+          apiState.groupsMap = new Map();
+
           // Reset auto-reply state
           try {
             const autoReply = require('../autoReply');
@@ -1291,6 +1365,21 @@ function startWebSocketServer(apiState, httpServer) {
           }
 
           const logs = triggerDB.getActivityLogs(apiState.currentUser.uid, msg.limit || 100);
+          ws.send(JSON.stringify({
+            type: 'activity_logs',
+            logs: logs
+          }));
+        }
+
+        // ============================================
+        // GET ACTIVITY LOGS
+        // ============================================
+        else if (msg.type === 'get_activity_logs') {
+          if (!apiState.currentUser) {
+            ws.send(JSON.stringify({ type: 'activity_logs', logs: [] }));
+            return;
+          }
+          const logs = triggerDB.getActivityLogs(apiState.currentUser.uid, 50);
           ws.send(JSON.stringify({
             type: 'activity_logs',
             logs: logs
@@ -2960,6 +3049,158 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({
               type: 'find_user_error',
               error: err.message
+            }));
+          }
+        }
+
+        // ========================================
+        // REMOVE FRIEND (SINGLE)
+        // ========================================
+        else if (msg.type === 'remove_friend') {
+          if (!apiState.api) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+
+          const friendId = msg.friendId || '';
+          console.log(`🗑️ Removing friend: ${friendId}`);
+
+          try {
+            await apiState.api.removeFriend(friendId);
+            console.log(`✅ Friend removed: ${friendId}`);
+
+            // Remove from cached friends list
+            if (apiState.friends) {
+              apiState.friends = apiState.friends.filter(f => f.userId !== friendId);
+            }
+
+            ws.send(JSON.stringify({
+              type: 'friend_removed',
+              friendId: friendId,
+              success: true
+            }));
+
+            // Broadcast updated friends list
+            broadcast(apiState, {
+              type: 'friend_removed',
+              friendId: friendId
+            });
+
+          } catch (err) {
+            console.error(`❌ Error removing friend:`, err.message);
+            ws.send(JSON.stringify({
+              type: 'remove_friend_error',
+              friendId: friendId,
+              error: err.message
+            }));
+          }
+        }
+
+        // ========================================
+        // REMOVE FRIENDS BATCH (MULTIPLE)
+        // ========================================
+        else if (msg.type === 'remove_friends_batch') {
+          if (!apiState.api) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+
+          const friendIds = msg.friendIds || [];
+          console.log(`🗑️ Batch removing ${friendIds.length} friends`);
+
+          const results = { success: [], failed: [] };
+
+          for (const friendId of friendIds) {
+            try {
+              await apiState.api.removeFriend(friendId);
+              results.success.push(friendId);
+              console.log(`  ✅ Removed: ${friendId}`);
+
+              // Remove from cached friends list
+              if (apiState.friends) {
+                apiState.friends = apiState.friends.filter(f => f.userId !== friendId);
+              }
+            } catch (err) {
+              results.failed.push({ friendId, error: err.message });
+              console.error(`  ❌ Failed: ${friendId} - ${err.message}`);
+            }
+          }
+
+          console.log(`✅ Batch remove complete: ${results.success.length} removed, ${results.failed.length} failed`);
+
+          ws.send(JSON.stringify({
+            type: 'friends_batch_removed',
+            success: results.success,
+            failed: results.failed
+          }));
+
+          // Broadcast updated friends list
+          if (results.success.length > 0) {
+            broadcast(apiState, {
+              type: 'friends_list_updated',
+              removedIds: results.success
+            });
+          }
+        }
+
+        // ========================================
+        // GET SENT FRIEND REQUESTS
+        // ========================================
+        else if (msg.type === 'get_sent_friend_requests') {
+          if (!apiState.api) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+
+          console.log(`📤 Getting sent friend requests...`);
+
+          try {
+            // Check if API method exists
+            if (typeof apiState.api.getSentFriendRequest !== 'function') {
+              console.error(`❌ API method getSentFriendRequest not available`);
+              ws.send(JSON.stringify({
+                type: 'sent_friend_requests_error',
+                error: 'API không hỗ trợ chức năng này. Có thể cần cập nhật zca-js.'
+              }));
+              return;
+            }
+
+            const result = await apiState.api.getSentFriendRequest();
+            console.log(`✅ Got sent friend requests:`, Object.keys(result || {}).length);
+            console.log(`📋 Raw result:`, JSON.stringify(result).substring(0, 500));
+
+            // Convert object to array for easier frontend handling
+            const requests = Object.values(result || {}).map(req => ({
+              userId: req.userId,
+              zaloName: req.zaloName || req.displayName || '',
+              displayName: req.displayName || req.zaloName || '',
+              avatar: req.avatar || '',
+              message: req.fReqInfo?.message || '',
+              time: req.fReqInfo?.time || 0
+            }));
+
+            ws.send(JSON.stringify({
+              type: 'sent_friend_requests_response',
+              requests: requests
+            }));
+
+          } catch (err) {
+            console.error(`❌ Error getting sent friend requests:`, err);
+
+            // Error code 112 = no sent requests (empty list)
+            if (err.code === 112) {
+              console.log(`📭 No sent friend requests (code 112)`);
+              ws.send(JSON.stringify({
+                type: 'sent_friend_requests_response',
+                requests: []
+              }));
+              return;
+            }
+
+            console.error(`   Stack:`, err.stack);
+            ws.send(JSON.stringify({
+              type: 'sent_friend_requests_error',
+              error: err.message || 'Lỗi không xác định'
             }));
           }
         }

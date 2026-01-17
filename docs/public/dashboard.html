@@ -347,6 +347,90 @@
       max-width: 100%;
       height: auto;
     }
+
+    /* ✅ CSS cho chế độ xóa bạn bè */
+    .delete-mode-toggle {
+      background: transparent;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      padding: 6px 10px;
+      font-size: 14px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .delete-mode-toggle:hover {
+      background: #f0f0f0;
+      color: #f44336;
+    }
+
+    .delete-mode-toggle.active {
+      background: #ffebee;
+      color: #f44336;
+    }
+
+    .friend-checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      display: none;
+      margin-right: 10px;
+      accent-color: #f44336;
+    }
+
+    .delete-mode .friend-checkbox {
+      display: block;
+    }
+
+    .delete-mode .friend-item {
+      padding-left: 8px;
+    }
+
+    .delete-selection-bar {
+      display: none;
+      background: linear-gradient(135deg, #f44336, #d32f2f);
+      color: white;
+      padding: 10px 15px;
+      text-align: center;
+      font-size: 14px;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .delete-selection-bar.visible {
+      display: flex;
+    }
+
+    .delete-selection-bar .delete-btn {
+      background: white;
+      color: #f44336;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .delete-selection-bar .delete-btn:hover {
+      background: #ffebee;
+    }
+
+    .delete-selection-bar .cancel-btn {
+      background: transparent;
+      color: white;
+      border: 1px solid white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .delete-selection-bar .cancel-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
   </style>
 </head>
 
@@ -364,33 +448,63 @@
           <div id="userName">Đang tải...</div>
           <div id="userUid" style="font-size:12px;"></div>
 
-          <div class="button-group">
-            <button class="backup-button" onclick="openStorageInfo()">
-              <span>📊</span> THỐNG KÊ & QUẢN LÝ
+          <!-- ✅ Compact Button Grid -->
+          <div class="button-grid"
+            style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-top:12px;">
+            <button onclick="openStorageInfo()" title="Thống kê & Quản lý"
+              style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #4CAF50, #2E7D32); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+              <span style="font-size:18px;">📊</span>
+              <span>Thống kê</span>
             </button>
-
+            <button onclick="openFriendRequestsPanel()" title="Lời mời kết bạn"
+              style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #2196F3, #1565C0); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+              <span style="font-size:18px;">🤝</span>
+              <span>Lời mời</span>
             </button>
-
-            <button class="storage-button" onclick="openFriendRequestsPanel()">
-              <span>🤝</span> LỜI MỜI KẾT BẠN
+            <button onclick="openSentFriendRequestsPanel()" title="Lời mời đã gửi"
+              style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #FF9800, #E65100); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+              <span style="font-size:18px;">📤</span>
+              <span>Đã gửi</span>
             </button>
-
-            <button class="storage-button" onclick="openAutoReplyViewer()">
-              <span>🤖</span> CÀI ĐẶT KỊCH BẢN
+            <button onclick="openAutoReplyViewer()" title="Cài đặt kịch bản"
+              style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #9C27B0, #6A1B9A); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+              <span style="font-size:18px;">🤖</span>
+              <span>Kịch bản</span>
             </button>
           </div>
 
-          <button class="logout-btn" onclick="logout()">
+          <!-- ✅ Compact Logout Button -->
+          <button class="logout-btn" onclick="logout()"
+            style="margin-top:10px; width:100%; padding:8px; border:none; border-radius:8px; background:#ff4757; color:white; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px;">
             <span>🚪</span><span>Đăng xuất</span>
           </button>
         </div>
       </div>
 
-      <!-- ✅ DUAL SEARCH TABS -->
-      <div class="search-tabs">
-        <button class="search-tab active" onclick="FriendTab('friends')">
-          👥 Bạn bè
+      <!-- ✅ DUAL SEARCH TABS (Friends + Groups) -->
+      <div class="search-tabs" style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; gap:4px;">
+          <button class="search-tab active" id="friendsTabBtn" onclick="switchTab('friends')"
+            style="padding:6px 12px; border:none; border-radius:6px; cursor:pointer; font-size:12px;">
+            👥 Bạn bè
+          </button>
+          <button class="search-tab" id="groupsTabBtn" onclick="switchTab('groups')"
+            style="padding:6px 12px; border:none; border-radius:6px; cursor:pointer; font-size:12px; background:#f0f0f0;">
+            👪 Nhóm
+          </button>
+        </div>
+        <button class="delete-mode-toggle" id="deleteModeBtn" onclick="toggleDeleteMode()" title="Chế độ xóa bạn bè">
+          Xóa bạn bè
         </button>
+      </div>
+
+      <!-- ✅ DELETE SELECTION BAR -->
+      <div class="delete-selection-bar" id="deleteSelectionBar">
+        <span id="selectedCount">0 đã chọn</span>
+        <div>
+          <button class="cancel-btn" onclick="cancelDeleteMode()">Hủy</button>
+          <button class="delete-btn" onclick="deleteSelectedFriends()">🗑️ Xóa</button>
+        </div>
       </div>
 
       <!-- ✅ FRIENDS SEARCH -->
@@ -400,6 +514,20 @@
             onkeyup="searchFriends(this.value)">
         </div>
         <div class="search-results-container" id="friendsResults"></div>
+      </div>
+
+      <!-- ✅ GROUPS CONTAINER (New) -->
+      <div id="groupsContainer" class="search-content" style="display:none;">
+        <div class="friends-search-box">
+          <input type="text" id="groupsSearchInput" placeholder="🔍 Tìm nhóm..." autocomplete="off"
+            onkeyup="searchGroups(this.value)">
+        </div>
+        <div class="search-results-container" id="groupsResults">
+          <div class="loading-friends">
+            <div class="spinner"></div>
+            <div>Đang tải danh sách nhóm...</div>
+          </div>
+        </div>
       </div>
 
       <!-- ✅ FRIENDS LIST -->
@@ -419,6 +547,49 @@
           <div class="name" id="chatName">Chọn bạn bè</div>
           <div class="uid" id="chatUid"></div>
           <div class="status">Đang hoạt động</div>
+        </div>
+        <!-- ✅ Auto-Delete Chat Button -->
+        <div class="chat-actions" style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+          <div class="auto-delete-dropdown" style="position:relative;">
+            <button onclick="toggleAutoDeleteMenu()" class="action-btn" title="Tự động xóa tin nhắn"
+              style="background:transparent; border:1px solid #ddd; border-radius:8px; padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+              <span>⏱️</span>
+              <span id="autoDeleteLabel" style="font-size:12px; color:#666;">Tự xóa</span>
+            </button>
+            <div id="autoDeleteMenu"
+              style="display:none; position:absolute; top:100%; right:0; background:white; border:1px solid #e0e0e0; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:220px; z-index:1000; margin-top:4px;">
+              <div style="padding:8px 0;">
+                <div onclick="setAutoDeleteChat(0)" class="menu-item"
+                  style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                  <span>❌</span> Không tự xóa
+                </div>
+                <div onclick="setAutoDeleteChat(86400000)" class="menu-item"
+                  style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                  <span>📅</span> Sau 1 ngày
+                </div>
+                <div onclick="setAutoDeleteChat(604800000)" class="menu-item"
+                  style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                  <span>📆</span> Sau 7 ngày
+                </div>
+                <div onclick="setAutoDeleteChat(1209600000)" class="menu-item"
+                  style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                  <span>🗓️</span> Sau 14 ngày
+                </div>
+                <hr style="margin:8px 0; border:none; border-top:1px solid #eee;">
+                <div style="padding:8px 16px;">
+                  <label style="font-size:12px; color:#666; display:block; margin-bottom:4px;">⏱️ Tùy chỉnh
+                    (giây):</label>
+                  <div style="display:flex; gap:6px;">
+                    <input type="number" id="customDeleteSeconds" placeholder="VD: 3600" min="0"
+                      style="flex:1; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px;">
+                    <button onclick="setCustomAutoDelete()"
+                      style="padding:6px 12px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">OK</button>
+                  </div>
+                  <div style="font-size:10px; color:#999; margin-top:4px;">1 giờ = 3600, 1 ngày = 86400</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -456,10 +627,12 @@
     </div>
   </div>
 
-  <!-- 🔔 Notification Bell -->
-  <div class="notification-bell" onclick="toggleNotificationPanel()" id="notificationBell">
+  <!-- 🔔 Notification Bell - Fixed position to avoid overlap with chat header buttons -->
+  <div class="notification-bell" onclick="toggleNotificationPanel()" id="notificationBell"
+    style="position:fixed; top:20px; left:280px; z-index:999; background:#fff; border-radius:50%; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15); cursor:pointer;">
     <span class="icon">🔔</span>
-    <span class="badge" id="notificationBadge" style="display:none;">0</span>
+    <span class="badge" id="notificationBadge"
+      style="display:none; position:absolute; top:-5px; right:-5px; background:#ff4757; color:white; font-size:10px; padding:2px 6px; border-radius:10px;">0</span>
   </div>
 
   <!-- 📋 Notification Panel -->
@@ -473,6 +646,23 @@
     </div>
   </div>
 
+  <!-- ✅ Custom Confirm Modal -->
+  <div id="customConfirmModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; display:none; align-items:center; justify-content:center;">
+    <div
+      style="background:white; border-radius:12px; padding:24px; max-width:400px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+      <div style="font-size:18px; font-weight:600; margin-bottom:12px;" id="confirmTitle">⚠️ Xác nhận</div>
+      <div style="color:#555; margin-bottom:20px; line-height:1.5;" id="confirmMessage">Bạn có chắc chắn?</div>
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button onclick="closeConfirmModal(false)"
+          style="padding:10px 20px; border:1px solid #ddd; background:#f5f5f5; border-radius:8px; cursor:pointer; font-size:14px;">Hủy</button>
+        <button onclick="closeConfirmModal(true)"
+          style="padding:10px 20px; border:none; background:#ff4757; color:white; border-radius:8px; cursor:pointer; font-size:14px;">Xác
+          nhận</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Fr Req Modal -->
   <div id="frModal" class="fr-modal">
     <div class="fr-modal-content">
@@ -481,6 +671,19 @@
         <span class="fr-close" onclick="closeFriendRequestsPanel()">&times;</span>
       </div>
       <div class="fr-body" id="frList">
+        <div style="padding:20px;text-align:center;color:#666;">Đang tải...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sent Friend Requests Modal -->
+  <div id="sentFrModal" class="fr-modal">
+    <div class="fr-modal-content">
+      <div class="fr-header" style="background:#ff9800;">
+        <h3>📤 Lời mời đã gửi</h3>
+        <span class="fr-close" onclick="closeSentFriendRequestsPanel()">&times;</span>
+      </div>
+      <div class="fr-body" id="sentFrList">
         <div style="padding:20px;text-align:center;color:#666;">Đang tải...</div>
       </div>
     </div>
@@ -515,6 +718,41 @@
     let scrollTop = 0;
     let containerHeight = 0;
 
+    // ✅ Groups support
+    let groups = [];
+    let allGroups = [];
+    let filteredGroups = [];
+    let groupsLoaded = false;
+
+    // ✅ Prevent duplicate friend requests
+    let isLoadingFriends = false;
+    let friendsRequestDebounce = null;
+
+    // ✅ Custom confirm modal
+    let confirmResolve = null;
+
+    function showConfirm(message, title = '⚠️ Xác nhận') {
+      return new Promise((resolve) => {
+        confirmResolve = resolve;
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').innerHTML = message.replace(/\n/g, '<br>');
+        const modal = document.getElementById('customConfirmModal');
+        modal.style.display = 'flex';
+      });
+    }
+
+    function closeConfirmModal(result) {
+      document.getElementById('customConfirmModal').style.display = 'none';
+      if (confirmResolve) {
+        confirmResolve(result);
+        confirmResolve = null;
+      }
+    }
+
+    function showAlert(message, title = 'ℹ️ Thông báo') {
+      showToast(message, 'info');
+    }
+
     // ========== DATABASE MANAGEMENT ==========
     let dbInstance = null;
     let currentUserUID = null;
@@ -528,6 +766,12 @@
       allFriends = [];
       filteredFriends = [];
       friendsRendered = false;
+
+      // ✅ Clear groups cache
+      groups = [];
+      allGroups = [];
+      filteredGroups = [];
+      groupsLoaded = false;
 
       // Clear messages
       allMessages.clear();
@@ -548,6 +792,12 @@
           <div>Chọn một cuộc trò chuyện để bắt đầu</div>
         </div>
       `;
+
+      // ✅ Clear groups UI
+      const groupsResults = document.getElementById('groupsResults');
+      if (groupsResults) {
+        groupsResults.innerHTML = '<div class="loading-friends"><div class="spinner"></div><div>Đang tải danh sách nhóm...</div></div>';
+      }
 
       console.log('✅ Dashboard data cleared');
     }
@@ -584,6 +834,9 @@
           const newUserUID = data.user.uid;
           currentUserId = newUserUID; // Update global var
 
+          // Request activity logs
+          ws.send(JSON.stringify({ type: 'get_activity_logs' }));
+
           // 🔄 Check if user changed - clear data if so
           if (currentUserUID && currentUserUID !== newUserUID) {
             console.log(`🔄 User changed from ${currentUserUID} to ${newUserUID}`);
@@ -592,7 +845,7 @@
 
           console.log('👤 Current User:', newUserUID);
           document.getElementById('userName').textContent = data.user.name || "User";
-          document.getElementById('userAvatar').src = data.user.avatar || "https://via.placeholder.com/50";
+          document.getElementById('userAvatar').src = data.user.avatar || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect fill='%23ddd' width='50' height='50'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'%3E👤%3C/text%3E%3C/svg%3E";
           document.getElementById('userUid').textContent = 'UID: ' + data.user.uid;
           document.getElementById('userInfo').style.display = 'flex';
 
@@ -617,6 +870,9 @@
             // Still request fresh list from server
             console.log('🔄 Requesting fresh friends list from server...');
             ws.send(JSON.stringify({ type: 'get_friends' }));
+
+            // ✅ Also request groups
+            ws.send(JSON.stringify({ type: 'get_groups' }));
           }).catch(err => {
             console.error('❌ Failed to init DB:', err);
           });
@@ -628,6 +884,7 @@
 
         if (data.type === 'friends_list') {
           console.log('👥 Friends:', data.friends?.length);
+          isLoadingFriends = false; // ✅ Reset loading flag
           friends = data.friends || [];
           allFriends = [...friends];
           filteredFriends = [...friends];
@@ -649,6 +906,16 @@
               sortFriendsAfterLoad();
             }
           }, 300);
+        }
+
+        // ✅ GROUPS LIST HANDLER
+        if (data.type === 'groups_list') {
+          console.log('👪 Groups:', data.groups?.length);
+          groups = data.groups || [];
+          allGroups = [...groups];
+          filteredGroups = [...groups];
+          groupsLoaded = true;
+          renderGroups();
         }
 
         if (data.type === 'messages_history') {
@@ -815,6 +1082,62 @@
         if (data.type === 'logged_out') {
           console.log('✅ Logout successful');
           handleLogoutComplete();
+        }
+
+        // ✅ XỬ LÝ XÓA BẠN BÈ
+        if (data.type === 'friend_removed') {
+          handleFriendRemoved(data);
+        }
+
+        if (data.type === 'friends_batch_removed') {
+          handleBatchRemoved(data);
+        }
+
+        if (data.type === 'remove_friend_error') {
+          console.error('❌ Lỗi xóa bạn bè:', data.error);
+          alert('❌ Lỗi xóa bạn bè: ' + data.error);
+        }
+
+        // ✅ XỬ LÝ LỜI MỜI ĐÃ GỬI
+        if (data.type === 'sent_friend_requests_response') {
+          renderSentFriendRequests(data.requests);
+        }
+
+        if (data.type === 'sent_friend_requests_error') {
+          renderSentFriendRequests(null, data.error);
+        }
+
+        // ✅ XỬ LÝ SỰ KIỆN BẠN BÈ
+        // ✅ XỬ LÝ SỰ KIỆN BẠN BÈ
+        if (data.type === 'friend_event') {
+          handleFriendEvent(data);
+        }
+
+        // ✅ XỬ LÝ ACTIVITY LOGS
+        if (data.type === 'activity_logs') {
+          console.log('📜 Activity logs receive:', data.logs.length);
+          notifications = data.logs.map(log => {
+            // Try to find avatar from friends list
+            const friend = friends.find(f => f.userId == log.entityID);
+            return {
+              id: log.id,
+              name: log.entityName || (friend ? friend.displayName : 'Hệ thống'),
+              message: log.details,
+              uid: log.entityID,
+              avatar: friend ? friend.avatar : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3C/svg%3E',
+              timestamp: log.timestamp
+            };
+          });
+          renderNotificationPanel();
+          updateNotificationBadge();
+        }
+
+        // ✅ XỬ LÝ AUTO-DELETE CHAT RESPONSES
+        if (data.type === 'auto_delete_chat_updated') {
+          showToast(data.message || '✅ Đã cài đặt tự xóa tin nhắn', 'success');
+        }
+        if (data.type === 'auto_delete_chat_error') {
+          showToast('❌ ' + (data.error || 'Lỗi không xác định'), 'error');
         }
       } catch (err) {
         console.error('❌ Error:', err);
@@ -1026,8 +1349,8 @@
         </div>
         <div class="search-result-item" onclick="selectFriendFromSearch('${user.uid}', '${escapeJs(displayName)}', '${user.avatar || ''}')">
           <div class="result-friend">
-            <img src="${user.avatar || 'https://via.placeholder.com/50'}" 
-                 onerror="this.src='https://via.placeholder.com/50'"
+            <img src="${user.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3C/svg%3E'}" 
+                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E'"
                  alt="Avatar"
                  style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
             <div class="result-friend-info" style="flex: 1; margin-left: 10px;">
@@ -1220,7 +1543,7 @@
 
       container.innerHTML = notifications.slice(0, 20).map(n => `
         <div class="notification-item" onclick="goToConversation('${n.uid}', '${escapeJs(n.name)}', '${n.avatar || ''}')">
-          <img src="${n.avatar || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'" alt="">
+          <img src="${n.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}" onerror="this.onerror=null;" alt="">
           <div class="info">
             <div class="name">${escapeHtml(n.name)}</div>
             <div class="message">${escapeHtml(n.message?.substring(0, 50) || '')}</div>
@@ -1239,6 +1562,25 @@
       } else {
         badge.style.display = 'none';
       }
+    }
+
+    // ✅ ADD NOTIFICATION TO PANEL
+    function addNotificationToPanel(name, message, uid, avatar, timestamp) {
+      console.log('🔔 Adding notification:', name, message);
+      notifications.unshift({
+        name: name,
+        message: message,
+        uid: uid,
+        avatar: avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3C/svg%3E',
+        timestamp: timestamp || Date.now()
+      });
+
+      // Limit to 50 items
+      if (notifications.length > 50) notifications = notifications.slice(0, 50);
+
+      localStorage.setItem('zalo_notifications', JSON.stringify(notifications));
+      renderNotificationPanel();
+      updateNotificationBadge();
     }
 
     function clearNotifications() {
@@ -1295,7 +1637,7 @@
       let html = '';
       requests.forEach(req => {
         const name = req.zaloName || req.displayName || req.userId;
-        const avatar = req.avatar || 'https://via.placeholder.com/40';
+        const avatar = req.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E';
         const msg = req.msg || req.message || 'Xin chào!';
         const time = req.time ? new Date(req.time).toLocaleString() : '';
 
@@ -1355,6 +1697,452 @@
           closeMobileSidebar();
         }
       };
+    }
+
+    // ========== DELETE FRIENDS MODE ==========
+    let isDeleteMode = false;
+    let selectedForDelete = new Set();
+
+    function toggleDeleteMode() {
+      isDeleteMode = !isDeleteMode;
+      const friendsList = document.getElementById('friendsList');
+      const btn = document.getElementById('deleteModeBtn');
+      const bar = document.getElementById('deleteSelectionBar');
+
+      if (isDeleteMode) {
+        friendsList.classList.add('delete-mode');
+        btn.classList.add('active');
+        bar.classList.add('visible');
+        selectedForDelete.clear();
+        updateSelectedCount();
+        // Re-render to show checkboxes
+        if (typeof renderFriendsVirtual === 'function') {
+          renderFriendsVirtual();
+        }
+      } else {
+        cancelDeleteMode();
+      }
+    }
+
+    function cancelDeleteMode() {
+      isDeleteMode = false;
+      selectedForDelete.clear();
+      const friendsList = document.getElementById('friendsList');
+      const btn = document.getElementById('deleteModeBtn');
+      const bar = document.getElementById('deleteSelectionBar');
+
+      friendsList.classList.remove('delete-mode');
+      btn.classList.remove('active');
+      bar.classList.remove('visible');
+      // Re-render to hide checkboxes
+      if (typeof renderFriendsVirtual === 'function') {
+        renderFriendsVirtual();
+      }
+    }
+
+    function toggleFriendSelection(userId, checkbox) {
+      if (checkbox.checked) {
+        selectedForDelete.add(userId);
+      } else {
+        selectedForDelete.delete(userId);
+      }
+      updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+      document.getElementById('selectedCount').textContent = `${selectedForDelete.size} đã chọn`;
+    }
+
+    async function deleteSelectedFriends() {
+      if (selectedForDelete.size === 0) {
+        showToast('Vui lòng chọn ít nhất 1 bạn bè để xóa', 'warning');
+        return;
+      }
+
+      const count = selectedForDelete.size;
+      const confirmed = await showConfirm(
+        `Bạn có chắc muốn XÓA ${count} bạn bè?\n\nHành động này không thể hoàn tác!`,
+        '🗑️ Xóa bạn bè'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      const friendIds = Array.from(selectedForDelete);
+      console.log(`🗑️ Deleting ${friendIds.length} friends:`, friendIds);
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'remove_friends_batch',
+          friendIds: friendIds
+        }));
+      } else {
+        showToast('Không thể kết nối server. Vui lòng thử lại.', 'error');
+      }
+    }
+
+    // Handle remove friend responses
+    function handleFriendRemoved(data) {
+      console.log('✅ Friend removed:', data.friendId);
+      // Remove from local arrays
+      friends = friends.filter(f => f.userId !== data.friendId);
+      allFriends = allFriends.filter(f => f.userId !== data.friendId);
+      filteredFriends = filteredFriends.filter(f => f.userId !== data.friendId);
+      selectedForDelete.delete(data.friendId);
+      updateSelectedCount();
+      if (typeof renderFriendsVirtual === 'function') {
+        renderFriendsVirtual();
+      }
+    }
+
+    function handleBatchRemoved(data) {
+      console.log('✅ Batch removed:', data.success.length, 'friends');
+      if (data.success && data.success.length > 0) {
+        // Remove from local arrays
+        const removedSet = new Set(data.success);
+        friends = friends.filter(f => !removedSet.has(f.userId));
+        allFriends = allFriends.filter(f => !removedSet.has(f.userId));
+        filteredFriends = filteredFriends.filter(f => !removedSet.has(f.userId));
+        selectedForDelete.clear();
+        updateSelectedCount();
+        if (typeof renderFriendsVirtual === 'function') {
+          renderFriendsVirtual();
+        }
+        alert(`✅ Đã xóa ${data.success.length} bạn bè thành công!${data.failed.length > 0 ? `\n⚠️ Lỗi: ${data.failed.length} bạn bè` : ''}`);
+        cancelDeleteMode();
+      }
+      if (data.failed && data.failed.length > 0) {
+        console.error('❌ Failed to remove:', data.failed);
+      }
+    }
+
+    // ========== SENT FRIEND REQUESTS ==========
+    function openSentFriendRequestsPanel() {
+      document.getElementById('sentFrModal').style.display = 'block';
+      document.getElementById('sentFrList').innerHTML = '<div style="padding:30px;text-align:center;"><div class="spinner"></div><div>Đang tải...</div></div>';
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'get_sent_friend_requests' }));
+      } else {
+        document.getElementById('sentFrList').innerHTML = '<div style="padding:20px;text-align:center;color:#f44336;">❌ Chưa kết nối server</div>';
+      }
+    }
+
+    function closeSentFriendRequestsPanel() {
+      document.getElementById('sentFrModal').style.display = 'none';
+    }
+
+    function renderSentFriendRequests(requests, error) {
+      const container = document.getElementById('sentFrList');
+
+      if (error) {
+        container.innerHTML = `<div style="padding:20px;text-align:center;color:#f44336;">❌ ${escapeHtml(error)}</div>`;
+        return;
+      }
+
+      if (!requests || requests.length === 0) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:#888;">📭 Chưa gửi lời mời kết bạn nào</div>';
+        return;
+      }
+
+      let html = '';
+      for (const req of requests) {
+        const timeAgo = req.time ? formatTimeAgo(req.time * 1000) : '';
+        html += `
+          <div class="fr-item">
+            <img class="fr-avatar" src="${req.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}" 
+                 onerror="this.onerror=null;" alt="Avatar">
+            <div style="flex:1;">
+              <div style="font-weight:600;">${escapeHtml(req.displayName || req.zaloName || 'Người dùng')}</div>
+              <div style="font-size:12px;color:#888;">${req.message ? escapeHtml(req.message) : 'Không có lời nhắn'}</div>
+              ${timeAgo ? `<div style="font-size:11px;color:#aaa;">${timeAgo}</div>` : ''}
+            </div>
+            <div style="font-size:20px;color:#ff9800;" title="Đang chờ chấp nhận">⏳</div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    function formatTimeAgo(timestamp) {
+      const now = Date.now();
+      const diff = now - timestamp;
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      if (days > 0) return `${days} ngày trước`;
+      if (hours > 0) return `${hours} giờ trước`;
+      if (minutes > 0) return `${minutes} phút trước`;
+      return 'Vừa xong';
+    }
+
+    // ========== FRIEND EVENTS HANDLER ==========
+    function handleFriendEvent(event) {
+      console.log('👥 Friend Event:', event);
+      const { eventType, data } = event;
+
+      // Ensure showToast is available
+      if (typeof showToast !== 'function') {
+        console.warn('⚠️ showToast not available');
+        return;
+      }
+
+      switch (eventType) {
+        case 'ADD':
+          showToast(`🎉 Đã thêm bạn mới: ${data}`, 'success');
+          // ✅ RELOAD FRIENDS LIST
+          console.log('🔄 Requesting updated friends list...');
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'get_friends' }));
+          }
+          addNotificationToPanel('Hệ thống', `🎉 Đã thêm bạn mới: ${data}`, data, '', Date.now());
+          // Reload friend list if not already triggered by other means
+          // The server sends friends_list_updated usually, or we can reload manually
+          break;
+
+        case 'REMOVE':
+          showToast(`👋 Đã hủy kết bạn với: ${data}`, 'warning');
+          // ✅ RELOAD FRIENDS LIST
+          console.log('🔄 Requesting updated friends list...');
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'get_friends' }));
+          }
+          addNotificationToPanel('Hệ thống', `👋 Đã hủy kết bạn với: ${data}`, data, '', Date.now());
+          break;
+
+        case 'REQUEST':
+          const senderId = data.fromUid || 'Người dùng';
+          const msg = data.message || 'Xin chào! Kết bạn với mình nhé!';
+          showToast(`📨 Lời mời kết bạn mới từ: ${senderId}`, 'info');
+          addNotificationToPanel('Lời mời kết bạn', `📨 Từ ${senderId}: ${msg}`, senderId, '', Date.now());
+          // Play sound if desired
+          break;
+
+        case 'REJECT_REQUEST':
+          showToast(`❌ Lời mời kết bạn bị từ chối`, 'error');
+          addNotificationToPanel('Hệ thống', `❌ Lời mời kết bạn tới ${data?.toUid} bị từ chối`, data?.toUid, '', Date.now());
+          break;
+
+        case 'UNDO_REQUEST':
+          showToast(`↩️ Lời mời kết bạn đã được thu hồi`, 'info');
+          addNotificationToPanel('Hệ thống', `↩️ Lời mời kết bạn từ ${data?.toUid} đã thu hồi`, data?.toUid, '', Date.now());
+          break;
+
+        case 'BLOCK':
+          showToast(`🚫 Đã chặn người dùng: ${data}`, 'warning');
+          addNotificationToPanel('Hệ thống', `🚫 Đã chặn người dùng: ${data}`, data, '', Date.now());
+          break;
+
+        case 'UNBLOCK':
+          showToast(`✅ Đã bỏ chặn người dùng: ${data}`, 'success');
+          addNotificationToPanel('Hệ thống', `✅ Đã bỏ chặn người dùng: ${data}`, data, '', Date.now());
+          break;
+
+        case 'SEEN_FRIEND_REQUEST':
+          showToast(`👁️ Đã xem lời mời kết bạn`, 'info');
+          break;
+
+        case 'PIN_CREATE':
+          showToast(`📌 Đã ghim cuộc trò chuyện`, 'info');
+          break;
+
+        case 'PIN_UNPIN':
+          showToast(`📍 Đã bỏ ghim cuộc trò chuyện`, 'info');
+          break;
+
+        default:
+          console.log('ℹ️ Unhandled friend event:', eventType);
+      }
+    }
+
+    // ========== AUTO-DELETE CHAT FUNCTIONS ==========
+    function toggleAutoDeleteMenu() {
+      const menu = document.getElementById('autoDeleteMenu');
+      if (menu) {
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const dropdown = document.querySelector('.auto-delete-dropdown');
+      const menu = document.getElementById('autoDeleteMenu');
+      if (dropdown && menu && !dropdown.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+
+    function setAutoDeleteChat(ttl) {
+      if (!selectedFriend || !selectedFriend.userId) {
+        showToast('❌ Vui lòng chọn một cuộc trò chuyện', 'error');
+        return;
+      }
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'update_auto_delete_chat',
+          ttl: ttl,
+          threadId: selectedFriend.userId,
+          threadType: 0 // User
+        }));
+
+        // Update UI label
+        const labels = {
+          0: 'Tự xóa',
+          86400000: '1 ngày',
+          604800000: '7 ngày',
+          1209600000: '14 ngày'
+        };
+        document.getElementById('autoDeleteLabel').textContent = labels[ttl] || 'Tự xóa';
+
+        // Close menu
+        document.getElementById('autoDeleteMenu').style.display = 'none';
+
+        showToast(`⏱️ Đang cài đặt tự xóa tin nhắn...`, 'info');
+      } else {
+        showToast('❌ Mất kết nối WebSocket', 'error');
+      }
+    }
+
+    function setCustomAutoDelete() {
+      const input = document.getElementById('customDeleteSeconds');
+      const seconds = parseInt(input.value);
+
+      if (isNaN(seconds) || seconds < 0) {
+        showToast('❌ Vui lòng nhập số giây hợp lệ', 'error');
+        return;
+      }
+
+      // Convert seconds to milliseconds
+      const ttl = seconds * 1000;
+
+      // Update label to show custom value
+      if (seconds > 0) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        let label = '';
+        if (hours > 0) label += `${hours}h`;
+        if (minutes > 0) label += `${minutes}m`;
+        if (!label) label = `${seconds}s`;
+        document.getElementById('autoDeleteLabel').textContent = label;
+      }
+
+      setAutoDeleteChat(ttl);
+      input.value = ''; // Clear input
+    }
+
+    // ========== GROUP FUNCTIONS ==========
+    function switchTab(tab) {
+      currentSearchTab = tab;
+      const friendsTabBtn = document.getElementById('friendsTabBtn');
+      const groupsTabBtn = document.getElementById('groupsTabBtn');
+      const friendsSearch = document.getElementById('friendsSearch');
+      const friendsList = document.getElementById('friendsList');
+      const groupsContainer = document.getElementById('groupsContainer');
+      const deleteModeBtn = document.getElementById('deleteModeBtn');
+
+      if (tab === 'friends') {
+        friendsTabBtn.classList.add('active');
+        friendsTabBtn.style.background = '#2196f3';
+        friendsTabBtn.style.color = 'white';
+        groupsTabBtn.classList.remove('active');
+        groupsTabBtn.style.background = '#f0f0f0';
+        groupsTabBtn.style.color = '#333';
+        friendsSearch.style.display = 'block';
+        friendsList.style.display = 'block';
+        groupsContainer.style.display = 'none';
+        deleteModeBtn.style.display = 'block';
+      } else {
+        groupsTabBtn.classList.add('active');
+        groupsTabBtn.style.background = '#9c27b0';
+        groupsTabBtn.style.color = 'white';
+        friendsTabBtn.classList.remove('active');
+        friendsTabBtn.style.background = '#f0f0f0';
+        friendsTabBtn.style.color = '#333';
+        friendsSearch.style.display = 'none';
+        friendsList.style.display = 'none';
+        groupsContainer.style.display = 'block';
+        deleteModeBtn.style.display = 'none';
+
+        // Request groups if not loaded
+        if (!groupsLoaded && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'get_groups' }));
+        }
+      }
+    }
+
+    function renderGroups() {
+      const container = document.getElementById('groupsResults');
+      if (!container) return;
+
+      if (filteredGroups.length === 0) {
+        container.innerHTML = '<div class="notification-empty">Không tìm thấy nhóm nào</div>';
+        return;
+      }
+
+      container.innerHTML = filteredGroups.map(g => `
+        <div class="friend-item" onclick="selectGroup('${g.groupId}', '${escapeJs(g.name)}', '${g.avatar}')" 
+          style="display:flex; align-items:center; padding:12px; cursor:pointer; border-bottom:1px solid #eee;">
+          <div style="position:relative;">
+            <img src="${g.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E'}" 
+              style="width:50px; height:50px; border-radius:50%; object-fit:cover;" 
+              onerror="this.onerror=null;">
+            <span style="position:absolute; bottom:-2px; right:-2px; background:#9c27b0; color:white; font-size:10px; padding:2px 4px; border-radius:8px;">👪</span>
+          </div>
+          <div style="margin-left:12px; flex:1;">
+            <div style="font-weight:600; color:#333;">${escapeHtml(g.name)}</div>
+            <div style="font-size:12px; color:#888;">${g.totalMember || '?'} thành viên</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function searchGroups(query) {
+      const q = query.toLowerCase().trim();
+      if (!q) {
+        filteredGroups = [...allGroups];
+      } else {
+        filteredGroups = allGroups.filter(g =>
+          g.name.toLowerCase().includes(q) ||
+          g.groupId.includes(q)
+        );
+      }
+      renderGroups();
+    }
+
+    function selectGroup(groupId, groupName, avatar) {
+      // Set selectedFriend with group flag for unified messaging
+      selectedFriend = {
+        userId: groupId,
+        displayName: groupName,
+        avatar: avatar,
+        isGroup: true
+      };
+
+      // Update chat header
+      document.getElementById('chatHeader').style.display = 'flex';
+      document.getElementById('inputArea').style.display = 'flex';
+      document.getElementById('chatAvatar').src = avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E';
+      document.getElementById('chatName').textContent = groupName || 'Nhóm Zalo';
+      document.getElementById('chatUid').textContent = 'Group ID: ' + groupId;
+
+      // Clear messages container
+      document.getElementById('messagesContainer').innerHTML = '<div class="loading-friends"><div class="spinner"></div><div>Đang tải tin nhắn nhóm...</div></div>';
+      currentMessages = [];
+
+      // Request group messages
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'get_messages',
+          uid: groupId,
+          isGroup: true
+        }));
+      }
+
+      console.log(`👪 Selected group: ${groupName} (${groupId})`);
     }
   </script>
   <script src="IndexedDB.js"></script>

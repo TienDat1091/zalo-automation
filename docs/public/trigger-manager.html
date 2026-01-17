@@ -859,7 +859,7 @@
   <div class="modal-backdrop" id="autoMessageModal" style="display:none;">
     <div class="modal-box" style="max-width:600px;">
       <div class="modal-header">
-        <h2 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;">
+        <h2 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;" id="autoMessageModalTitle">
           <span style="font-size:24px;">💬</span>
           Cài đặt Tự động gửi tin nhắn
         </h2>
@@ -868,7 +868,8 @@
         <div
           style="background:#f0f9ff; border-left:4px solid #2196f3; padding:12px; margin-bottom:16px; border-radius:4px;">
           <div style="font-weight:600; color:#1976d2; margin-bottom:4px;">📌 Chức năng</div>
-          <div style="font-size:13px; color:#555;">Tự động trả lời <strong>MỌI</strong> tin nhắn đến từ mọi người với
+          <div style="font-size:13px; color:#555;" id="autoMessageDesc">Tự động trả lời <strong>MỌI</strong> tin nhắn
+            đến từ mọi người với
             nội dung bạn cài đặt.</div>
         </div>
 
@@ -993,14 +994,24 @@
 
     // Built-in triggers state (will be populated from database)
     const builtInTriggers = {
-      autoMessage: {
-        id: 'builtin_auto_message',
-        name: 'Tự động gửi tin nhắn',
-        description: 'Tự động trả lời mọi tin nhắn theo kịch bản',
-        icon: '💬',
+      autoReplyUser: {
+        id: 'builtin_auto_reply_user',
+        name: 'Tự động trả lời (Cá nhân)',
+        description: 'Tự động trả lời tin nhắn 1-1',
+        icon: '👤',
         enabled: false,
         response: '',
-        cooldown: 30000, // Default 30 seconds in ms
+        cooldown: 30000,
+        triggerID: null
+      },
+      autoReplyGroup: {
+        id: 'builtin_auto_reply_group',
+        name: 'Tự động trả lời (Nhóm)',
+        description: 'Tự động trả lời tin nhắn nhóm',
+        icon: '👨‍👩‍👧‍👦',
+        enabled: false,
+        response: '',
+        cooldown: 30000,
         triggerID: null
       },
       autoAcceptFriend: {
@@ -1056,16 +1067,25 @@
           const allTriggers = list.map(formatTrigger);
 
           // Separate built-in triggers from database
-          const autoMessageTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_message__');
+          // Separate built-in triggers from database
+          const autoReplyUserTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_reply_user__');
+          const autoReplyGroupTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_reply_group__');
           const autoFriendTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_friend__');
           const autoFileTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_file__');
 
           // Update built-in triggers state from database
-          if (autoMessageTrigger) {
-            builtInTriggers.autoMessage.enabled = autoMessageTrigger.enabled;
-            builtInTriggers.autoMessage.response = autoMessageTrigger.response;
-            builtInTriggers.autoMessage.triggerID = autoMessageTrigger.id;
-            builtInTriggers.autoMessage.cooldown = autoMessageTrigger.cooldown || 30000;
+          if (autoReplyUserTrigger) {
+            builtInTriggers.autoReplyUser.enabled = autoReplyUserTrigger.enabled;
+            builtInTriggers.autoReplyUser.response = autoReplyUserTrigger.response;
+            builtInTriggers.autoReplyUser.triggerID = autoReplyUserTrigger.id;
+            builtInTriggers.autoReplyUser.cooldown = autoReplyUserTrigger.cooldown || 30000;
+          }
+
+          if (autoReplyGroupTrigger) {
+            builtInTriggers.autoReplyGroup.enabled = autoReplyGroupTrigger.enabled;
+            builtInTriggers.autoReplyGroup.response = autoReplyGroupTrigger.response;
+            builtInTriggers.autoReplyGroup.triggerID = autoReplyGroupTrigger.id;
+            builtInTriggers.autoReplyGroup.cooldown = autoReplyGroupTrigger.cooldown || 30000;
           }
 
           if (autoFriendTrigger) {
@@ -1102,10 +1122,15 @@
         const newTrigger = formatTrigger(data.trigger || data.scenario);
 
         // Check if it's a built-in trigger
-        if (newTrigger.triggerKey === '__builtin_auto_message__') {
-          builtInTriggers.autoMessage.triggerID = newTrigger.id;
-          builtInTriggers.autoMessage.enabled = newTrigger.enabled;
-          builtInTriggers.autoMessage.response = newTrigger.response;
+        // Check if it's a built-in trigger
+        if (newTrigger.triggerKey === '__builtin_auto_reply_user__') {
+          builtInTriggers.autoReplyUser.triggerID = newTrigger.id;
+          builtInTriggers.autoReplyUser.enabled = newTrigger.enabled;
+          builtInTriggers.autoReplyUser.response = newTrigger.response;
+        } else if (newTrigger.triggerKey === '__builtin_auto_reply_group__') {
+          builtInTriggers.autoReplyGroup.triggerID = newTrigger.id;
+          builtInTriggers.autoReplyGroup.enabled = newTrigger.enabled;
+          builtInTriggers.autoReplyGroup.response = newTrigger.response;
         } else if (newTrigger.triggerKey === '__builtin_auto_friend__') {
           builtInTriggers.autoAcceptFriend.triggerID = newTrigger.id;
           builtInTriggers.autoAcceptFriend.enabled = newTrigger.enabled;
@@ -1129,9 +1154,13 @@
         const t = formatTrigger(data.trigger || data.scenario);
 
         // Check if it's a built-in trigger
-        if (t.triggerKey === '__builtin_auto_message__') {
-          builtInTriggers.autoMessage.enabled = t.enabled;
-          builtInTriggers.autoMessage.response = t.response;
+        // Check if it's a built-in trigger
+        if (t.triggerKey === '__builtin_auto_reply_user__') {
+          builtInTriggers.autoReplyUser.enabled = t.enabled;
+          builtInTriggers.autoReplyUser.response = t.response;
+        } else if (t.triggerKey === '__builtin_auto_reply_group__') {
+          builtInTriggers.autoReplyGroup.enabled = t.enabled;
+          builtInTriggers.autoReplyGroup.response = t.response;
         } else if (t.triggerKey === '__builtin_auto_friend__') {
           builtInTriggers.autoAcceptFriend.enabled = t.enabled;
           builtInTriggers.autoAcceptFriend.welcomeMessage = t.response;
@@ -1151,8 +1180,11 @@
         const t = formatTrigger(data.trigger || data.scenario);
 
         // Check if it's a built-in trigger
-        if (t.triggerKey === '__builtin_auto_message__') {
-          builtInTriggers.autoMessage.enabled = t.enabled;
+        // Check if it's a built-in trigger
+        if (t.triggerKey === '__builtin_auto_reply_user__') {
+          builtInTriggers.autoReplyUser.enabled = t.enabled;
+        } else if (t.triggerKey === '__builtin_auto_reply_group__') {
+          builtInTriggers.autoReplyGroup.enabled = t.enabled;
         } else if (t.triggerKey === '__builtin_auto_friend__') {
           builtInTriggers.autoAcceptFriend.enabled = t.enabled;
         } else {
@@ -1336,7 +1368,8 @@
             ⚙️ Triggers Mặc Định
           </div>
           <div style="padding: 12px;">
-            ${renderBuiltInTriggerItem(builtInTriggers.autoMessage)}
+            ${renderBuiltInTriggerItem(builtInTriggers.autoReplyUser)}
+            ${renderBuiltInTriggerItem(builtInTriggers.autoReplyGroup)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoAcceptFriend)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoFile)}
           </div>
@@ -1380,7 +1413,8 @@
       console.log('🔘 toggleBuiltInTrigger called:', triggerId);
 
       let trigger;
-      if (triggerId === 'builtin_auto_message') trigger = builtInTriggers.autoMessage;
+      if (triggerId === 'builtin_auto_reply_user') trigger = builtInTriggers.autoReplyUser;
+      else if (triggerId === 'builtin_auto_reply_group') trigger = builtInTriggers.autoReplyGroup;
       else if (triggerId === 'builtin_auto_friend') trigger = builtInTriggers.autoAcceptFriend;
       else if (triggerId === 'builtin_auto_file') trigger = builtInTriggers.autoFile;
 
@@ -1420,8 +1454,8 @@
 
     function setupBuiltInTrigger(triggerId) {
       console.log('⚙️ setupBuiltInTrigger called:', triggerId);
-      if (triggerId === 'builtin_auto_message') {
-        showAutoMessageSetup();
+      if (triggerId === 'builtin_auto_reply_user' || triggerId === 'builtin_auto_reply_group') {
+        showAutoMessageSetup(triggerId);
       } else if (triggerId === 'builtin_auto_friend') {
         showAutoFriendSetup();
       } else if (triggerId === 'builtin_auto_file') {
@@ -1432,9 +1466,22 @@
     // ================================================
     // AUTO MESSAGE SETUP MODAL
     // ================================================
-    function showAutoMessageSetup() {
-      console.log('💬 showAutoMessageSetup called');
-      const trigger = builtInTriggers.autoMessage;
+    function showAutoMessageSetup(triggerId) {
+      console.log('💬 showAutoMessageSetup called for:', triggerId);
+
+      // Store current editing id
+      document.getElementById('autoMessageModal').dataset.triggerId = triggerId;
+
+      let trigger;
+      if (triggerId === 'builtin_auto_reply_user') {
+        trigger = builtInTriggers.autoReplyUser;
+        document.getElementById('autoMessageModalTitle').textContent = '💬 Cài đặt Trả lời tự động (Cá nhân)';
+        document.getElementById('autoMessageDesc').textContent = 'Tự động trả lời tin nhắn từ người dùng (1-on-1).';
+      } else {
+        trigger = builtInTriggers.autoReplyGroup;
+        document.getElementById('autoMessageModalTitle').textContent = '👨‍👩‍👧‍👦 Cài đặt Trả lời tự động (Nhóm)';
+        document.getElementById('autoMessageDesc').textContent = 'Tự động trả lời tin nhắn từ nhóm chat.';
+      }
 
       // Populate form với dữ liệu hiện tại
       document.getElementById('autoMessageResponse').value = trigger.response || '';
@@ -1468,12 +1515,17 @@
       }
 
       // Update state
-      builtInTriggers.autoMessage.response = response;
-      builtInTriggers.autoMessage.enabled = enabled;
-      builtInTriggers.autoMessage.cooldown = cooldownMs;
-
-      // Save to database
-      saveBuiltInTriggerState('builtin_auto_message', builtInTriggers.autoMessage);
+      if (triggerId === 'builtin_auto_reply_user') {
+        builtInTriggers.autoReplyUser.response = response;
+        builtInTriggers.autoReplyUser.enabled = enabled;
+        builtInTriggers.autoReplyUser.cooldown = cooldownMs;
+        saveBuiltInTriggerState('builtin_auto_reply_user', builtInTriggers.autoReplyUser);
+      } else {
+        builtInTriggers.autoReplyGroup.response = response;
+        builtInTriggers.autoReplyGroup.enabled = enabled;
+        builtInTriggers.autoReplyGroup.cooldown = cooldownMs;
+        saveBuiltInTriggerState('builtin_auto_reply_group', builtInTriggers.autoReplyGroup);
+      }
 
       // Hide modal and update UI
       hideAutoMessageModal();
@@ -1668,7 +1720,8 @@
 
       // Xác định triggerKey đặc biệt
       let specialKey = '';
-      if (triggerId === 'builtin_auto_message') specialKey = '__builtin_auto_message__';
+      if (triggerId === 'builtin_auto_reply_user') specialKey = '__builtin_auto_reply_user__';
+      else if (triggerId === 'builtin_auto_reply_group') specialKey = '__builtin_auto_reply_group__';
       else if (triggerId === 'builtin_auto_friend') specialKey = '__builtin_auto_friend__';
       else if (triggerId === 'builtin_auto_file') specialKey = '__builtin_auto_file__';
 

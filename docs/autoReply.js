@@ -29,7 +29,10 @@ async function processAutoReply(apiState, message) {
 
     const senderId = message.uidFrom || message.threadId;
     if (!senderId || message.isSelf) return;
-    if (message.type === 'Group') return;
+
+    // ✅ Allow group messages for specific trigger check
+    // if (message.type === 'Group') return; // OLD CHECK REMOVED
+    const isGroup = message.type === 'Group';
 
     autoReplyState.stats.received++;
 
@@ -49,7 +52,7 @@ async function processAutoReply(apiState, message) {
 
     const isFriend = apiState.friends?.some(f => f.userId === senderId) || false;
     const logContent = typeof content === 'string' ? content.substring(0, 30) : '[File/Image]';
-    console.log(`📨 Message from ${senderId}: "${logContent}..."`);
+    console.log(`📨 Message from ${senderId} (${isGroup ? 'Group' : 'User'}): "${logContent}..."`);
 
     // ========== CHECK PENDING USER INPUT (TEXT ONLY) ==========
     if (typeof content === 'string') {
@@ -66,6 +69,107 @@ async function processAutoReply(apiState, message) {
       if (pendingInput) {
         console.log(`👂 Has pending input state`);
         await handleUserInputResponse(apiState, senderId, content, pendingInput, userUID);
+        return;
+      }
+    }
+
+    // ========================================================
+    // CARD / DANH THIẾP DETECTION - Extract phone from card messages
+    // ========================================================
+    if (typeof content === 'object') {
+      let cardPhone = '';
+      let cardUserId = '';
+      let cardName = '';
+      let isCard = false;
+
+      // Method 1: Direct phone/userId in content
+      if (content.phone || content.userId || content.uid) {
+        cardPhone = content.phone || '';
+        cardUserId = content.userId || content.uid || '';
+        cardName = content.name || content.displayName || '';
+        isCard = true;
+      }
+
+      // Method 2: Check if it's a "recommened.user" action (danh thiếp)
+      // Structure: { title, description: JSON_STRING, action: "recommened.user" }
+      if (!isCard && content.action === 'recommened.user' && content.description) {
+        isCard = true;
+        cardName = content.title || '';
+
+        // Parse description JSON string
+        try {
+          const descData = JSON.parse(content.description);
+          cardPhone = descData.phone || descData.caption || '';
+          cardUserId = descData.gUid || content.params || '';
+          console.log(`📇 Parsed card description:`, descData);
+        } catch (e) {
+          // If not JSON, try to extract phone from string
+          const phoneMatch = content.description.match(/phone["\s:]+([0-9]+)/i);
+          if (phoneMatch) cardPhone = phoneMatch[1];
+        }
+      }
+
+      // Method 3: Check description even without action field
+      if (!isCard && content.description && typeof content.description === 'string' && content.description.includes('"phone"')) {
+        try {
+          const descData = JSON.parse(content.description);
+          if (descData.phone) {
+            isCard = true;
+            cardPhone = descData.phone || '';
+            cardUserId = descData.gUid || '';
+            cardName = content.title || '';
+          }
+        } catch (e) { }
+      }
+
+      if (isCard && cardPhone) {
+        // Clean phone number (remove spaces, dashes, etc)
+        const cleanPhone = cardPhone.replace(/[\s\-\.]/g, '');
+
+        console.log(`📇 Received CARD message from ${senderId}:`);
+        console.log(`   - Phone: ${cleanPhone}`);
+        console.log(`   - UserId: ${cardUserId}`);
+        console.log(`   - Name: ${cardName}`);
+        console.log(`📱 Extracted phone from card: ${cleanPhone}`);
+
+        // Check if there's a pending input expecting phone
+        const pendingKey = `${userUID}_${senderId}`;
+        let pendingInput = autoReplyState.pendingInputs.get(pendingKey);
+
+        if (!pendingInput) {
+          const dbState = triggerDB.getInputState(userUID, senderId);
+          if (dbState) {
+            pendingInput = dbState;
+          }
+        }
+
+        if (pendingInput) {
+          console.log(`👂 Processing card phone as user input: ${cleanPhone}`);
+          await handleUserInputResponse(apiState, senderId, cleanPhone, pendingInput, userUID);
+          return;
+        }
+
+        // Otherwise, check triggers with the extracted phone number
+        const trigger = triggerDB.findMatchingTrigger(userUID, cleanPhone, senderId, isFriend, false);
+        if (trigger) {
+          console.log(`🎯 Trigger matched with card phone: ${trigger.triggerName}`);
+          const setMode = trigger.setMode || 0;
+          if (setMode === 1) {
+            await executeFlow(apiState, senderId, trigger, cleanPhone, userUID);
+          } else if (trigger.triggerContent?.trim()) {
+            const response = trigger.triggerContent.replace(/{phone}/g, cleanPhone);
+            await sendMessage(apiState, senderId, response, userUID);
+          }
+          return;
+        }
+
+        // No trigger matched, but we handled the card
+        console.log(`📇 Card phone extracted but no matching trigger: ${cleanPhone}`);
+        return;
+      }
+
+      if (isCard && cardUserId && !cardPhone) {
+        console.log(`👤 Card contains userId only: ${cardUserId}`);
         return;
       }
     }
@@ -138,28 +242,38 @@ async function processAutoReply(apiState, message) {
       return;
     }
 
-    // ========== CHECK BUILT-IN AUTO MESSAGE TRIGGER ==========
+    // ========== CHECK AUTO REPLY TRIGGERS (User vs Group) ==========
     const allTriggers = triggerDB.getTriggersByUser(userUID);
-    const autoMessageTrigger = allTriggers.find(t =>
-      t.triggerKey === '__builtin_auto_message__' &&
+
+    // Determine which key to look for
+    const targetKey = isGroup ? '__builtin_auto_reply_group__' : '__builtin_auto_reply_user__';
+    const autoReplyTrigger = allTriggers.find(t =>
+      t.triggerKey === targetKey &&
       t.enabled === true
     );
 
+    // Also check old key for backward compatibility or migration if needed, but prioritize new keys
+    // If no specific trigger found, checking generic one might be risky if we want strict separation.
+    // So we stick to specific keys.
+
     // If auto-message is enabled, reply immediately
-    if (autoMessageTrigger) {
-      const cooldownKey = `${senderId}_${autoMessageTrigger.triggerID}`;
+    if (autoReplyTrigger) {
+      const cooldownKey = `${senderId}_${autoReplyTrigger.triggerID}`;
       const lastReplyTime = autoReplyState.cooldowns.get(cooldownKey);
       const now = Date.now();
-      const cooldownMs = autoMessageTrigger.cooldown || 30000;
+      const cooldownMs = autoReplyTrigger.cooldown || 30000;
       const elapsed = lastReplyTime ? (now - lastReplyTime) : cooldownMs + 1; // First time = always pass
 
-      console.log(`🔄 Auto-message check: lastReply=${lastReplyTime ? new Date(lastReplyTime).toLocaleTimeString() : 'never'}, elapsed=${Math.floor(elapsed / 1000)}s, cooldown=${Math.floor(cooldownMs / 1000)}s`);
+      console.log(`🔄 Auto-reply (${isGroup ? 'Group' : 'User'}) check: lastReply=${lastReplyTime ? new Date(lastReplyTime).toLocaleTimeString() : 'never'}, elapsed=${Math.floor(elapsed / 1000)}s, cooldown=${Math.floor(cooldownMs / 1000)}s`);
 
       if (elapsed >= cooldownMs) {
-        let replyContent = autoMessageTrigger.triggerContent || 'Xin chào!';
+        let replyContent = autoReplyTrigger.triggerContent || 'Xin chào!';
 
         // Replace variables
-        const senderName = apiState.friends?.find(f => f.userId === senderId)?.displayName || 'bạn';
+        const senderName = isGroup
+          ? (apiState.groupsMap?.get(senderId)?.name || 'Nhóm')
+          : (apiState.friends?.find(f => f.userId === senderId)?.displayName || 'bạn');
+
         const currentTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
         replyContent = replyContent
@@ -169,12 +283,14 @@ async function processAutoReply(apiState, message) {
         await sendMessage(apiState, senderId, replyContent, userUID);
         autoReplyState.cooldowns.set(cooldownKey, now);
         autoReplyState.stats.replied++;
-        console.log(`✅ Auto-message replied! Next reply available in ${Math.floor(cooldownMs / 1000)}s`);
+        console.log(`✅ Auto-reply sent! Next reply available in ${Math.floor(cooldownMs / 1000)}s`);
         return; // Exit after auto-message reply
       } else {
         const waitTime = Math.ceil((cooldownMs - elapsed) / 1000);
-        console.log(`⏳ Auto-message cooldown active: wait ${waitTime}s more`);
-        // Don't return here, continue to check other triggers
+        console.log(`⏳ Auto-reply cooldown active: wait ${waitTime}s more`);
+        // Don't return here, continue to check other triggers? 
+        // Usually if auto-reply is on, we might not want to check keyword triggers unless designed so.
+        // But the previous logic allowed falling through (lines 278).
       }
     }
 
@@ -1217,6 +1333,79 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
         break;
       }
 
+      // ========================================
+      // FIND USER BLOCK - Search by phone number
+      // ========================================
+      case 'find-user': {
+        try {
+          const searchType = data.searchType || 'variable';
+          let phone = '';
+
+          // Get phone from variable or manual input
+          if (searchType === 'variable' && data.phoneVariable) {
+            phone = context[data.phoneVariable] || '';
+          } else if (searchType === 'manual') {
+            phone = data.manualPhone || '';
+          }
+
+          phone = substituteVariables(phone, context).replace(/[\s\-\.]/g, '');
+
+          if (!phone) {
+            console.log(`    ⚠️ Find User: No phone number provided`);
+            if (data.onNotFound === 'stop') {
+              return 'STOP';
+            }
+            break;
+          }
+
+          console.log(`    🔍 Find User: Searching for phone: ${phone}`);
+
+          // Use Zalo API to find user
+          if (!apiState.api) {
+            console.log(`    ⚠️ Find User: API not available`);
+            break;
+          }
+
+          const result = await apiState.api.findUser(phone);
+          console.log(`    ✅ Find User result:`, result);
+
+          if (result && result.uid) {
+            // Save results to variables if enabled
+            if (data.saveToVariables !== false) {
+              const vars = data.resultVariables || {};
+              // API returns: display_name, zalo_name (with underscore, not camelCase)
+              const varsToSave = [
+                { name: vars.uid || 'found_user_id', value: result.uid || '' },
+                { name: vars.displayName || 'found_user_name', value: result.display_name || result.zalo_name || '' },
+                { name: vars.avatar || 'found_user_avatar', value: result.avatar || '' },
+                { name: vars.gender || 'found_user_gender', value: result.gender === 2 ? 'Nam' : result.gender === 1 ? 'Nữ' : 'Không rõ' }
+              ];
+
+              for (const v of varsToSave) {
+                if (v.name && v.value !== undefined) {
+                  context[v.name] = v.value;
+                  triggerDB.setVariable(userUID, senderId, v.name, v.value, 'text', block.blockID, flow?.flowID);
+                  console.log(`    📝 Saved: {${v.name}} = "${v.value}"`);
+                }
+              }
+            }
+            console.log(`    ✅ Found user: ${result.display_name || result.zalo_name || result.uid}`);
+          } else {
+            console.log(`    ⚠️ User not found for phone: ${phone}`);
+            if (data.onNotFound === 'stop') {
+              return 'STOP';
+            }
+          }
+
+        } catch (err) {
+          console.error(`    ❌ Find User error: ${err.message}`);
+          if (data.onNotFound === 'stop') {
+            return 'STOP';
+          }
+        }
+        break;
+      }
+
       default:
         console.log(`    ⚠️ Unknown block type: ${block.blockType}`);
     }
@@ -1240,6 +1429,12 @@ async function handleUserInputResponse(apiState, senderId, userMessage, inputSta
 
   // Get from memory first
   let memoryState = autoReplyState.pendingInputs.get(pendingKey);
+
+  // ✅ Check if this is a PRINT confirmation (delegate to print handler)
+  if (memoryState?.type === 'CONFIRM_PRINT' || memoryState?.type === 'CONFIRM_PRINT_BATCH') {
+    console.log(`🖨️ Delegating to print confirmation handler`);
+    return handlePrintConfirmation(apiState, senderId, userMessage, memoryState, userUID);
+  }
 
   const questions = memoryState?.questions || [];
   const currentIndex = memoryState?.currentQuestionIndex || 0;
@@ -1514,7 +1709,7 @@ function handleAutoReplyMessage(apiState, ws, msg) {
   }
 }
 
-async function handleUserInputResponse(apiState, senderId, content, pendingInput, userUID) {
+async function handlePrintConfirmation(apiState, senderId, content, pendingInput, userUID) {
   // 1. CONFIRM PRINT SINGLE
   if (pendingInput.type === 'CONFIRM_PRINT') {
     const text = content.toLowerCase().trim();

@@ -62,10 +62,10 @@ module.exports = {
 
   initBuiltInTriggers() {
     try {
-      // Check Auto Friend Accept Trigger
-      const check = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_friend__'").get();
+      // Check Auto Friend Accept Trigger (System level)
+      const check = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_friend__' AND triggerUserID = 'system'").get();
       if (!check) {
-        console.log('✨ Creating built-in trigger: Auto Friend Accept');
+        console.log('✨ Creating built-in trigger: Auto Friend Accept (System)');
         this.createTrigger({
           triggerName: 'Chấp nhận kết bạn',
           triggerKey: '__builtin_auto_friend__',
@@ -77,9 +77,9 @@ module.exports = {
       }
 
       // Check Auto File Trigger
-      const checkFile = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_file__'").get();
+      const checkFile = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_file__' AND triggerUserID = 'system'").get();
       if (!checkFile) {
-        console.log('✨ Creating built-in trigger: Auto File Processing');
+        console.log('✨ Creating built-in trigger: Auto File Processing (System)');
         this.createTrigger({
           triggerName: 'Nhận diện File',
           triggerKey: '__builtin_auto_file__',
@@ -89,8 +89,125 @@ module.exports = {
           scope: AutoReplyScope.Everyone
         });
       }
+
+      // ✅ Check Auto Reply User Trigger (1-on-1 messages)
+      const checkReplyUser = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_reply_user__' AND triggerUserID = 'system'").get();
+      if (!checkReplyUser) {
+        console.log('✨ Creating built-in trigger: Auto Reply User (System)');
+        this.createTrigger({
+          triggerName: 'Tự động trả lời (Cá nhân)',
+          triggerKey: '__builtin_auto_reply_user__',
+          triggerUserID: 'system',
+          triggerContent: 'Xin chào! Tin nhắn của bạn đã được ghi nhận.',
+          enabled: false,
+          scope: AutoReplyScope.Everyone
+        });
+      }
+
+      // ✅ Check Auto Reply Group Trigger (group messages)
+      const checkReplyGroup = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_reply_group__' AND triggerUserID = 'system'").get();
+      if (!checkReplyGroup) {
+        console.log('✨ Creating built-in trigger: Auto Reply Group (System)');
+        this.createTrigger({
+          triggerName: 'Tự động trả lời (Nhóm)',
+          triggerKey: '__builtin_auto_reply_group__',
+          triggerUserID: 'system',
+          triggerContent: 'Xin chào nhóm! Tin nhắn đã được ghi nhận.',
+          enabled: false,
+          scope: AutoReplyScope.Everyone
+        });
+      }
     } catch (e) {
       console.error('❌ Init built-in triggers error:', e.message);
+    }
+  },
+
+  ensureUserTriggers(userUID) {
+    try {
+      // 1. Auto Friend
+      let userTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_friend__' AND triggerUserID = ?").get(userUID);
+      if (!userTrigger) {
+        console.log(`✨ Creating user trigger for ${userUID}: Auto Friend Accept`);
+        // Get system template
+        const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_auto_friend__' AND triggerUserID = 'system'").get();
+
+        if (systemTrigger) {
+          this.createTrigger({
+            triggerName: systemTrigger.triggerName,
+            triggerKey: systemTrigger.triggerKey,
+            triggerUserID: userUID, // Assign to user
+            triggerContent: systemTrigger.triggerContent,
+            enabled: false, // Start disabled calling 'createTrigger' sets it to 0
+            scope: systemTrigger.scope
+          });
+        } else {
+          // Fallback
+          this.createTrigger({
+            triggerName: 'Chấp nhận kết bạn',
+            triggerKey: '__builtin_auto_friend__',
+            triggerUserID: userUID,
+            triggerContent: 'Chào {name}, mình đã chấp nhận kết bạn lúc {time}.',
+            enabled: false,
+            scope: AutoReplyScope.Stranger
+          });
+        }
+      }
+
+      // 2. Auto Reply User (1-on-1 messages)
+      let userReplyTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_reply_user__' AND triggerUserID = ?").get(userUID);
+      if (!userReplyTrigger) {
+        console.log(`✨ Creating user trigger for ${userUID}: Auto Reply User`);
+        const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_auto_reply_user__' AND triggerUserID = 'system'").get();
+
+        if (systemTrigger) {
+          this.createTrigger({
+            triggerName: systemTrigger.triggerName,
+            triggerKey: systemTrigger.triggerKey,
+            triggerUserID: userUID,
+            triggerContent: systemTrigger.triggerContent,
+            enabled: false,
+            scope: systemTrigger.scope
+          });
+        } else {
+          this.createTrigger({
+            triggerName: 'Tự động trả lời (Cá nhân)',
+            triggerKey: '__builtin_auto_reply_user__',
+            triggerUserID: userUID,
+            triggerContent: 'Xin chào! Tin nhắn của bạn đã được ghi nhận.',
+            enabled: false,
+            scope: AutoReplyScope.Everyone
+          });
+        }
+      }
+
+      // 3. Auto Reply Group (group messages)
+      let groupReplyTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_reply_group__' AND triggerUserID = ?").get(userUID);
+      if (!groupReplyTrigger) {
+        console.log(`✨ Creating user trigger for ${userUID}: Auto Reply Group`);
+        const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_auto_reply_group__' AND triggerUserID = 'system'").get();
+
+        if (systemTrigger) {
+          this.createTrigger({
+            triggerName: systemTrigger.triggerName,
+            triggerKey: systemTrigger.triggerKey,
+            triggerUserID: userUID,
+            triggerContent: systemTrigger.triggerContent,
+            enabled: false,
+            scope: systemTrigger.scope
+          });
+        } else {
+          this.createTrigger({
+            triggerName: 'Tự động trả lời (Nhóm)',
+            triggerKey: '__builtin_auto_reply_group__',
+            triggerUserID: userUID,
+            triggerContent: 'Xin chào nhóm! Tin nhắn đã được ghi nhận.',
+            enabled: false,
+            scope: AutoReplyScope.Everyone
+          });
+        }
+      }
+    } catch (e) {
+      console.error('❌ Ensure user triggers error:', e.message);
     }
   },
 
@@ -2382,6 +2499,38 @@ module.exports = {
         LIMIT ?
       `).all(senderProfileID, limit);
     } catch (error) { console.error('❌ Get logs by sender error:', error.message); return []; }
+  },
+
+  // ========================================
+  // ACTIVITY LOGS (New Implementation)
+  // ========================================
+  logActivity(userUID, action, entityType, entityID, entityName, details) {
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO activity_logs (userUID, action, entityType, entityID, entityName, details, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(userUID, action, entityType, entityID || null, entityName || null, details || null, Date.now());
+      // console.log(`📝 Logged activity: ${action} - ${entityName}`);
+      return true;
+    } catch (e) {
+      console.error('❌ Log activity error:', e.message);
+      return false;
+    }
+  },
+
+  getActivityLogs(userUID, limit = 50) {
+    try {
+      return db.prepare(`
+        SELECT * FROM activity_logs 
+        WHERE userUID = ? 
+        ORDER BY timestamp DESC 
+        LIMIT ?
+      `).all(userUID, limit);
+    } catch (e) {
+      console.error('❌ Get activity logs error:', e.message);
+      return [];
+    }
   },
 
   // ========================================

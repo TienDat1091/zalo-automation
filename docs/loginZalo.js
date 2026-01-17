@@ -517,8 +517,190 @@ async function setupFriendRequestListener(apiState) {
     console.log('ℹ️ friend_request event not supported, using polling fallback');
   }
 
+  // ========================================
+  // FRIEND EVENT LISTENER - All friend event types
+  // ========================================
+  try {
+    apiState.api.listener.on('friend_event', async (event) => {
+      console.log('👥 Friend event received:', event);
+      const triggerDB = require('./triggerDB');
+
+      // Import FriendEventType enum if available
+      const FriendEventType = {
+        ADD: 0,
+        REMOVE: 1,
+        REQUEST: 2,
+        UNDO_REQUEST: 3,
+        REJECT_REQUEST: 4,
+        SEEN_FRIEND_REQUEST: 5,
+        BLOCK: 6,
+        UNBLOCK: 7,
+        BLOCK_CALL: 8,
+        UNBLOCK_CALL: 9,
+        PIN_UNPIN: 10,
+        PIN_CREATE: 11,
+        UNKNOWN: 12
+      };
+
+      const eventTypeNames = {
+        0: 'ADD',
+        1: 'REMOVE',
+        2: 'REQUEST',
+        3: 'UNDO_REQUEST',
+        4: 'REJECT_REQUEST',
+        5: 'SEEN_FRIEND_REQUEST',
+        6: 'BLOCK',
+        7: 'UNBLOCK',
+        8: 'BLOCK_CALL',
+        9: 'UNBLOCK_CALL',
+        10: 'PIN_UNPIN',
+        11: 'PIN_CREATE',
+        12: 'UNKNOWN'
+      };
+
+      const eventTypeName = eventTypeNames[event.type] || 'UNKNOWN';
+      console.log(`   Type: ${eventTypeName}`);
+      console.log(`   Data:`, event.data);
+
+      // Broadcast event to all connected clients
+      // Variables to be broadcasted
+      const broadcastData = {
+        type: 'friend_event',
+        eventType: eventTypeName,
+        eventTypeId: event.type,
+        data: event.data,
+        threadId: event.threadId,
+        isSelf: event.isSelf,
+        timestamp: Date.now()
+      };
+
+      // Handle specific events BEFORE broadcasting to ensure cache is up-to-date
+      switch (event.type) {
+        case FriendEventType.ADD:
+          console.log(`🎉 New friend added: ${event.data}`);
+          if (apiState.currentUser?.uid) {
+            triggerDB.logActivity(apiState.currentUser.uid, 'friend_added', 'user', event.data, 'Người dùng', `Đã thêm bạn mới: ${event.data}`);
+          }
+
+          // ✅ OPTIMIZED: Update cache manually instead of fetching full list (slow/stale)
+          if (apiState.friends) {
+            try {
+              // Fetch info for new friend
+              const info = await apiState.api.getUserInfo(event.data);
+              console.log('📋 getUserInfo response:', JSON.stringify(info, null, 2));
+
+              // ✅ FIX: Check changed_profiles (not changed) - this is where Zalo API puts the data
+              let userData = info[event.data]
+                || info.changed_profiles?.[event.data]
+                || info.changed?.[event.data]
+                || null;
+
+              // If still not found, try to extract from any nested structure
+              if (!userData && typeof info === 'object') {
+                // Check if info itself has displayName/zaloName
+                if (info.displayName || info.zaloName) {
+                  userData = info;
+                } else {
+                  // Try first key in changed_profiles or info
+                  const profiles = info.changed_profiles || info;
+                  const firstKey = Object.keys(profiles)[0];
+                  if (firstKey && profiles[firstKey]?.displayName) {
+                    userData = profiles[firstKey];
+                  }
+                }
+              }
+
+              const newFriend = {
+                userId: event.data,
+                displayName: userData?.displayName || userData?.zaloName || userData?.name || "Người dùng Zalo",
+                avatar: userData?.avatar || userData?.avatarUrl || `https://graph.zalo.me/v2.0/avatar?user_id=${event.data}&width=120&height=120`,
+                zaloName: userData?.zaloName || ""
+              };
+
+              console.log('✅ Parsed new friend:', newFriend);
+
+              // Add to cache if not exists
+              if (!apiState.friends.find(f => f.userId === event.data)) {
+                apiState.friends.push(newFriend);
+                console.log(`✅ Added ${newFriend.displayName} (${event.data}) to local friend cache`);
+
+                // ✅ AUTO-SET 1-DAY DELETE for new friends
+                try {
+                  await apiState.api.updateAutoDeleteChat(86400000, event.data);
+                  console.log(`⏱️ Auto-set 1-day delete for new friend: ${event.data}`);
+                } catch (autoDelErr) {
+                  console.warn('⚠️ Failed to set auto-delete for new friend:', autoDelErr.message);
+                }
+              }
+            } catch (e) {
+              console.warn("⚠️ Failed to fetch new friend info, adding placeholder:", e.message);
+              // Fallback placeholder with better avatar
+              apiState.friends.push({
+                userId: event.data,
+                displayName: "Người dùng mới",
+                avatar: `https://graph.zalo.me/v2.0/avatar?user_id=${event.data}&width=120&height=120`
+              });
+            }
+          }
+          break;
+
+        case FriendEventType.REMOVE:
+          console.log(`👋 Friend removed: ${event.data}`);
+          if (apiState.currentUser?.uid) {
+            triggerDB.logActivity(apiState.currentUser.uid, 'friend_removed', 'user', event.data, 'Người dùng', `Đã hủy kết bạn với: ${event.data}`);
+          }
+          // Remove from cached list
+          if (apiState.friends) {
+            apiState.friends = apiState.friends.filter(f => f.userId !== event.data);
+            console.log(`✅ Removed ${event.data} from local friend cache`);
+          }
+          // Also remove from message store if needed?
+          break;
+
+        case FriendEventType.REQUEST:
+          console.log(`📨 New friend request from: ${event.data?.fromUid}`);
+          if (apiState.currentUser?.uid && event.data?.fromUid) {
+            triggerDB.logActivity(apiState.currentUser.uid, 'friend_request', 'user', event.data.fromUid, 'Người dùng', `Lời mời kết bạn từ: ${event.data.fromUid}`);
+          }
+          if (event.data?.fromUid) {
+            await handleSmartFriendRequest(apiState, event.data.fromUid);
+          }
+          break;
+
+        case FriendEventType.UNDO_REQUEST:
+          console.log(`↩️ Friend request undone: ${event.data?.toUid}`);
+          break;
+
+        case FriendEventType.REJECT_REQUEST:
+          console.log(`❌ Friend request rejected: ${event.data?.toUid}`);
+          break;
+
+        case FriendEventType.BLOCK:
+          console.log(`🚫 User blocked: ${event.data}`);
+          break;
+
+        case FriendEventType.UNBLOCK:
+          console.log(`✅ User unblocked: ${event.data}`);
+          break;
+
+        default:
+          console.log(`ℹ️ Unhandled friend event type: ${eventTypeName}`);
+      }
+
+      // ✅ Broadcast AFTER cache update to ensure client gets fresh data
+      broadcast(apiState, broadcastData);
+    });
+    console.log('✅ friend_event listener registered');
+  } catch (e) {
+    console.log('ℹ️ friend_event listener not supported:', e.message);
+  }
+
+  // Check for friend requests periodically (polling fallback / main method)
   // Check for friend requests periodically (polling fallback / main method)
   const checkInterval = setInterval(async () => {
+    let triggerDB;
+    try { triggerDB = require('./triggerDB'); } catch (e) { }
+
     if (!apiState.api || !apiState.currentUser) {
       clearInterval(checkInterval);
       return;
@@ -709,6 +891,8 @@ async function handleSmartFriendRequest(apiState, userId) {
 
     // Define potential methods - THỨ TỰ ĐÚNG: (msg, userId) như trong autoReply.js
     const strategies = [
+      { name: 'acceptFriend(uid)', fn: 'acceptFriend', args: [userId] },
+      { name: 'acceptFriendRequest(uid)', fn: 'acceptFriendRequest', args: [userId] },
       { name: 'sendFriendRequest(msg, uid)', fn: 'sendFriendRequest', args: [msg, userId] },
       { name: 'addFriend(msg, uid)', fn: 'addFriend', args: [msg, userId] },
       { name: 'sendFriendRequest(uid, msg)', fn: 'sendFriendRequest', args: [userId, msg] },
@@ -728,6 +912,18 @@ async function handleSmartFriendRequest(apiState, userId) {
         } catch (e) {
           console.warn(`   ⚠️ Method ${strategy.name} failed: ${e.message}`);
         }
+      }
+    }
+
+    // ✅ SEND WELCOME MESSAGE IF SUCCESS
+    if (success && msg && msg.length > 0) {
+      console.log(`📨 Sending welcome message to new friend...`);
+      try {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
+        await apiState.api.sendMessage(msg, userId);
+        console.log(`✅ Welcome message sent to ${userId}`);
+      } catch (e) {
+        console.warn(`⚠️ Failed to send welcome message: ${e.message}`);
       }
     }
 
@@ -814,6 +1010,15 @@ async function loginZalo(apiState) {
       name: profile.displayName || profile.zaloName || "Không rõ tên",
       avatar: profile.avatar || `https://graph.zalo.me/v2.0/avatar/${uid}?size=240`
     };
+
+    // ✅ Ensure built-in triggers exist for this user
+    try {
+      const triggerDB = require('./triggerDB');
+      triggerDB.ensureUserTriggers(uid);
+      console.log('✅ Checked/Initialized triggers for user:', uid);
+    } catch (e) {
+      console.warn('⚠️ Init triggers failed:', e.message);
+    }
 
     // Load friends list for Smart Features
     try {

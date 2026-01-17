@@ -68,7 +68,10 @@ function updateVisibleFriends(sortedFriends) {
 
     return `
       <div class="friend-item ${hasMessages ? 'has-messages' : ''} ${(selectedFriend && selectedFriend.userId === f.userId) ? 'active' : ''}" 
-           onclick="selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${f.avatar || ''}')">
+           onclick="${typeof isDeleteMode !== 'undefined' && isDeleteMode ? '' : `selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${f.avatar || ''}')`}">
+        <input type="checkbox" class="friend-checkbox" 
+               onclick="event.stopPropagation(); toggleFriendSelection('${f.userId}', this)"
+               ${typeof selectedForDelete !== 'undefined' && selectedForDelete.has(f.userId) ? 'checked' : ''}>
         <img src="${f.avatar || 'https://via.placeholder.com/50'}" 
              onerror="this.src='https://via.placeholder.com/50'" 
              alt="${f.displayName || 'User'}">
@@ -196,17 +199,20 @@ async function selectFriend(userId, displayName, avatar) {
   document.getElementById('chatName').textContent = displayName || 'Người dùng Zalo';
   document.getElementById('chatUid').textContent = 'UID: ' + userId;
 
-  // ✅ Add delete button
+  // ✅ Add delete conversation button with unique icon
   const chatHeader = document.getElementById('chatHeader');
-  if (!document.getElementById('deleteConvBtn')) {
-    const deleteBtn = document.createElement('button');
+  let deleteBtn = document.getElementById('deleteConvBtn');
+  if (!deleteBtn) {
+    deleteBtn = document.createElement('button');
     deleteBtn.id = 'deleteConvBtn';
     deleteBtn.className = 'delete-conv-btn';
-    deleteBtn.innerHTML = '🗑️';
-    deleteBtn.title = 'Xóa lịch sử chat';
-    deleteBtn.onclick = () => deleteConversation(userId);
+    deleteBtn.innerHTML = '🧹'; // Changed from 🗑️ to avoid duplication
+    deleteBtn.title = 'Xóa toàn bộ lịch sử chat';
+    deleteBtn.style.cssText = 'background:#ff4757; color:white; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; margin-left:auto;';
     chatHeader.appendChild(deleteBtn);
   }
+  // Update onclick to current user
+  deleteBtn.onclick = () => deleteConversation(userId);
 
   document.getElementById('messagesContainer').innerHTML = '<div class="loading-friends"><div class="spinner"></div><div>Đang tải tin nhắn...</div></div>';
   currentMessages = [];
@@ -226,7 +232,11 @@ async function selectFriend(userId, displayName, avatar) {
 
 // ✅ Delete conversation
 async function deleteConversation(userId) {
-  if (!confirm('⚠️ Bạn chắc chắn muốn xóa lịch sử chat này? Không thể hoàn tác!')) {
+  const confirmed = await showConfirm(
+    '⚠️ Bạn chắc chắn muốn xóa lịch sử chat này?\n\nKhông thể hoàn tác!',
+    '🗑️ Xóa lịch sử chat'
+  );
+  if (!confirmed) {
     return;
   }
 
@@ -476,8 +486,13 @@ if (!document.getElementById('loadDataStyles')) {
 }
 
 // ✅ DELETE CHAT FUNCTION
-function deleteChat(uid, name) {
-  if (confirm(`⚠️ Bạn có chắc muốn xóa toàn bộ lịch sử chat với "${name}" ?\nHành động này không thể hoàn tác.`)) {
+async function deleteChat(uid, name) {
+  const confirmed = await showConfirm(
+    `⚠️ Bạn có chắc muốn xóa toàn bộ lịch sử chat với "${name}"?\n\nHành động này không thể hoàn tác.`,
+    '🗑️ Xóa lịch sử chat'
+  );
+
+  if (confirmed) {
     if (typeof socket !== 'undefined' && socket.readyState === 1) {
       socket.send(JSON.stringify({ type: 'delete_conversation', uid: uid }));
       if (typeof showToast === 'function') showToast('Đang xóa đoạn hội thoại...', 'info');
