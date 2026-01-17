@@ -504,6 +504,53 @@ server.listen(PORT, () => {
         .catch(err => console.log('⚠️  Keep-alive ping failed:', err.message));
     }, 10 * 60 * 1000); // 10 minutes
   }
+
+  // ============================================
+  // SCHEDULED TASKS RUNNER (Every 30 seconds)
+  // ============================================
+  setInterval(async () => {
+    if (!apiState.isLoggedIn || !apiState.currentUser) return;
+
+    try {
+      // Get pending tasks
+      const now = Date.now();
+      const tasks = triggerDB.getPendingScheduledTasks(apiState.currentUser.uid, now);
+
+      if (tasks && tasks.length > 0) {
+        console.log(`⏰ Processing ${tasks.length} scheduled tasks...`);
+
+        for (const task of tasks) {
+          try {
+            // Update status to processing (or just execute)
+            console.log(`🚀 Executing task #${task.id}: ${task.type} -> ${task.targetId}`);
+
+            if (task.type === 'flow') {
+              // Execute Flow
+              const flow = triggerDB.getFlow(task.content); // content is flowId
+              if (flow) {
+                const flowExecutor = require('./flowExecutor');
+                // Fake message object for context
+                const fakeReq = { type: 'scheduled', threadId: task.targetId, data: { content: 'Triggered by Schedule' } };
+                await flowExecutor.executeFlow(apiState, flow, task.targetId, fakeReq, apiState.currentUser.uid);
+              }
+            } else {
+              // Send Text
+              await apiState.api.sendMessage(task.content, task.targetId);
+            }
+
+            // Mark completed
+            triggerDB.updateScheduledTaskStatus(task.id, 'completed');
+
+          } catch (taskError) {
+            console.error(`❌ Task #${task.id} failed:`, taskError.message);
+            triggerDB.updateScheduledTaskStatus(task.id, 'failed');
+          }
+        }
+      }
+    } catch (err) {
+      console.error('❌ Scheduler error:', err.message);
+    }
+  }, 30 * 1000); // Check every 30 seconds
 });
 
 // Graceful shutdown

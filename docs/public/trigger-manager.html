@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -661,6 +661,68 @@
     .btn-secondary:hover {
       background: #e0e0e0;
     }
+
+    /* Variables Table */
+    .variables-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .variables-table th {
+      text-align: left;
+      padding: 12px;
+      background: #f5f7fa;
+      border-bottom: 2px solid #e0e0e0;
+      color: #37474f;
+      font-weight: 600;
+    }
+
+    .variables-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+
+    .variables-table tr:hover {
+      background: #f9f9f9;
+    }
+
+    .var-name {
+      font-family: monospace;
+      color: #d81b60;
+      background: #fce4ec;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .var-value {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .var-action-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      opacity: 0.6;
+      padding: 4px;
+    }
+
+    .var-action-btn:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    .var-tab {
+      transition: all 0.2s;
+    }
+
+    .var-tab:hover {
+      background: #f5f7fa;
+    }
   </style>
 </head>
 
@@ -841,6 +903,69 @@
     </div>
   </div>
 
+
+  <div class="modal"
+    style="max-width: 900px; width: 90%; max-height: 85vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 12px;">
+    <div class="modal-header"
+      style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px 20px; flex-shrink: 0;">
+      <h3 style="color: #fff; margin: 0; font-weight: 600;">📊 Quản lý Biến (Variables)</h3>
+      <button class="modal-close" onclick="closeVariablesModal()" style="color: #fff;">✕</button>
+    </div>
+
+    <div
+      style="background: #f5f7fa; padding: 0 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 0; flex-shrink: 0;">
+      <button id="tabStatic" class="var-tab" onclick="switchVarTab('static')"
+        style="padding: 12px 20px; border: none; background: #fff; cursor: pointer; font-weight: 600; color: #667eea; border-bottom: 3px solid #667eea;">🔒
+        Biến Tĩnh (Static)</button>
+      <button id="tabDynamic" class="var-tab" onclick="switchVarTab('dynamic')"
+        style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-weight: 500; color: #666; border-bottom: none;">✏️
+        Biến Động (Dynamic)</button>
+    </div>
+
+    <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+      <!-- Static Vars -->
+      <div id="staticVarsTab">
+        <div
+          style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #43a047;">
+          <div style="font-weight: 600; color: #2e7d32; font-size: 13px;">💡 Biến tĩnh là gì?</div>
+          <div style="font-size: 12px; color: #33691e; margin-top: 2px;">Tự động lấy giá trị từ Zalo API. Click để
+            copy.</div>
+        </div>
+        <div id="staticVarsContent" style="display: grid; gap: 10px;">
+          <div style="text-align: center; color: #999;">Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- Dynamic Vars -->
+      <div id="dynamicVarsTab" style="display: none;">
+        <div
+          style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #1976d2;">
+          <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #0d47a1;">➕ Thêm biến mới</h4>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="newVarName" placeholder="Tên biến (VD: email)" class="form-input"
+              style="flex: 1; min-width: 120px;">
+            <input type="text" id="newVarValue" placeholder="Giá trị" class="form-input"
+              style="flex: 2; min-width: 120px;">
+            <select id="newVarType" class="form-input" style="width: auto;">
+              <option value="text">text</option>
+              <option value="number">number</option>
+            </select>
+            <button class="btn btn-primary" onclick="addManualVariable()">Thêm</button>
+          </div>
+        </div>
+        <div id="variablesContent">
+          <div style="text-align: center; color: #999;">Đang tải...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding: 12px 20px; background: #f9f9f9; flex-shrink: 0;">
+      <button class="btn" onclick="refreshVariables()">🔄 Làm mới</button>
+      <button class="btn btn-secondary" onclick="closeVariablesModal()">Đóng</button>
+    </div>
+  </div>
+
+
   <!-- DELETE MODAL -->
   <div class="delete-modal" id="deleteModal">
     <div class="delete-modal-content">
@@ -988,9 +1113,9 @@
     const AutoReplyScope = { Everyone: 0, Stranger: 1, SpecificFriends: 2, FriendsExcept: 3 };
     const TriggerMode = { Direct: 0, Flow: 1 };
 
-    let ws = null, triggers = [], currentTriggerId = null, editingTriggerId = null;
-    let currentUser = null, friendsList = [], selectedFriendUids = [];
-    let activityLogs = [], deleteTargetId = null, activityCount = 0;
+    var ws = null, triggers = [], currentTriggerId = null, editingTriggerId = null;
+    var currentUser = null, friendsList = [], selectedFriendUids = [];
+    var activityLogs = [], deleteTargetId = null, activityCount = 0;
 
     // Built-in triggers state (will be populated from database)
     const builtInTriggers = {
@@ -1030,6 +1155,16 @@
         icon: '📂',
         enabled: false,
         response: 'xlsx: Bạn đã gửi file Excel\npdf: Bạn đã gửi file PDF\ndefault: Đã nhận file của bạn',
+        cooldown: 0,
+        triggerID: null
+      },
+      selfTrigger: {
+        id: 'builtin_self_trigger',
+        name: 'Tự kích hoạt (Self-Trigger)',
+        description: 'Tự động chạy flow/trả lời khi bạn gõ lệnh (Ví dụ: /test)',
+        icon: '⚡',
+        enabled: false,
+        response: '',
         cooldown: 0,
         triggerID: null
       }
@@ -1101,6 +1236,14 @@
             builtInTriggers.autoFile.cooldown = autoFileTrigger.cooldown || 2000;
           }
 
+          const selfTrigger = allTriggers.find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*' || t.triggerKey === 'builtin_self_trigger');
+          if (selfTrigger) {
+            builtInTriggers.selfTrigger.enabled = selfTrigger.enabled;
+            builtInTriggers.selfTrigger.response = selfTrigger.triggerContent || selfTrigger.response;
+            builtInTriggers.selfTrigger.triggerID = selfTrigger.id;
+            builtInTriggers.selfTrigger.setMode = selfTrigger.setMode || 0;
+          }
+
           if (autoFriendTrigger) {
             builtInTriggers.autoAcceptFriend.enabled = autoFriendTrigger.enabled;
             builtInTriggers.autoAcceptFriend.welcomeMessage = autoFriendTrigger.response;
@@ -1116,6 +1259,50 @@
           const toggle = document.getElementById('autoReplyToggle');
           if (toggle) { toggle.checked = data.enabled; toggle.disabled = !currentUser?.uid; }
           updateAutoReplyStatus(data.enabled ? 'on' : 'off', data.enabled ? 'ON' : 'OFF');
+        }
+      }
+
+      if (data.type === 'flows_list') {
+        window.availableFlows = data.flows || [];
+        if (document.getElementById('selfTriggerModal') && document.getElementById('selfTriggerModal').style.display !== 'none') {
+          if (window.renderSelfTriggerRules) window.renderSelfTriggerRules();
+        }
+      }
+
+      if (data.type === 'self_trigger_config') {
+        const cfg = data.config;
+        if (cfg) {
+          const t = builtInTriggers.selfTrigger;
+          t.enabled = cfg.enabled;
+          t.response = cfg.triggerContent || cfg.response || '';
+
+          // Sync Rules
+          try {
+            window.selfTriggerRules = [];
+            const content = t.response;
+            if (content && content.trim().startsWith('{')) {
+              const config = JSON.parse(content);
+              if (config.rules && Array.isArray(config.rules)) {
+                window.selfTriggerRules = config.rules;
+              } else if (config.command) {
+                window.selfTriggerRules.push({
+                  command: config.command,
+                  type: (cfg.setMode === 1) ? 'flow' : 'text',
+                  value: (cfg.setMode === 1) ? t.triggerID : config.response
+                });
+              }
+            }
+            if (window.selfTriggerRules.length === 0) {
+              window.selfTriggerRules.push({ command: '', type: 'text', value: '' });
+            }
+          } catch (e) { }
+
+          const enInput = document.getElementById('selfTriggerEnabled');
+          if (document.getElementById('selfTriggerModal').style.display !== 'none') {
+            if (enInput) enInput.checked = t.enabled;
+            if (window.renderSelfTriggerRules) window.renderSelfTriggerRules();
+          }
+          renderTriggerList();
         }
       }
       if (data.type === 'trigger_created' || data.type === 'scenario_added') {
@@ -1249,7 +1436,19 @@
     }
 
     function updateAutoReplyStatus(state, text) { const s = document.getElementById('autoReplyStatus'); if (s) { s.className = 'toggle-status ' + state; s.textContent = text; } }
-    function toggleAutoReply() { const t = document.getElementById('autoReplyToggle'); if (t && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'set_auto_reply', enabled: t.checked })); }
+    function toggleAutoReply() {
+      const t = document.getElementById('autoReplyToggle');
+      if (!t) return;
+      const newState = t.checked;
+      updateAutoReplyStatus(newState ? 'on' : 'off', newState ? 'ON' : 'OFF'); // Optimistic
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'set_auto_reply', enabled: newState }));
+      } else {
+        t.checked = !newState; // Revert
+        updateAutoReplyStatus(!newState ? 'on' : 'off', !newState ? 'ON' : 'OFF');
+        showToast('❌ Mất kết nối!', 'error');
+      }
+    }
 
     function formatDateTime(ts) {
       if (!ts || isNaN(ts)) return 'N/A';
@@ -1372,6 +1571,7 @@
             ${renderBuiltInTriggerItem(builtInTriggers.autoReplyGroup)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoAcceptFriend)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoFile)}
+            ${renderBuiltInTriggerItem(builtInTriggers.selfTrigger)}
           </div>
         </div>
       `;
@@ -1383,24 +1583,22 @@
       const statusIcon = trigger.enabled ? '✅' : '⭕';
 
       return `
-        <div class="trigger-item-compact" onclick="toggleBuiltInTrigger('${trigger.id}')" style="cursor: pointer; background: ${trigger.enabled ? '#f0f9ff' : '#fafafa'}; border: 1px solid ${trigger.enabled ? '#b3d9ff' : '#eee'}; display: flex; align-items: flex-start; gap: 12px; padding: 12px; margin-bottom: 8px;">
-          <div class="trigger-icon-small" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 18px; width: 40px; height: 40px; border-radius: 10px;">
+        <div class="trigger-item-compact" onclick="toggleBuiltInTrigger('${trigger.id}')" 
+          style="cursor: pointer; background: ${trigger.enabled ? '#f0f9ff' : '#fafafa'}; border: 1px solid ${trigger.enabled ? '#b3d9ff' : '#eee'}; display: flex; align-items: center; gap: 12px; padding: 0 16px; margin-bottom: 8px; height: 60px; border-radius: 8px; transition: all 0.2s;">
+          
+          <div class="trigger-icon-small" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 18px; width: 36px; height: 36px; border-radius: 8px;">
             ${trigger.icon}
           </div>
           
           <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <div style="font-weight: 600; color: #333; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                ${escapeHtml(trigger.name)}
-              </div>
-              <span style="font-size: 10px; padding: 3px 8px; background: ${statusColor}; color: white; border-radius: 12px; font-weight: 600; white-space: nowrap;">${statusIcon} ${statusText}</span>
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="font-weight: 600; color: #333; font-size: 13px;">${escapeHtml(trigger.name)}</div>
+              <span style="font-size: 10px; padding: 2px 8px; background: ${statusColor}; color: white; border-radius: 10px; font-weight: 600; white-space: nowrap;">${statusText}</span>
             </div>
-            
-            <div class="trigger-keywords-preview" style="white-space: normal; line-height: 1.4; color: #666;">${escapeHtml(trigger.description)}</div>
           </div>
 
-          <div class="trigger-actions" onclick="event.stopPropagation()" style="align-self: center;">
-            <button class="action-icon" onclick="setupBuiltInTrigger('${trigger.id}')" title="Cài đặt" style="width: 32px; height: 32px; font-size: 16px; color: #667eea;">⚙️</button>
+          <div class="trigger-actions" onclick="event.stopPropagation()" style="margin-left: 4px;">
+            <button class="action-icon" onclick="setupBuiltInTrigger('${trigger.id}')" title="Cài đặt" style="width: 28px; height: 28px; font-size: 14px; color: #667eea; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">⚙️</button>
           </div>
         </div>
       `;
@@ -1417,6 +1615,7 @@
       else if (triggerId === 'builtin_auto_reply_group') trigger = builtInTriggers.autoReplyGroup;
       else if (triggerId === 'builtin_auto_friend') trigger = builtInTriggers.autoAcceptFriend;
       else if (triggerId === 'builtin_auto_file') trigger = builtInTriggers.autoFile;
+      else if (triggerId === 'builtin_self_trigger') trigger = builtInTriggers.selfTrigger;
 
       if (!trigger) {
         console.error('Trigger not found for ID:', triggerId);
@@ -1460,6 +1659,9 @@
         showAutoFriendSetup();
       } else if (triggerId === 'builtin_auto_file') {
         showAutoFileSetup();
+      } else if (triggerId === 'builtin_self_trigger') {
+        if (typeof showSelfTriggerModal === 'function') showSelfTriggerModal();
+        else alert('Tính năng đang cập nhật...');
       }
     }
 
@@ -2042,6 +2244,7 @@
     }
 
     // ================================================
+    // INIT================================================
     // INIT
     // ================================================
     document.addEventListener('DOMContentLoaded', () => {
@@ -2100,6 +2303,249 @@
     </div>
   </div>
 
+  <!-- SELF TRIGGER MODAL - Enhanced UI -->
+  <div class="modal-backdrop" id="selfTriggerModal" style="display:none; z-index:10001;">
+    <div class="modal-box"
+      style="max-width:850px; width:92%; border-radius:16px; box-shadow: 0 25px 80px rgba(0,0,0,0.25); border:none; overflow:hidden;">
+      <div class="modal-header"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding:20px 24px; border:none;">
+        <h2 style="margin:0; font-size:20px; display:flex; align-items:center; gap:10px; color:#fff; font-weight:600;">
+          <span style="font-size:28px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">⚡</span>
+          Tự kích hoạt (Self-Trigger) - Đa Kịch Bản
+        </h2>
+      </div>
+      <div class="modal-body" style="padding:24px; background:#fafbfc;">
+        <div
+          style="background:linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%); border-left:4px solid #ffc107; padding:16px 18px; margin-bottom:20px; border-radius:8px; box-shadow: 0 2px 8px rgba(255,193,7,0.15);">
+          <div style="font-weight:700; color:#e65100; margin-bottom:6px; font-size:14px;">✨ Chức năng</div>
+          <div style="font-size:13px; color:#5d4037; line-height:1.5;">
+            Kích hoạt khi <strong style="color:#d84315;">BẠN (Me)</strong> nhắn tin bắt đầu bằng lệnh.
+            Hệ thống ưu tiên khớp lệnh dài trước (VD: <code
+              style="background:#fff3e0; padding:2px 6px; border-radius:4px; color:#e65100;">/hi 2</code> ưu tiên hơn
+            <code style="background:#fff3e0; padding:2px 6px; border-radius:4px; color:#e65100;">/hi</code>).
+          </div>
+        </div>
+
+        <label class="form-label"
+          style="font-weight:600; font-size:14px; color:#37474f; margin-bottom:10px; display:block;">📋 Danh sách quy
+          tắc (Rules)</label>
+        <div
+          style="max-height:350px; overflow-y:auto; border:1px solid #e0e0e0; margin-bottom:12px; border-radius:10px; background:#fff; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);">
+          <table class="table table-striped" style="margin-bottom:0; width:100%;">
+            <thead
+              style="position:sticky; top:0; background:linear-gradient(180deg, #f5f7fa 0%, #e8ecef 100%); z-index:1; border-bottom:2px solid #ddd;">
+              <tr>
+                <th style="width:22%; padding:12px 10px; font-size:12px; font-weight:600; color:#455a64;">🏷️ Lệnh</th>
+                <th style="width:20%; padding:12px 10px; font-size:12px; font-weight:600; color:#455a64;">⚙️ Hành động
+                </th>
+                <th style="width:48%; padding:12px 10px; font-size:12px; font-weight:600; color:#455a64;">📝 Nội dung /
+                  Flow</th>
+                <th style="width:10%; padding:12px 10px;"></th>
+              </tr>
+            </thead>
+            <tbody id="selfTriggerRulesBody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-sm" onclick="addSelfTriggerRule()"
+          style="background:linear-gradient(135deg, #43a047 0%, #2e7d32 100%); color:#fff; border:none; padding:8px 16px; border-radius:8px; font-weight:500; cursor:pointer; box-shadow: 0 3px 10px rgba(46,125,50,0.3); transition: all 0.2s ease;">
+          ➕ Thêm quy tắc
+        </button>
+
+        <div class="form-group" style="margin-top:20px; padding-top:18px; border-top:1px solid #e0e0e0;">
+          <label class="form-label" style="display:flex; align-items:center; gap:10px; font-size:14px; cursor:pointer;">
+            <input type="checkbox" id="selfTriggerEnabled" style="width:18px; height:18px; accent-color:#667eea;">
+            <span style="font-weight:500;">Kích hoạt tính năng này</span>
+          </label>
+        </div>
+
+        <div
+          style="margin-top:14px; font-size:12px; color:#78909c; background:#eceff1; padding:10px 14px; border-radius:6px;">
+          💡 <strong>Lưu ý:</strong> Nếu chọn "Chạy Flow", hãy đảm bảo Flow đó đã được tạo và đang hoạt động.
+        </div>
+      </div>
+      <div class="modal-footer"
+        style="background:#f5f7fa; padding:16px 24px; border-top:1px solid #e0e0e0; display:flex; justify-content:flex-end; gap:12px;">
+        <button class="btn btn-secondary" onclick="document.getElementById('selfTriggerModal').style.display='none'"
+          style="padding:10px 20px; border-radius:8px; font-weight:500;">Hủy</button>
+        <button class="btn btn-primary" onclick="saveSelfTriggerSetup()"
+          style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; padding:10px 24px; border-radius:8px; font-weight:600; color:#fff; cursor:pointer; box-shadow: 0 4px 15px rgba(102,126,234,0.4); transition: all 0.2s ease;">
+          💾 Lưu Cấu Hình
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.availableFlows = [];
+    window.selfTriggerRules = [];
+
+    window.showSelfTriggerModal = function () {
+      if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+        window.ws.send(JSON.stringify({ type: 'get_self_trigger' }));
+        window.ws.send(JSON.stringify({ type: 'get_all_flows' }));
+      }
+
+      const trigger = builtInTriggers.selfTrigger;
+      window.selfTriggerRules = [];
+
+      try {
+        const content = trigger.response || trigger.triggerContent || '{}';
+        if (content.trim().startsWith('{')) {
+          const config = JSON.parse(content);
+          if (config.rules && Array.isArray(config.rules)) {
+            window.selfTriggerRules = config.rules;
+          } else if (config.command) {
+            // Legacy Migration
+            window.selfTriggerRules.push({
+              command: config.command,
+              type: (trigger.setMode === 1) ? 'flow' : 'text',
+              value: (trigger.setMode === 1) ? trigger.triggerID : config.response // Warning: value for flow legacy is tricky, might need manual re-select
+            });
+            // Note: Legacy Flow Mode relied on triggerID->Flow mapping. 
+            // New Flow Mode relies on direct FlowID. 
+            // We might not have FlowID here easily. User might need to re-select.
+          }
+        } else if (content) {
+          // Simple text legacy
+          window.selfTriggerRules.push({
+            command: '/test', // Default guess? or empty
+            type: 'text',
+            value: content
+          });
+        }
+      } catch (e) { console.error('Error parsing self trigger:', e); }
+
+      if (window.selfTriggerRules.length === 0) {
+        window.selfTriggerRules.push({ command: '', type: 'text', value: '' });
+      }
+
+      document.getElementById('selfTriggerEnabled').checked = trigger.enabled;
+
+      renderSelfTriggerRules();
+      document.getElementById('selfTriggerModal').style.display = 'flex';
+    };
+
+    window.renderSelfTriggerRules = function () {
+      const tbody = document.getElementById('selfTriggerRulesBody');
+      tbody.innerHTML = '';
+      window.selfTriggerRules.forEach((rule, index) => {
+        const tr = document.createElement('tr');
+
+        // Command Input
+        const tdCmd = document.createElement('td');
+        tdCmd.style.padding = '4px';
+        const inputCmd = document.createElement('input');
+        inputCmd.className = 'form-input';
+        inputCmd.value = rule.command || '';
+        inputCmd.placeholder = '/lenh';
+        inputCmd.oninput = (e) => { rule.command = e.target.value; };
+        tdCmd.appendChild(inputCmd);
+
+        // Type Select
+        const tdType = document.createElement('td');
+        tdType.style.padding = '4px';
+        const selectType = document.createElement('select');
+        selectType.className = 'form-select';
+        selectType.innerHTML = `<option value="text">💬 Trả lời Text</option><option value="flow">🔀 Chạy Flow</option>`;
+        selectType.value = rule.type || 'text';
+        selectType.onchange = (e) => {
+          rule.type = e.target.value;
+          // Reset value if type changed to avoid confusion? Or keep?
+          // rule.value = ''; 
+          renderSelfTriggerRules();
+        };
+        tdType.appendChild(selectType);
+
+        // Value Input
+        const tdVal = document.createElement('td');
+        tdVal.style.padding = '4px';
+
+        if (rule.type === 'flow') {
+          const selectFlow = document.createElement('select');
+          selectFlow.className = 'form-select';
+          let options = '<option value="">-- Chọn Flow --</option>';
+          (window.availableFlows || []).forEach(f => {
+            const selected = (String(f.flowID) === String(rule.value)) ? 'selected' : '';
+            options += `<option value="${f.flowID}" ${selected}>${f.flowName}</option>`;
+          });
+          selectFlow.innerHTML = options;
+          selectFlow.onchange = (e) => { rule.value = e.target.value; };
+          tdVal.appendChild(selectFlow);
+        } else {
+          const inputText = document.createElement('input');
+          inputText.className = 'form-input';
+          inputText.value = rule.value || '';
+          inputText.placeholder = 'Nội dung tin nhắn...';
+          inputText.oninput = (e) => { rule.value = e.target.value; };
+          tdVal.appendChild(inputText);
+        }
+
+        // Delete
+        const tdDel = document.createElement('td');
+        tdDel.style.textAlign = 'center';
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn btn-sm';
+        btnDel.style.color = '#f44336';
+        btnDel.innerHTML = '🗑️';
+        btnDel.onclick = () => {
+          window.selfTriggerRules.splice(index, 1);
+          renderSelfTriggerRules();
+        };
+        tdDel.appendChild(btnDel);
+
+        tr.appendChild(tdCmd);
+        tr.appendChild(tdType);
+        tr.appendChild(tdVal);
+        tr.appendChild(tdDel);
+        tbody.appendChild(tr);
+      });
+    };
+
+    window.addSelfTriggerRule = function () {
+      window.selfTriggerRules.push({ command: '', type: 'text', value: '' });
+      renderSelfTriggerRules();
+    };
+
+    window.saveSelfTriggerSetup = function () {
+      const en = document.getElementById('selfTriggerEnabled').checked;
+
+      // Filter empty rules
+      const validRules = window.selfTriggerRules.filter(r => r.command && r.command.trim() !== '');
+
+      const config = {
+        rules: validRules
+      };
+
+      const jsonContent = JSON.stringify(config);
+
+      // Update Local
+      builtInTriggers.selfTrigger.response = jsonContent;
+      builtInTriggers.selfTrigger.enabled = en;
+
+      if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+        window.ws.send(JSON.stringify({
+          type: 'set_self_trigger',
+          config: {
+            triggerContent: jsonContent,
+            enabled: en,
+            setMode: 0 // New Logic handles mode internally per rule
+          }
+        }));
+        if (typeof showToast === 'function') showToast('✅ Đã lưu Cấu hình Self Trigger', 'success');
+      } else {
+        if (typeof showToast === 'function') showToast('❌ Mất kết nối WebSocket', 'error');
+      }
+
+      document.getElementById('selfTriggerModal').style.display = 'none';
+      if (window.renderTriggerList) window.renderTriggerList();
+    };
+
+    if (typeof window.openFlowBuilder !== 'function') {
+      window.openFlowBuilder = function (triggerId) {
+        window.open('flow-builder.html?triggerId=' + triggerId, '_blank');
+      };
+    }
+  </script>
 </body>
 
 </html>

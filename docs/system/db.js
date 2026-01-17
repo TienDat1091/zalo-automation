@@ -22,24 +22,49 @@ function createTables(db) {
   // Triggers table
   db.exec(`
     CREATE TABLE IF NOT EXISTS triggers (
-      triggerID INTEGER PRIMARY KEY AUTOINCREMENT,
-      triggerName TEXT NOT NULL,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      triggerName TEXT,
       triggerKey TEXT,
-      triggerType TEXT DEFAULT 'keyword',
-      triggerUserID TEXT NOT NULL,
+      triggerUserID TEXT,
       triggerContent TEXT,
-      timeCreated INTEGER DEFAULT (strftime('%s','now') * 1000),
-      timeUpdate INTEGER DEFAULT (strftime('%s','now') * 1000),
+      enabled INTEGER DEFAULT 1,
+      scope INTEGER DEFAULT 0,
+      uids TEXT DEFAULT NULL,
+      timeCreated INTEGER DEFAULT (cast(strftime('%s','now') as int) * 1000),
+      timeUpdate INTEGER DEFAULT (cast(strftime('%s','now') as int) * 1000),
       timeStartActive TEXT DEFAULT '00:00',
       timeEndActive TEXT DEFAULT '23:59',
-      dateStartActive TEXT,
-      dateEndActive TEXT,
+      dateStartActive TEXT DEFAULT NULL,
+      dateEndActive TEXT DEFAULT NULL,
       cooldown INTEGER DEFAULT 30000,
-      scope INTEGER DEFAULT 0,
-      uids TEXT,
+      setMode INTEGER DEFAULT 0,
+      flow TEXT DEFAULT NULL,
+      triggerType TEXT DEFAULT 'keyword',
+      keywords TEXT DEFAULT NULL,
+      response TEXT DEFAULT NULL,
+      schedule TEXT DEFAULT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS scheduled_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId TEXT,
+      targetId TEXT,
+      targetName TEXT,
+      content TEXT,
+      type TEXT DEFAULT 'text',
+      executeTime INTEGER,
+      status TEXT DEFAULT 'pending',
       enabled INTEGER DEFAULT 1,
-      setMode INTEGER DEFAULT 0
-    )
+      createdAt INTEGER DEFAULT (cast(strftime('%s','now') as int) * 1000)
+    );
+
+    CREATE TABLE IF NOT EXISTS user_settings (
+      userId TEXT,
+      targetId TEXT,
+      settingKey TEXT,
+      settingValue TEXT,
+      PRIMARY KEY (userId, targetId, settingKey)
+    );
   `);
 
   // Thêm cột triggerType nếu chưa có (migration cho DB cũ)

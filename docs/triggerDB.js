@@ -117,6 +117,20 @@ module.exports = {
           scope: AutoReplyScope.Everyone
         });
       }
+
+      // ✅ Check Self-Trigger (Trigger by self command)
+      const checkSelfTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_self_trigger__' AND triggerUserID = 'system'").get();
+      if (!checkSelfTrigger) {
+        console.log('✨ Creating built-in trigger: Self Trigger (System)');
+        this.createTrigger({
+          triggerName: 'Tự kích hoạt (Self-Trigger)',
+          triggerKey: '__builtin_self_trigger__',
+          triggerUserID: 'system',
+          triggerContent: '/test',
+          enabled: false,
+          scope: AutoReplyScope.Everyone
+        });
+      }
     } catch (e) {
       console.error('❌ Init built-in triggers error:', e.message);
     }
@@ -201,6 +215,32 @@ module.exports = {
             triggerKey: '__builtin_auto_reply_group__',
             triggerUserID: userUID,
             triggerContent: 'Xin chào nhóm! Tin nhắn đã được ghi nhận.',
+            enabled: false,
+          });
+        }
+      }
+
+      // 4. Self Trigger
+      let selfTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_self_trigger__' AND triggerUserID = ?").get(userUID);
+      if (!selfTrigger) {
+        console.log(`✨ Creating user trigger for ${userUID}: Self Trigger`);
+        const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_self_trigger__' AND triggerUserID = 'system'").get();
+
+        if (systemTrigger) {
+          this.createTrigger({
+            triggerName: systemTrigger.triggerName,
+            triggerKey: systemTrigger.triggerKey,
+            triggerUserID: userUID,
+            triggerContent: systemTrigger.triggerContent,
+            enabled: false,
+            scope: systemTrigger.scope
+          });
+        } else {
+          this.createTrigger({
+            triggerName: 'Tự kích hoạt (Self-Trigger)',
+            triggerKey: '__builtin_self_trigger__',
+            triggerUserID: userUID,
+            triggerContent: '/test',
             enabled: false,
             scope: AutoReplyScope.Everyone
           });
@@ -552,6 +592,26 @@ module.exports = {
     } catch (error) {
       console.error('❌ Update flow error:', error.message);
       return null;
+    }
+  },
+
+  getAllFlows(userUID) {
+    try {
+      // Get all triggers for this user, then find flows attached to them
+      // Or if flows table had userUID it would be easier. 
+      // Current schema: flows -> triggerID -> triggers -> triggerUserID
+      const sql = `
+        SELECT f.*, t.triggerName 
+        FROM flows f
+        JOIN triggers t ON f.triggerID = t.triggerID
+        WHERE t.triggerUserID = ?
+        ORDER BY f.flowID DESC
+      `;
+      const flows = db.prepare(sql).all(userUID);
+      return flows;
+    } catch (error) {
+      console.error('❌ Get all flows error:', error.message);
+      return [];
     }
   },
 
@@ -2502,16 +2562,113 @@ module.exports = {
   },
 
   // ========================================
+  // SCHEDULED TASKS METHODS
+  // ========================================
+  getPendingScheduledTasks(userId, currentTime) {
+    try {
+      return db.prepare("SELECT * FROM scheduled_tasks WHERE userId = ? AND status = 'pending' AND enabled = 1 AND executeTime <= ?").all(userId, currentTime);
+    } catch (e) { console.error('❌ Get pending tasks error:', e.message); return []; }
+  },
+
+  getAllScheduledTasks(userId) {
+    try {
+      return db.prepare("SELECT * FROM scheduled_tasks WHERE userId = ? ORDER BY executeTime ASC").all(userId);
+    } catch (e) { console.error('❌ Get all tasks error:', e.message); return []; }
+  },
+
+  createScheduledTask(userId, targetId, targetName, content, type, executeTime) {
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO scheduled_tasks (userId, targetId, targetName, content, type, executeTime, status, enabled)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', 1)
+      `);
+      const res = stmt.run(userId, targetId, targetName, content, type || 'text', executeTime);
+      return res.lastInsertRowid;
+    } catch (e) { console.error('❌ Create scheduled task error:', e.message); return null; }
+  },
+
+  updateScheduledTaskStatus(id, status) {
+    try {
+      db.prepare("UPDATE scheduled_tasks SET status = ? WHERE id = ?").run(status, id);
+      return true;
+    } catch (e) { console.error('❌ Update task status error:', e.message); return false; }
+  },
+
+  updateScheduledTask(id, userId, updates) {
+    try {
+      const allowedFields = ['targetId', 'targetName', 'content', 'type', 'executeTime', 'status', 'enabled'];
+      const fields = [];
+      const values = [];
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key) && value !== undefined) {
+          fields.push(`${key} = ?`);
+          values.push(value);
+        }
+      }
+
+      if (fields.length === 0) return false;
+
+      values.push(id);
+      values.push(userId);
+
+      const stmt = db.prepare(`UPDATE scheduled_tasks SET ${fields.join(', ')} WHERE id = ? AND userId = ? `);
+      const result = stmt.run(...values);
+      return result.changes > 0;
+    } catch (error) {
+      console.error('❌ Update scheduled task error:', error.message);
+      return false;
+    }
+  },
+
+  deleteScheduledTask(id, userId) {
+    try {
+      db.prepare("DELETE FROM scheduled_tasks WHERE id = ? AND userId = ?").run(id, userId);
+      return true;
+    } catch (e) { console.error('❌ Delete task error:', e.message); return false; }
+  },
+
+  // ========================================
+  // USER SETTINGS METHODS (Per-User Toggle)
+  // ========================================
+  setUserSetting(userId, targetId, key, value) {
+    try {
+      db.prepare(`
+        INSERT INTO user_settings(userId, targetId, settingKey, settingValue)
+      VALUES(?, ?, ?, ?)
+        ON CONFLICT(userId, targetId, settingKey) 
+        DO UPDATE SET settingValue = excluded.settingValue
+        `).run(userId, targetId, key, value.toString());
+      return true;
+    } catch (e) { console.error('❌ Set user setting error:', e.message); return false; }
+  },
+
+  getUserSetting(userId, targetId, key) {
+    try {
+      const res = db.prepare("SELECT settingValue FROM user_settings WHERE userId = ? AND targetId = ? AND settingKey = ?").get(userId, targetId, key);
+      return res ? res.settingValue : null;
+    } catch (e) { console.error('❌ Get user setting error:', e.message); return null; }
+  },
+
+  getAutoReplyBlacklist(userId) {
+    try {
+      // Get all targetIds where auto_reply_enabled is 'false'
+      const rows = db.prepare("SELECT targetId FROM user_settings WHERE userId = ? AND settingKey = 'auto_reply_enabled' AND settingValue = 'false'").all(userId);
+      return rows.map(r => r.targetId);
+    } catch (e) { console.error('❌ Get blacklist error:', e.message); return []; }
+  },
+
+  // ========================================
   // ACTIVITY LOGS (New Implementation)
   // ========================================
   logActivity(userUID, action, entityType, entityID, entityName, details) {
     try {
       const stmt = db.prepare(`
-        INSERT INTO activity_logs (userUID, action, entityType, entityID, entityName, details, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO activity_logs(userUID, action, entityType, entityID, entityName, details, timestamp)
+      VALUES(?, ?, ?, ?, ?, ?, ?)
       `);
       stmt.run(userUID, action, entityType, entityID || null, entityName || null, details || null, Date.now());
-      // console.log(`📝 Logged activity: ${action} - ${entityName}`);
+      // console.log(`📝 Logged activity: ${ action } - ${ entityName } `);
       return true;
     } catch (e) {
       console.error('❌ Log activity error:', e.message);
@@ -2522,11 +2679,11 @@ module.exports = {
   getActivityLogs(userUID, limit = 50) {
     try {
       return db.prepare(`
-        SELECT * FROM activity_logs 
-        WHERE userUID = ? 
-        ORDER BY timestamp DESC 
-        LIMIT ?
-      `).all(userUID, limit);
+      SELECT * FROM activity_logs 
+        WHERE userUID = ?
+        ORDER BY timestamp DESC
+      LIMIT ?
+        `).all(userUID, limit);
     } catch (e) {
       console.error('❌ Get activity logs error:', e.message);
       return [];

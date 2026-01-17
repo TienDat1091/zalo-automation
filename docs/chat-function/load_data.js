@@ -67,11 +67,11 @@ function updateVisibleFriends(sortedFriends) {
       : '';
 
     return `
-      <div class="friend-item ${hasMessages ? 'has-messages' : ''} ${(selectedFriend && selectedFriend.userId === f.userId) ? 'active' : ''}" 
-           onclick="${typeof isDeleteMode !== 'undefined' && isDeleteMode ? '' : `selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${f.avatar || ''}')`}">
+      <div class="friend-item ${hasMessages ? 'has-messages' : ''} ${(typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === f.userId) ? 'active' : ''}" 
+           onclick="${(typeof isDeleteMode !== 'undefined' && isDeleteMode) ? '' : `selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${f.avatar || ''}')`}">
         <input type="checkbox" class="friend-checkbox" 
                onclick="event.stopPropagation(); toggleFriendSelection('${f.userId}', this)"
-               ${typeof selectedForDelete !== 'undefined' && selectedForDelete.has(f.userId) ? 'checked' : ''}>
+               ${(typeof selectedForDelete !== 'undefined' && selectedForDelete && selectedForDelete.has(f.userId)) ? 'checked' : ''}>
         <img src="${f.avatar || 'https://via.placeholder.com/50'}" 
              onerror="this.src='https://via.placeholder.com/50'" 
              alt="${f.displayName || 'User'}">

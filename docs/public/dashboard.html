@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Zalo Messenger</title>
-  <link rel="stylesheet" href="assets/style_dashboard.css" />
+  <link rel="stylesheet" href="assets/style_dashboard.css?v=1.1" />
   <style>
     /* ✅ CSS cho tin nhắn Auto Reply */
     .message.auto-reply .message-content {
@@ -431,6 +431,57 @@
     .delete-selection-bar .cancel-btn:hover {
       background: rgba(255, 255, 255, 0.1);
     }
+
+    .ar-toggle {
+      position: absolute;
+      /* Using absolute to force visibility */
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: inline-block;
+      width: 32px;
+      height: 18px;
+      z-index: 100;
+      flex-shrink: 0;
+    }
+
+    .ar-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .ar-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 18px;
+    }
+
+    .ar-slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.ar-slider {
+      background-color: #4CAF50;
+    }
+
+    input:checked+.ar-slider:before {
+      transform: translateX(14px);
+    }
   </style>
 </head>
 
@@ -547,6 +598,16 @@
           <div class="name" id="chatName">Chọn bạn bè</div>
           <div class="uid" id="chatUid"></div>
           <div class="status">Đang hoạt động</div>
+        </div>
+
+        <!-- ✅ Header Auto-Reply Toggle (Moved here) -->
+        <div class="header-ar-toggle" title="Bật/Tắt tự động trả lời cho người này"
+          style="display:flex; align-items:center; margin-left: 15px;">
+          <span style="font-size: 12px; color: #666; margin-right: 6px; white-space: nowrap;">Auto Reply:</span>
+          <label class="ar-toggle" style="position:relative; margin:0; top:0; right:0; transform:none;">
+            <input type="checkbox" id="headerAutoReplyToggle" onchange="toggleHeaderAutoReply(this.checked)">
+            <span class="ar-slider"></span>
+          </label>
         </div>
         <!-- ✅ Auto-Delete Chat Button -->
         <div class="chat-actions" style="margin-left:auto; display:flex; gap:8px; align-items:center;">
@@ -728,6 +789,10 @@
     let isLoadingFriends = false;
     let friendsRequestDebounce = null;
 
+    // ✅ Auto-Reply Blacklist (Users who have auto-reply DISABLED)
+    let autoReplyBlacklist = new Set();
+    let isBlacklistLoaded = false;
+
     // ✅ Custom confirm modal
     let confirmResolve = null;
 
@@ -820,6 +885,7 @@
     ws.onopen = () => {
       console.log('✅ WebSocket connected');
       ws.send(JSON.stringify({ type: 'get_friends' }));
+      ws.send(JSON.stringify({ type: 'get_auto_reply_blacklist' }));
     };
 
     ws.onerror = (error) => {
@@ -1139,6 +1205,15 @@
         if (data.type === 'auto_delete_chat_error') {
           showToast('❌ ' + (data.error || 'Lỗi không xác định'), 'error');
         }
+
+        // ✅ MEDIA & SYSTEM LOGS
+        if (data.type === 'new_activity_log') {
+          const { title, description, type } = data.log;
+          addNotificationToPanel(title, description, 'system', null, Date.now());
+          // Optional: show toast if urgent
+          if (type === 'warning' || type === 'error') showToast(title, 'info');
+        }
+
       } catch (err) {
         console.error('❌ Error:', err);
       }
@@ -1315,15 +1390,64 @@
               <div class="friend-name">${friend.displayName}</div>
               <div class="friend-message">${escapeHtml(lastMsg).substring(0, 30)}...</div>
             </div>
+            
+            
+            
+            <!-- Force Render Toggle for ALL items for debug/visibility -->
+            <label class="ar-toggle" onclick="event.stopPropagation()" title="Bật/Tắt tự động trả lời">
+                 <input type="checkbox" ${!autoReplyBlacklist.has(friend.userId) ? 'checked' : ''} onchange="toggleAutoReply('${friend.userId}', this.checked)">
+                 <span class="ar-slider"></span>
+            </label>
+         
           </div>
         `;
       }
 
       friendsListEl.innerHTML = html;
       console.log(`✅ Rendered ${filteredFriends.length} friends`);
+      friendsListEl.innerHTML = html;
+      console.log(`✅ Rendered ${filteredFriends.length} friends`);
     }
 
-    // ========== SEARCH FUNCTIONS ==========
+    // Function to handle header toggle
+    function toggleHeaderAutoReply(enabled) {
+      if (!selectedFriend) return;
+      toggleAutoReply(selectedFriend.userId, enabled);
+    }
+
+    // Main Toggle Function (Global)
+    function toggleAutoReply(userId, enabled) {
+      console.log(`🔄 Toggling Auto-Reply for ${userId}: ${enabled}`);
+
+      // Update local state
+      if (enabled) {
+        autoReplyBlacklist.delete(userId);
+      } else {
+        autoReplyBlacklist.add(userId);
+      }
+
+      // Send to server
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'toggle_user_auto_reply',
+          targetId: userId,
+          enabled: enabled
+        }));
+      }
+
+      // Sync Header Toggle if it's the current user
+      if (selectedFriend && selectedFriend.userId === userId) {
+        const headerToggle = document.getElementById('headerAutoReplyToggle');
+        if (headerToggle) headerToggle.checked = enabled;
+      }
+
+      // Sync Sidebar Checkbox
+      // Note: We use querySelectorAll to find all instances (search results + friend list)
+      const sidebarToggles = document.querySelectorAll(`.friend-item[onclick*="${userId}"] input[type="checkbox"]`);
+      sidebarToggles.forEach(toggle => {
+        toggle.checked = enabled;
+      });
+    }
     function FriendTab(tab) {
       console.log(`🔄 Switching to ${tab} search`);
       currentSearchTab = tab;
@@ -1344,22 +1468,22 @@
       const gender = user.gender === 2 ? 'Nam' : user.gender === 1 ? 'Nữ' : '';
 
       resultsDiv.innerHTML = `
-        <div style="padding: 8px 12px; background: #e8f5e9; border-bottom: 1px solid #c8e6c9; font-size: 12px; color: #388e3c;">
+        < div style = "padding: 8px 12px; background: #e8f5e9; border-bottom: 1px solid #c8e6c9; font-size: 12px; color: #388e3c;" >
           ✅ Tìm thấy từ số điện thoại
-        </div>
+        </div >
         <div class="search-result-item" onclick="selectFriendFromSearch('${user.uid}', '${escapeJs(displayName)}', '${user.avatar || ''}')">
           <div class="result-friend">
-            <img src="${user.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3C/svg%3E'}" 
-                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E'"
-                 alt="Avatar"
-                 style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
-            <div class="result-friend-info" style="flex: 1; margin-left: 10px;">
-              <div class="result-friend-name" style="font-weight: 600; color: #333;">${escapeHtml(displayName)}</div>
-              <div class="result-friend-uid" style="font-size: 12px; color: #666; margin-top: 2px;">
-                ${gender ? gender + ' • ' : ''}UID: ${user.uid}
+            <img src="${user.avatar || 'data:image/svg+xml,%3Csvg xmlns=" http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3C/svg%3E'}" 
+              onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E'"
+              alt="Avatar"
+              style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
+              <div class="result-friend-info" style="flex: 1; margin-left: 10px;">
+                <div class="result-friend-name" style="font-weight: 600; color: #333;">${escapeHtml(displayName)}</div>
+                <div class="result-friend-uid" style="font-size: 12px; color: #666; margin-top: 2px;">
+                  ${gender ? gender + ' • ' : ''}UID: ${user.uid}
+                </div>
               </div>
-            </div>
-            <span style="background: #e8f5e9; color: #388e3c; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500;">Từ SĐT</span>
+              <span style="background: #e8f5e9; color: #388e3c; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500;">Từ SĐT</span>
           </div>
         </div>
       `;
@@ -1372,11 +1496,11 @@
       if (!resultsDiv) return;
 
       resultsDiv.innerHTML = `
-        <div style="padding: 30px; text-align: center; color: #999;">
+        < div style = "padding: 30px; text-align: center; color: #999;" >
           <div style="font-size: 32px; margin-bottom: 10px;">😕</div>
           <div>Không tìm thấy người dùng với số điện thoại này</div>
-        </div>
-      `;
+        </div >
+        `;
     }
 
     function handlePhoneSearchError(error) {
@@ -1384,11 +1508,11 @@
       if (!resultsDiv) return;
 
       resultsDiv.innerHTML = `
-        <div style="padding: 30px; text-align: center; color: #f44336;">
+        < div style = "padding: 30px; text-align: center; color: #f44336;" >
           <div style="font-size: 32px; margin-bottom: 10px;">❌</div>
           <div>Lỗi: ${escapeHtml(error || 'Không thể tìm kiếm')}</div>
-        </div>
-      `;
+        </div >
+        `;
     }
 
     function selectFriendFromSearch(userId, displayName, avatar) {
@@ -1426,9 +1550,9 @@
       const days = Math.floor(diff / 86400000);
 
       if (minutes < 1) return 'Vừa xong';
-      if (minutes < 60) return `${minutes}p`;
-      if (hours < 24) return `${hours}h`;
-      if (days < 7) return `${days}d`;
+      if (minutes < 60) return `${minutes} p`;
+      if (hours < 24) return `${hours} h`;
+      if (days < 7) return `${days} d`;
 
       const date = new Date(timestamp);
       return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -1440,7 +1564,7 @@
         alert('Vui lòng đăng nhập trước!');
         return;
       }
-      const url = `/trigger-manager.html?userUID=${currentUserId}&dbName=ZaloChat_${currentUserId}`;
+      const url = `/ trigger - manager.html ? userUID = ${currentUserId}& dbName=ZaloChat_${currentUserId} `;
       window.open(url, '_blank');
     }
 
@@ -1450,7 +1574,7 @@
         alert('Vui lòng đăng nhập trước!');
         return;
       }
-      const url = `/storage-info.html?userUID=${currentUserId}`;
+      const url = `/ storage - info.html ? userUID = ${currentUserId} `;
       window.open(url, '_blank');
     }
 
@@ -1544,12 +1668,12 @@
       container.innerHTML = notifications.slice(0, 20).map(n => `
         <div class="notification-item" onclick="goToConversation('${n.uid}', '${escapeJs(n.name)}', '${n.avatar || ''}')">
           <img src="${n.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}" onerror="this.onerror=null;" alt="">
-          <div class="info">
-            <div class="name">${escapeHtml(n.name)}</div>
-            <div class="message">${escapeHtml(n.message?.substring(0, 50) || '')}</div>
-            <div class="time">${formatTime(n.timestamp)}</div>
+            <div class="info">
+              <div class="name">${escapeHtml(n.name)}</div>
+              <div class="message">${escapeHtml(n.message?.substring(0, 50) || '')}</div>
+              <div class="time">${formatTime(n.timestamp)}</div>
+            </div>
           </div>
-        </div>
       `).join('');
     }
 
@@ -1626,11 +1750,11 @@
     function renderFriendRequests(requests, error) {
       const list = document.getElementById('frList');
       if (error) {
-        list.innerHTML = `<div style="padding:20px;text-align:center;color:red;">Lỗi: ${error}</div>`;
+        list.innerHTML = `< div style = "padding:20px;text-align:center;color:red;" > Lỗi: ${error}</div > `;
         return;
       }
       if (!requests || requests.length === 0) {
-        list.innerHTML = `<div style="padding:20px;text-align:center;color:#666;">Không có lời mời nào.</div>`;
+        list.innerHTML = `< div style = "padding:20px;text-align:center;color:#666;" > Không có lời mời nào.</div > `;
         return;
       }
 
@@ -1642,16 +1766,16 @@
         const time = req.time ? new Date(req.time).toLocaleString() : '';
 
         html += `
-           <div class="fr-item">
-             <img src="${avatar}" class="fr-avatar">
-             <div style="flex:1;">
-               <div style="font-weight:600;font-size:14px;">${name}</div>
-               <div style="font-size:12px;color:#666;">${msg}</div>
-               <div style="font-size:10px;color:#999;">${time}</div>
-             </div>
-             <div style="font-size:11px;color:#0068FF;background:#E3F2FD;padding:4px 8px;border-radius:12px;">Đang chờ</div>
-           </div>
-         `;
+        < div class="fr-item" >
+          <img src="${avatar}" class="fr-avatar">
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:14px;">${name}</div>
+              <div style="font-size:12px;color:#666;">${msg}</div>
+              <div style="font-size:10px;color:#999;">${time}</div>
+            </div>
+            <div style="font-size:11px;color:#0068FF;background:#E3F2FD;padding:4px 8px;border-radius:12px;">Đang chờ</div>
+          </div>
+      `;
       });
       list.innerHTML = html;
     }
@@ -1761,7 +1885,7 @@
 
       const count = selectedForDelete.size;
       const confirmed = await showConfirm(
-        `Bạn có chắc muốn XÓA ${count} bạn bè?\n\nHành động này không thể hoàn tác!`,
+        `Bạn có chắc muốn XÓA ${count} bạn bè ?\n\nHành động này không thể hoàn tác!`,
         '🗑️ Xóa bạn bè'
       );
 
@@ -1770,7 +1894,7 @@
       }
 
       const friendIds = Array.from(selectedForDelete);
-      console.log(`🗑️ Deleting ${friendIds.length} friends:`, friendIds);
+      console.log(`🗑️ Deleting ${friendIds.length} friends: `, friendIds);
 
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
@@ -1809,7 +1933,7 @@
         if (typeof renderFriendsVirtual === 'function') {
           renderFriendsVirtual();
         }
-        alert(`✅ Đã xóa ${data.success.length} bạn bè thành công!${data.failed.length > 0 ? `\n⚠️ Lỗi: ${data.failed.length} bạn bè` : ''}`);
+        alert(`✅ Đã xóa ${data.success.length} bạn bè thành công!${data.failed.length > 0 ? `\n⚠️ Lỗi: ${data.failed.length} bạn bè` : ''} `);
         cancelDeleteMode();
       }
       if (data.failed && data.failed.length > 0) {
@@ -1837,7 +1961,7 @@
       const container = document.getElementById('sentFrList');
 
       if (error) {
-        container.innerHTML = `<div style="padding:20px;text-align:center;color:#f44336;">❌ ${escapeHtml(error)}</div>`;
+        container.innerHTML = `< div style = "padding:20px;text-align:center;color:#f44336;" >❌ ${escapeHtml(error)}</div > `;
         return;
       }
 
@@ -1850,9 +1974,9 @@
       for (const req of requests) {
         const timeAgo = req.time ? formatTimeAgo(req.time * 1000) : '';
         html += `
-          <div class="fr-item">
-            <img class="fr-avatar" src="${req.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}" 
-                 onerror="this.onerror=null;" alt="Avatar">
+        < div class="fr-item" >
+          <img class="fr-avatar" src="${req.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}"
+            onerror="this.onerror=null;" alt="Avatar">
             <div style="flex:1;">
               <div style="font-weight:600;">${escapeHtml(req.displayName || req.zaloName || 'Người dùng')}</div>
               <div style="font-size:12px;color:#888;">${req.message ? escapeHtml(req.message) : 'Không có lời nhắn'}</div>
@@ -1860,7 +1984,7 @@
             </div>
             <div style="font-size:20px;color:#ff9800;" title="Đang chờ chấp nhận">⏳</div>
           </div>
-        `;
+      `;
       }
       container.innerHTML = html;
     }
@@ -1892,32 +2016,32 @@
 
       switch (eventType) {
         case 'ADD':
-          showToast(`🎉 Đã thêm bạn mới: ${data}`, 'success');
+          showToast(`🎉 Đã thêm bạn mới: ${data} `, 'success');
           // ✅ RELOAD FRIENDS LIST
           console.log('🔄 Requesting updated friends list...');
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'get_friends' }));
           }
-          addNotificationToPanel('Hệ thống', `🎉 Đã thêm bạn mới: ${data}`, data, '', Date.now());
+          addNotificationToPanel('Hệ thống', `🎉 Đã thêm bạn mới: ${data} `, data, '', Date.now());
           // Reload friend list if not already triggered by other means
           // The server sends friends_list_updated usually, or we can reload manually
           break;
 
         case 'REMOVE':
-          showToast(`👋 Đã hủy kết bạn với: ${data}`, 'warning');
+          showToast(`👋 Đã hủy kết bạn với: ${data} `, 'warning');
           // ✅ RELOAD FRIENDS LIST
           console.log('🔄 Requesting updated friends list...');
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'get_friends' }));
           }
-          addNotificationToPanel('Hệ thống', `👋 Đã hủy kết bạn với: ${data}`, data, '', Date.now());
+          addNotificationToPanel('Hệ thống', `👋 Đã hủy kết bạn với: ${data} `, data, '', Date.now());
           break;
 
         case 'REQUEST':
           const senderId = data.fromUid || 'Người dùng';
           const msg = data.message || 'Xin chào! Kết bạn với mình nhé!';
-          showToast(`📨 Lời mời kết bạn mới từ: ${senderId}`, 'info');
-          addNotificationToPanel('Lời mời kết bạn', `📨 Từ ${senderId}: ${msg}`, senderId, '', Date.now());
+          showToast(`📨 Lời mời kết bạn mới từ: ${senderId} `, 'info');
+          addNotificationToPanel('Lời mời kết bạn', `📨 Từ ${senderId}: ${msg} `, senderId, '', Date.now());
           // Play sound if desired
           break;
 
@@ -1932,13 +2056,13 @@
           break;
 
         case 'BLOCK':
-          showToast(`🚫 Đã chặn người dùng: ${data}`, 'warning');
-          addNotificationToPanel('Hệ thống', `🚫 Đã chặn người dùng: ${data}`, data, '', Date.now());
+          showToast(`🚫 Đã chặn người dùng: ${data} `, 'warning');
+          addNotificationToPanel('Hệ thống', `🚫 Đã chặn người dùng: ${data} `, data, '', Date.now());
           break;
 
         case 'UNBLOCK':
-          showToast(`✅ Đã bỏ chặn người dùng: ${data}`, 'success');
-          addNotificationToPanel('Hệ thống', `✅ Đã bỏ chặn người dùng: ${data}`, data, '', Date.now());
+          showToast(`✅ Đã bỏ chặn người dùng: ${data} `, 'success');
+          addNotificationToPanel('Hệ thống', `✅ Đã bỏ chặn người dùng: ${data} `, data, '', Date.now());
           break;
 
         case 'SEEN_FRIEND_REQUEST':
@@ -2024,9 +2148,9 @@
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         let label = '';
-        if (hours > 0) label += `${hours}h`;
-        if (minutes > 0) label += `${minutes}m`;
-        if (!label) label = `${seconds}s`;
+        if (hours > 0) label += `${hours} h`;
+        if (minutes > 0) label += `${minutes} m`;
+        if (!label) label = `${seconds} s`;
         document.getElementById('autoDeleteLabel').textContent = label;
       }
 
@@ -2084,8 +2208,8 @@
       }
 
       container.innerHTML = filteredGroups.map(g => `
-        <div class="friend-item" onclick="selectGroup('${g.groupId}', '${escapeJs(g.name)}', '${g.avatar}')" 
-          style="display:flex; align-items:center; padding:12px; cursor:pointer; border-bottom:1px solid #eee;">
+        < div class="friend-item" onclick = "selectGroup('${g.groupId}', '${escapeJs(g.name)}', '${g.avatar}')"
+      style = "display:flex; align-items:center; padding:12px; cursor:pointer; border-bottom:1px solid #eee;" >
           <div style="position:relative;">
             <img src="${g.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E'}" 
               style="width:50px; height:50px; border-radius:50%; object-fit:cover;" 
@@ -2096,8 +2220,8 @@
             <div style="font-weight:600; color:#333;">${escapeHtml(g.name)}</div>
             <div style="font-size:12px; color:#888;">${g.totalMember || '?'} thành viên</div>
           </div>
-        </div>
-      `).join('');
+        </div >
+        `).join('');
     }
 
     function searchGroups(query) {
@@ -2152,6 +2276,30 @@
   <script src="chat-function/logout.js"></script>
   <script src="chat-function/search.js"></script>
   <script src="chat-function/notifications.js"></script>
+  <script>
+    // Auto-Reply Toggle Logic
+    function toggleAutoReply(userId, enabled) {
+      console.log(`👤 Toggling Auto - Reply for ${userId}: ${enabled}`);
+
+      // Optimistic update
+      if (enabled) {
+        autoReplyBlacklist.delete(userId);
+      } else {
+        autoReplyBlacklist.add(userId);
+      }
+
+      // Send to server
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'toggle_user_auto_reply',
+          targetId: userId,
+          enabled: enabled
+        }));
+      }
+
+      showToast(enabled ? '✅ Đã BẬT tự động trả lời' : '🚫 Đã TẮT tự động trả lời', enabled ? 'success' : 'warning');
+    }
+  </script>
 </body>
 
 </html>

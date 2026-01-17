@@ -19,7 +19,7 @@
       </div>
     </div>
     <div class="header-actions">
-      <button class="btn" onclick="showVariablesModal()" title="Xem tất cả biến đã lưu">📊 Biến</button>
+
       <a href="unified-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
         <span>📊</span>
         <span>Data Manager</span>
@@ -55,54 +55,13 @@
     </div>
   </div>
 
-  <!-- Variables Modal -->
-  <div id="variablesModal" class="modal-overlay" style="display:none;">
-    <div class="modal-content" style="max-width: 800px;">
-      <div class="modal-header">
-        <h3>📊 Danh sách biến đã lưu</h3>
-        <button class="modal-close-btn" onclick="closeVariablesModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <!-- Add Variable Form -->
-        <div id="addVariableForm" style="background: #f5f7fa; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-          <h4 style="margin-bottom: 12px; font-size: 14px;">➕ Thêm biến thủ công</h4>
-          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 150px;">
-              <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Tên biến</label>
-              <input type="text" id="newVarName" placeholder="VD: user_email"
-                style="width: 100%; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
-            </div>
-            <div style="flex: 2; min-width: 200px;">
-              <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Giá trị</label>
-              <input type="text" id="newVarValue" placeholder="VD: test@example.com"
-                style="width: 100%; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
-            </div>
-            <div style="flex: 1; min-width: 100px;">
-              <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Loại</label>
-              <select id="newVarType"
-                style="width: 100%; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
-                <option value="text">text</option>
-                <option value="number">number</option>
-                <option value="email">email</option>
-                <option value="phone">phone</option>
-              </select>
-            </div>
-            <div style="display: flex; align-items: flex-end;">
-              <button class="btn btn-primary" onclick="addManualVariable()" style="padding: 8px 16px;">➕ Thêm</button>
-            </div>
-          </div>
-        </div>
-        <div id="variablesContent">
-          <div class="loading-spinner">Đang tải...</div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="refreshVariables()">🔄 Làm mới</button>
-        <button class="btn btn-danger" onclick="clearAllVariables()">🗑️ Xóa tất cả</button>
-        <button class="btn" onclick="closeVariablesModal()">Đóng</button>
-      </div>
-    </div>
-  </div>
+  <!-- Variables Modal - Enhanced with Tabs -->
+
+
+  <script>
+    // Tab switching
+
+  </script>
 
   <!-- Base & Registry -->
   <!-- Load index.js TRƯỚC (core registry) -->
@@ -128,7 +87,7 @@
   <script src="blocks/switch.js"></script>
   <script src="blocks/google-sheet-data.js"></script>
   <script src="blocks/send-email.js"></script>
-  <script src="/blocks/find-user.js"></script>
+  <script src="blocks/find-user.js"></script>
   <!-- UI Controller - Load CUỐI CÙNG -->
   <script src="blocks/flow-builder-ui.js"></script>
 

@@ -1,0 +1,25 @@
+[01:48:23] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[01:48:23] processSelfTrigger CALLED for "/hi"
+[01:48:44] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[01:48:44] processSelfTrigger CALLED for "/hi"
+[01:48:54] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[01:48:54] processSelfTrigger CALLED for "/hi"
+[01:49:05] RECV: Type=0 Content="/hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[01:49:12] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[01:49:12] processSelfTrigger CALLED for "/hi"
+[01:49:24] RECV: Type=0 Content="/hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[01:49:29] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[01:49:29] processSelfTrigger CALLED for "/hi"
+[01:51:47] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[01:51:47] processSelfTrigger CALLED for "/hi"
+[01:56:31] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[01:56:31] processSelfTrigger CALLED for "/hi"
+[01:56:44] RECV: Type=0 Content="093657462" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:05:45] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[02:05:45] processSelfTrigger CALLED for "/hi"
+[02:06:05] RECV: Type=0 Content="0987654321" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:36:23] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:37:04] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:43:34] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:45:57] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:46:03] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726

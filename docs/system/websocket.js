@@ -1099,6 +1099,8 @@ function startWebSocketServer(apiState, httpServer) {
           (async () => {
             try {
               const threadId = /^\d+$/.test(msg.uid) ? BigInt(msg.uid) : msg.uid;
+
+              // 1️⃣ GỬI TIN NHẮN GỐC TRƯỚC
               await apiState.api.sendMessage(
                 { msg: msg.text },
                 threadId,
@@ -1137,6 +1139,24 @@ function startWebSocketServer(apiState, httpServer) {
               });
 
               console.log(`📤 Sent message to ${msg.uid}`);
+
+              // 2️⃣ SELF-TRIGGER: Kích hoạt SAU khi gửi tin gốc
+              console.log(`[Self-Trigger] 🚀 Processing: "${msg.text}"`);
+              try {
+                const { processAutoReply } = require('../autoReply');
+                const fakeMsg = {
+                  type: 'text',
+                  data: { content: msg.text },
+                  threadId: String(msg.uid),
+                  uidFrom: apiState.currentUser?.uid,
+                  isSelf: true,
+                  timestamp: Date.now()
+                };
+                await processAutoReply(apiState, fakeMsg);
+                console.log(`[Self-Trigger] ✅ Done processing`);
+              } catch (selfErr) {
+                console.error(`[Self-Trigger] ❌ Error:`, selfErr.message);
+              }
             } catch (err) {
               console.error('❌ Error sending message:', err.message);
               ws.send(JSON.stringify({
@@ -1599,8 +1619,128 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
+        // SCHEDULED TASK MANAGEMENT
+        // ============================================
+        else if (msg.type === 'get_scheduled_tasks') {
+          if (!apiState.currentUser) return;
+          const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
+          ws.send(JSON.stringify({ type: 'scheduled_tasks_list', tasks }));
+        }
+
+        else if (msg.type === 'create_scheduled_task') {
+          if (!apiState.currentUser) return;
+          const { targetId, targetName, content, taskType, executeTime } = msg;
+          const newId = triggerDB.createScheduledTask(apiState.currentUser.uid, targetId, targetName, content, taskType, executeTime);
+
+          if (newId) {
+            const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
+            ws.send(JSON.stringify({ type: 'scheduled_task_created', success: true, tasks }));
+            // Broadcast to update other clients
+            broadcast(apiState, { type: 'scheduled_tasks_update', tasks });
+            // Log Activity
+            broadcast(apiState, {
+              type: 'new_activity_log',
+              log: {
+                title: '📅 Lịch gửi mới',
+                description: `Đã tạo lịch gửi cho ${targetName} lúc ${new Date(executeTime).toLocaleString('vi-VN')}`,
+                type: 'info'
+              }
+            });
+          } else {
+            ws.send(JSON.stringify({ type: 'scheduled_task_error', message: 'Failed to create task' }));
+          }
+        }
+
+        else if (msg.type === 'update_scheduled_task') {
+          if (!apiState.currentUser) return;
+          const { id, updates } = msg; // updates is an object { targetId, content, ... }
+          const success = triggerDB.updateScheduledTask(id, apiState.currentUser.uid, updates);
+
+          if (success) {
+            const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
+            ws.send(JSON.stringify({ type: 'scheduled_task_updated', success: true, tasks }));
+            broadcast(apiState, { type: 'scheduled_tasks_update', tasks });
+            // Log Activity
+            broadcast(apiState, {
+              type: 'new_activity_log',
+              log: {
+                title: '✏️ Cập nhật lịch',
+                description: `Đã chỉnh sửa lịch gửi ID #${id}`,
+                type: 'info'
+              }
+            });
+          } else {
+            ws.send(JSON.stringify({ type: 'scheduled_task_error', message: 'Failed to update task' }));
+          }
+        }
+
+        else if (msg.type === 'delete_scheduled_task') {
+          if (!apiState.currentUser) return;
+          const { id } = msg;
+          const success = triggerDB.deleteScheduledTask(id, apiState.currentUser.uid);
+
+          if (success) {
+            const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
+            ws.send(JSON.stringify({ type: 'scheduled_task_deleted', success: true, tasks }));
+            broadcast(apiState, { type: 'scheduled_tasks_update', tasks });
+            // Log Activity
+            broadcast(apiState, {
+              type: 'new_activity_log',
+              log: {
+                title: '🗑️ Xóa lịch',
+                description: `Đã xóa lịch gửi ID #${id}`,
+                type: 'warning'
+              }
+            });
+          } else {
+            ws.send(JSON.stringify({ type: 'scheduled_task_error', message: 'Failed to delete task' }));
+          }
+        }
+
+        // ============================================
+        // USER SETTINGS (Per-User Toggle)
+        // ============================================
+        else if (msg.type === 'toggle_user_auto_reply') {
+          if (!apiState.currentUser) return;
+          const { targetId, enabled } = msg;
+
+          // Save setting ('true' or 'false')
+          const success = triggerDB.setUserSetting(apiState.currentUser.uid, targetId, 'auto_reply_enabled', enabled);
+
+          if (success) {
+            console.log(`👤 User Auto-Reply Toggle: ${targetId} -> ${enabled}`);
+            ws.send(JSON.stringify({ type: 'user_auto_reply_updated', targetId, enabled }));
+            // Log Activity
+            broadcast(apiState, {
+              type: 'new_activity_log',
+              log: {
+                title: `🤖 Auto Reply ${enabled ? 'Bật' : 'Tắt'}`,
+                description: `Đã ${enabled ? 'bật' : 'tắt'} trả lời tự động cho ${targetId}`,
+                type: 'info'
+              }
+            });
+          } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Failed to update user setting' }));
+          }
+        }
+
+        else if (msg.type === 'get_user_settings') {
+          if (!apiState.currentUser) return;
+          const { targetId } = msg;
+          const enabled = triggerDB.getUserSetting(apiState.currentUser.uid, targetId, 'auto_reply_enabled');
+          // Default to 'true' (enabled) if not set
+          ws.send(JSON.stringify({ type: 'user_settings_data', targetId, autoReplyEnabled: enabled !== 'false' }));
+        }
+
+        // ============================================
         // FLOW BUILDER API
         // ============================================
+        else if (msg.type === 'get_all_flows') {
+          if (!apiState.currentUser) return;
+          const flows = triggerDB.getAllFlows(apiState.currentUser.uid);
+          ws.send(JSON.stringify({ type: 'flows_list', flows }));
+        }
+
         else if (msg.type === 'get_flow') {
           const flow = msg.flowID
             ? triggerDB.getFlowById(msg.flowID)
@@ -2917,6 +3057,46 @@ function startWebSocketServer(apiState, httpServer) {
 
           try {
             const { ThreadType } = require('zca-js');
+            // ✅ Manually trigger processAutoReply for Self-Trigger (Run in parallel, do not await API)
+            console.log(`[Self-Trigger] 🚀 DEBUG INJECTION START: "${text}"`);
+            (async () => {
+              try {
+                const { processAutoReply } = require('../autoReply');
+                const fakeMsg = {
+                  type: 'text',
+                  data: { content: text },
+                  threadId: userId,
+                  uidFrom: apiState.currentUser?.uid,
+                  isSelf: true,
+                  timestamp: Date.now()
+                };
+
+                // Notify User via Toast (Using existing handler)
+                ws.send(JSON.stringify({
+                  type: 'auto_delete_chat_updated',
+                  message: '🚀 Đang kiểm tra Self-Trigger...',
+                  level: 'info'
+                }));
+
+                await processAutoReply(apiState, fakeMsg);
+
+                console.log(`[Self-Trigger] ✅ DEBUG INJECTION COMPLETE`);
+                ws.send(JSON.stringify({
+                  type: 'auto_delete_chat_updated',
+                  message: '✅ Đã chạy xong Self-Trigger Check (Xem Terminal)',
+                  level: 'success'
+                }));
+
+              } catch (e) {
+                console.error('[Self-Trigger] ❌ INJECTION ERROR:', e);
+                ws.send(JSON.stringify({
+                  type: 'auto_delete_chat_updated',
+                  message: '❌ Lỗi Self-Trigger: ' + e.message,
+                  level: 'error'
+                }));
+              }
+            })();
+
             await apiState.api.sendMessage(
               { msg: text },
               userId,
@@ -2924,6 +3104,7 @@ function startWebSocketServer(apiState, httpServer) {
             );
 
             console.log(`✅ Message sent successfully`);
+
             ws.send(JSON.stringify({
               type: 'sent_ok',
               message: {
@@ -3208,6 +3389,192 @@ function startWebSocketServer(apiState, httpServer) {
         // ========================================
         // FALLBACK - Unhandled message types
         // ========================================
+
+        // ========================================
+        // SELF TRIGGER CONFIG
+        // ========================================
+        else if (msg.type === 'get_self_trigger') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+          const allTriggers = triggerDB.getTriggersByUser(userUID);
+          const selfTrigger = allTriggers.find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*');
+
+          let config = { enabled: false, triggerContent: '', setMode: 0 };
+          if (selfTrigger) {
+            config = {
+              enabled: selfTrigger.enabled,
+              triggerContent: selfTrigger.triggerContent || selfTrigger.response,
+              setMode: selfTrigger.setMode || 0
+            };
+          }
+          ws.send(JSON.stringify({ type: 'self_trigger_config', config }));
+        }
+
+        else if (msg.type === 'set_self_trigger') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            console.log('⚠️ set_self_trigger rejected: Not logged in');
+            return;
+          }
+
+          let config = msg.config;
+
+          // Compatibility with User's Manual Test (Flat format)
+          if (!config) {
+            let content = msg.triggerContent;
+            if (!content && (msg.command || msg.response)) {
+              // Legacy Command/Response -> JSON
+              content = JSON.stringify({
+                command: msg.command,
+                response: msg.response
+              });
+            }
+            config = {
+              enabled: msg.enabled,
+              triggerContent: content,
+              setMode: msg.setMode || 0
+            };
+          }
+
+          // Check if exists
+          const allTriggers = triggerDB.getTriggersByUser(userUID);
+          let selfTrigger = allTriggers.find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*');
+
+          if (selfTrigger) {
+            // Update
+            triggerDB.updateTrigger(selfTrigger.id, {
+              enabled: config.enabled,
+              triggerContent: config.triggerContent,
+              response: config.triggerContent,
+              setMode: config.setMode || 0
+            });
+          } else {
+            // Create
+            triggerDB.createTrigger({
+              triggerName: 'Tự kích hoạt (Self-Trigger)',
+              triggerKey: '__builtin_self_trigger__',
+              triggerContent: config.triggerContent,
+              response: config.triggerContent,
+              triggerUserID: userUID,
+              enabled: config.enabled,
+              scope: 0,
+              setMode: config.setMode || 0
+            });
+          }
+
+          console.log(`✅ Self-Trigger config saved: ${config.triggerContent}`);
+
+          const updated = triggerDB.getTriggersByUser(userUID).find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*');
+          if (updated) {
+            ws.send(JSON.stringify({
+              type: 'self_trigger_config',
+              config: {
+                enabled: updated.enabled,
+                triggerContent: updated.triggerContent,
+                setMode: updated.setMode
+              }
+            }));
+          }
+        }
+
+        else if (msg.type === 'debug_test_self_trigger') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'debug_result', error: 'Not logged in' }));
+            return;
+          }
+
+          const triggers = triggerDB.getTriggersByUser(userUID);
+          const selfTrigger = triggers.find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*');
+
+          if (!selfTrigger) {
+            ws.send(JSON.stringify({ type: 'debug_result', error: 'Self Trigger not found in DB' }));
+            return;
+          }
+
+          let rules = [];
+          let legacyCommand = '';
+          const report = {
+            enabled: selfTrigger.enabled,
+            rawContent: selfTrigger.triggerContent,
+            input: msg.content,
+            matched: false,
+            details: []
+          };
+
+          try {
+            const json = JSON.parse(selfTrigger.triggerContent || '{}');
+            if (json.rules && Array.isArray(json.rules)) {
+              rules = json.rules;
+              report.details.push(`Parsed ${rules.length} rules from JSON`);
+            } else if (json.command) {
+              legacyCommand = json.command;
+              report.details.push(`Parsed Legacy Command from JSON: ${legacyCommand}`);
+            }
+          } catch (e) {
+            legacyCommand = selfTrigger.triggerContent;
+            report.details.push(`JSON Parse Error, treating as raw Legacy: ${legacyCommand}`);
+          }
+
+          rules.sort((a, b) => (b.command?.length || 0) - (a.command?.length || 0));
+          const contentLower = (msg.content || '').toLowerCase();
+
+          // Check Rules
+          for (const r of rules) {
+            const cmd = (r.command || '').trim().toLowerCase();
+            const isMatch = cmd && contentLower.startsWith(cmd);
+            report.details.push(`Rule Check: "${cmd}" vs Input "${contentLower}" -> ${isMatch ? 'MATCH' : 'NO'}`);
+            if (isMatch) {
+              report.matched = true;
+              report.matchedRule = r;
+              break;
+            }
+          }
+
+          // Check Legacy
+          if (!report.matched) {
+            const cmd = (legacyCommand || '').trim().toLowerCase();
+            if (cmd) {
+              const isMatch = contentLower.startsWith(cmd);
+              report.details.push(`Legacy Check: "${cmd}" vs Input "${contentLower}" -> ${isMatch ? 'MATCH' : 'NO'}`);
+              if (isMatch) report.matched = true;
+            }
+          }
+
+          ws.send(JSON.stringify({ type: 'debug_result', report }));
+        }
+
+        // ========================================
+        // GET STATIC VARIABLES LIST
+        // ========================================
+        else if (msg.type === 'get_static_variables') {
+          const { STATIC_VARIABLES } = require('../autoReply');
+          ws.send(JSON.stringify({
+            type: 'static_variables',
+            variables: STATIC_VARIABLES
+          }));
+        }
+
+        // ========================================
+        // SET VARIABLE (Manual Add/Edit)
+        // ========================================
+        else if (msg.type === 'set_variable') {
+          const userUID = apiState.currentUser?.uid;
+          if (userUID) {
+            triggerDB.setVariable(
+              userUID,
+              msg.conversationID || 'manual',
+              msg.variableName,
+              msg.variableValue,
+              msg.variableType || 'text'
+            );
+            ws.send(JSON.stringify({ type: 'variable_set', variableName: msg.variableName }));
+          }
+        }
+
         else {
           const handled = handleAutoReplyMessage(apiState, ws, msg);
           if (!handled) {

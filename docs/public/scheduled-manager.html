@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Lịch Gửi - Zalo Bot</title>
+    <link rel="stylesheet" href="/assets/style_bank_manager.css">
+    <style>
+        /* Additional styles for Scheduled Manager */
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .type-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .type-badge.text {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .type-badge.flow {
+            background: #cce5ff;
+            color: #004085;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>📅 Quản lý Lịch Gửi</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openCreateTask()">+ Thêm lịch mới</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FullCalendar CDN -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <style>
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .view-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .view-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        #calendar {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+
+    <div class="main-content">
+        <div class="card">
+            <div class="card-header">
+                <h2>📋 Danh sách lịch gửi</h2>
+                <div class="view-controls">
+                    <button class="view-btn active" onclick="switchView('list')">📄 Danh sách</button>
+                    <button class="view-btn" onclick="switchView('calendar')">� Lịch</button>
+                </div>
+            </div>
+
+            <div class="card-body" id="listView">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Người nhận</th>
+                                <th>Loại</th>
+                                <th>Nội dung / Flow</th>
+                                <th>Thời gian gửi</th>
+                                <th>Trạng thái</th>
+                                <th>Ngày tạo</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTable">
+                            <tr>
+                                <td colspan="8">
+                                    <div class="empty-state">
+                                        <div class="icon">📅</div>
+                                        <h3>Đang tải dữ liệu...</h3>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card-body" id="calendarView" style="display:none;">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create/Edit Task -->
+    <div class="modal-overlay" id="taskModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="taskModalTitle">Tạo lịch gửi mới</h3>
+                <button class="modal-close" onclick="closeTaskModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editingTaskId">
+                <div class="form-group">
+                    <label>Người nhận (Target ID) <span class="required">*</span></label>
+                    <div style="display: flex; gap: 8px;">
+                        <select class="form-control" id="taskTargetSelect" onchange="onTargetSelectChange()">
+                            <option value="">-- Chọn người nhận --</option>
+                        </select>
+                        <input type="text" id="taskTargetId" style="display:none;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Loại nội dung</label>
+                    <select class="form-control" id="taskType" onchange="toggleTaskType()">
+                        <option value="text">Văn bản (Text)</option>
+                        <option value="flow">Kịch bản (Flow)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="groupContent">
+                    <label>Nội dung tin nhắn <span class="required">*</span></label>
+                    <textarea class="form-control" id="taskContent" rows="3"
+                        placeholder="Nhập nội dung tin nhắn..."></textarea>
+                </div>
+
+                <div id="flowInputGroup" style="display:none;">
+                    <label style="display:block; margin-bottom:5px; font-weight:500;">Chọn Kịch bản (Flow)</label>
+                    <select id="taskFlowSelect"
+                        style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <option value="">-- Đang tải kịch bản... --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Thời gian gửi <span class="required">*</span></label>
+                    <input type="datetime-local" class="form-control" id="taskTime">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeTaskModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveTask()">💾 Lưu lịch</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let tasks = [];
+        let calendar = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            connectWebSocket();
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('taskTime').min = now.toISOString().slice(0, 16);
+        });
+
+        function connectWebSocket() {
+            ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
+            ws.onopen = () => {
+                console.log('✅ Connected');
+                ws.send(JSON.stringify({ type: 'get_scheduled_tasks' }));
+                ws.send(JSON.stringify({ type: 'get_friends' }));
+                ws.send(JSON.stringify({ type: 'get_groups' }));
+                ws.send(JSON.stringify({ type: 'get_all_flows' }));
+            };
+            ws.onclose = () => setTimeout(connectWebSocket, 3000);
+            ws.onmessage = (e) => {
+                try { handleMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
+            };
+        }
+
+        function handleMessage(data) {
+            console.log('📩', data.type, data);
+            switch (data.type) {
+                case 'scheduled_tasks_list':
+                case 'scheduled_tasks_update':
+                    tasks = data.tasks || [];
+                    renderTasks();
+                    if (calendar) updateCalendarEvents();
+                    break;
+                case 'scheduled_task_created':
+                    if (data.success) {
+                        closeTaskModal();
+                        showToast('✅ Đã tạo lịch gửi!', 'success');
+                    }
+                    break;
+                case 'scheduled_task_updated': // Handled via update/list broadcast usually but good to know
+                    if (data.success) {
+                        closeTaskModal();
+                        showToast('✅ Đã cập nhật lịch!', 'success');
+                    }
+                    break;
+                case 'scheduled_task_deleted':
+                    showToast('✅ Đã xóa lịch!', 'success');
+                    break;
+                case 'scheduled_task_error':
+                    showToast('❌ ' + data.message, 'error');
+                    break;
+                case 'friends_list':
+                    updateTargetSelect(data.friends || [], 'friend');
+                    break;
+                case 'groups_list':
+                    updateTargetSelect(data.groups || [], 'group');
+                    break;
+                case 'flows_list':
+                    updateFlowSelect(data.flows || []);
+                    break;
+            }
+        }
+
+        // ... (updateTargetSelect, updateFlowSelect remain same) ...
+        let cachedFriends = [];
+        let cachedGroups = [];
+        function updateTargetSelect(items, type) {
+            if (type === 'friend') cachedFriends = items;
+            if (type === 'group') cachedGroups = items;
+            renderTargetSelect();
+        }
+
+        function renderTargetSelect() {
+            const select = document.getElementById('taskTargetSelect');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">-- Chọn người nhận --</option>';
+
+            if (cachedFriends.length > 0) {
+                const optGroup = document.createElement('optgroup');
+                optGroup.label = "👤 Bạn bè";
+                cachedFriends.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.userId;
+                    opt.textContent = f.displayName;
+                    opt.dataset.name = f.displayName;
+                    optGroup.appendChild(opt);
+                });
+                select.appendChild(optGroup);
+            }
+            if (cachedGroups.length > 0) {
+                const optGroup = document.createElement('optgroup');
+                optGroup.label = "👪 Nhóm";
+                cachedGroups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = g.name;
+                    opt.dataset.name = g.name;
+                    optGroup.appendChild(opt);
+                });
+                select.appendChild(optGroup);
+            }
+            if (currentVal) select.value = currentVal;
+        }
+
+        let cachedFlows = [];
+        function updateFlowSelect(flows) {
+            cachedFlows = flows;
+            const select = document.getElementById('taskFlowSelect');
+            if (!select) return;
+            const currentVal = select.value;
+
+            select.innerHTML = '<option value="">-- Chọn kịch bản (Flow) --</option>';
+            flows.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.flowID;
+                opt.textContent = `${f.triggerName ? `[${f.triggerName}] ` : ''}${f.flowName}`;
+                select.appendChild(opt);
+            });
+            if (currentVal) select.value = currentVal;
+        }
+
+        function onTargetSelectChange() {
+            const select = document.getElementById('taskTargetSelect');
+            const selectedOption = select.options[select.selectedIndex];
+            if (selectedOption) {
+                document.getElementById('taskTargetId').value = select.value;
+            }
+        }
+
+        function loadTasks() {
+            if (ws?.readyState === 1) ws.send(JSON.stringify({ type: 'get_scheduled_tasks' }));
+        }
+
+        function renderTasks() {
+            const tbody = document.getElementById('tasksTable');
+            if (tasks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">📅</div><h3>Chưa có lịch gửi nào</h3></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = tasks.map((t, i) => {
+                const time = new Date(t.executeTime).toLocaleString('vi-VN');
+                const created = new Date(t.createdAt).toLocaleString('vi-VN');
+                const statusClass = t.status.toLowerCase();
+
+                return `
+          <tr>
+            <td>${i + 1}</td>
+            <td>
+              <strong>${escapeHtml(t.targetName || 'N/A')}</strong><br>
+              <small style="opacity: 0.7">${t.targetId}</small>
+            </td>
+            <td><span class="type-badge ${t.type}">${t.type === 'flow' ? 'Flow' : 'Text'}</span></td>
+            <td>
+               <div style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.content)}">
+                 ${escapeHtml(t.content)}
+               </div>
+            </td>
+            <td>${time}</td>
+            <td><span class="status-badge ${statusClass}">${t.status}</span></td>
+            <td>${created}</td>
+            <td>
+              <div class="action-btns">
+                <button class="action-btn edit" title="Sửa" onclick="editTask(${t.id})" style="color:#2196F3;">✏️</button>
+                <button class="action-btn delete" title="Xóa" onclick="deleteTask(${t.id})">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `;
+            }).join('');
+        }
+
+        // View Switching
+        function switchView(view) {
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.view-btn[onclick="switchView('${view}')"]`).classList.add('active');
+
+            if (view === 'list') {
+                document.getElementById('listView').style.display = 'block';
+                document.getElementById('calendarView').style.display = 'none';
+            } else {
+                document.getElementById('listView').style.display = 'none';
+                document.getElementById('calendarView').style.display = 'block';
+                initCalendar();
+            }
+        }
+
+        function initCalendar() {
+            if (calendar) {
+                calendar.render();
+                return;
+            }
+
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'vi',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: getCalendarEvents(),
+                dateClick: function (info) {
+                    openCreateTask();
+                    // Set clicked date as default
+                    const date = new Date(info.date);
+                    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+                    // Default to 8:00 AM if clicked on month view (which is midnight)
+                    if (info.view.type === 'dayGridMonth') {
+                        date.setHours(8, 0, 0, 0);
+                    }
+                    document.getElementById('taskTime').value = date.toISOString().slice(0, 16);
+                },
+                eventClick: function (info) {
+                    const taskId = parseInt(info.event.id);
+                    editTask(taskId);
+                },
+                eventContent: function (arg) {
+                    return {
+                        html: `<div style="font-size:11px; overflow:hidden; text-overflow:ellipsis;">
+                                <b>${arg.timeText}</b> ${arg.event.title}
+                               </div>`
+                    };
+                }
+            });
+            calendar.render();
+        }
+
+        function getCalendarEvents() {
+            return tasks.map(t => ({
+                id: t.id.toString(),
+                title: `${t.type === 'flow' ? '⚡' : '💬'} ${t.targetName}`,
+                start: t.executeTime,
+                backgroundColor: t.status === 'completed' ? '#28a745' : (t.status === 'failed' ? '#dc3545' : '#007bff'),
+                borderColor: t.status === 'completed' ? '#28a745' : (t.status === 'failed' ? '#dc3545' : '#007bff')
+            }));
+        }
+
+        function updateCalendarEvents() {
+            if (calendar) {
+                calendar.removeAllEvents();
+                calendar.addEventSource(getCalendarEvents());
+            }
+        }
+
+        // Create / Edit Logic
+        function openCreateTask() {
+            document.getElementById('taskModalTitle').textContent = 'Tạo lịch gửi mới';
+            document.getElementById('editingTaskId').value = '';
+
+            document.getElementById('taskTargetSelect').value = '';
+            document.getElementById('taskTargetId').value = '';
+            document.getElementById('taskContent').value = '';
+            document.getElementById('taskTime').value = '';
+            document.getElementById('taskType').value = 'text';
+            toggleTaskType();
+
+            document.getElementById('taskModal').classList.add('active');
+        }
+
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            document.getElementById('taskModalTitle').textContent = 'Chỉnh sửa lịch gửi';
+            document.getElementById('editingTaskId').value = task.id;
+
+            document.getElementById('taskTargetSelect').value = task.targetId;
+            document.getElementById('taskTargetId').value = task.targetId;
+
+            document.getElementById('taskType').value = task.type;
+            toggleTaskType();
+
+            if (task.type === 'text') {
+                document.getElementById('taskContent').value = task.content;
+            } else {
+                document.getElementById('taskFlowSelect').value = task.content;
+            }
+
+            // Format time for input
+            const date = new Date(task.executeTime);
+            date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+            document.getElementById('taskTime').value = date.toISOString().slice(0, 16);
+
+            document.getElementById('taskModal').classList.add('active');
+        }
+
+        function closeTaskModal() {
+            document.getElementById('taskModal').classList.remove('active');
+        }
+
+        function toggleTaskType() {
+            const type = document.getElementById('taskType').value;
+            if (type === 'text') {
+                document.getElementById('groupContent').style.display = 'block';
+                document.getElementById('flowInputGroup').style.display = 'none';
+            } else {
+                document.getElementById('groupContent').style.display = 'none';
+                document.getElementById('flowInputGroup').style.display = 'block';
+            }
+        }
+
+        function saveTask() {
+            const editingId = document.getElementById('editingTaskId').value;
+
+            const targetId = document.getElementById('taskTargetId').value.trim();
+            const select = document.getElementById('taskTargetSelect');
+            const targetName = select.options[select.selectedIndex]?.dataset.name || targetId;
+            const type = document.getElementById('taskType').value;
+            const timeStr = document.getElementById('taskTime').value;
+
+            let content = '';
+            if (type === 'text') {
+                content = document.getElementById('taskContent').value.trim();
+            } else {
+                content = document.getElementById('taskFlowSelect').value;
+                if (!content) {
+                    showToast('❌ Vui lòng chọn kịch bản workflow!', 'error');
+                    return;
+                }
+            }
+
+            if (!targetId || !content || !timeStr) {
+                showToast('⚠️ Vui lòng điền đầy đủ thông tin!', 'error');
+                return;
+            }
+
+            const executeTime = new Date(timeStr).getTime();
+            // Allow editing past tasks to reschedule? Yes.
+            if (executeTime < Date.now() && !editingId) {
+                showToast('⚠️ Thời gian phải lớn hơn hiện tại!', 'error');
+                return;
+            }
+
+            if (editingId) {
+                // Update
+                ws.send(JSON.stringify({
+                    type: 'update_scheduled_task',
+                    id: parseInt(editingId),
+                    updates: {
+                        targetId,
+                        targetName,
+                        content,
+                        type,
+                        executeTime,
+                        status: 'pending' // Reset status to pending on edit
+                    }
+                }));
+            } else {
+                // Create
+                ws.send(JSON.stringify({
+                    type: 'create_scheduled_task',
+                    targetId,
+                    targetName,
+                    content,
+                    taskType: type,
+                    executeTime
+                }));
+            }
+        }
+
+        function deleteTask(id) {
+            if (!confirm('Bạn có chắc muốn xóa lịch này?')) return;
+            ws.send(JSON.stringify({ type: 'delete_scheduled_task', id }));
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function showToast(msg, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            toast.textContent = msg;
+            toast.style.position = 'fixed';
+            toast.style.bottom = '20px';
+            toast.style.right = '20px';
+            toast.style.padding = '12px 24px';
+            toast.style.borderRadius = '8px';
+            toast.style.color = 'white';
+            toast.style.fontWeight = '500';
+            toast.style.zIndex = '1000';
+            toast.style.background = type === 'success' ? '#4CAF50' : (type === 'error' ? '#f44336' : '#2196F3');
+
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+
+</html>

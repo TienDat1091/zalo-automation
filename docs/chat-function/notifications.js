@@ -60,7 +60,7 @@ function showToast(message, type = 'info') {
   notification.className = `notification notification-${type}`;
   notification.style.cssText = `
     position: fixed;
-    top: 20px;
+    top: 100px;
     right: 20px;
     background: white;
     padding: 16px 24px;

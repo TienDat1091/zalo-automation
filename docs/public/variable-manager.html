@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Biến - Zalo Bot</title>
+    <link rel="stylesheet" href="/assets/style_bank_manager.css">
+    <style>
+        /* Custom Variables Styles */
+        .var-name {
+            font-family: monospace;
+            color: #d81b60;
+            background: #fce4ec;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .var-value {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .var-type {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+        }
+
+        .static-var-item {
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .static-var-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .static-var-code {
+            background: #e8eaf6;
+            color: #3949ab;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .cat-label {
+            font-weight: 600;
+            color: #455a64;
+            font-size: 13px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>📊 Quản lý Biến (Variables)</h1>
+            <div class="header-actions">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('dynamic')">Biến Động (Dynamic)</button>
+                    <button class="tab" onclick="switchTab('static')">Biến Tĩnh (Static)</button>
+                </div>
+                <button class="btn btn-outline" onclick="loadData()">🔄 Làm mới</button>
+                <button class="btn btn-primary" onclick="openAddVariableModal()">+ Thêm biến</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+
+        <!-- Tab: Dynamic -->
+        <div id="tab-dynamic" class="tab-content active">
+            <div class="card">
+                <div class="card-header">
+                    <h2>✏️ Danh sách biến động</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tên biến</th>
+                                    <th>Giá trị</th>
+                                    <th>Loại</th>
+                                    <th>Conversation ID</th>
+                                    <th>Cập nhật</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dynamicTable">
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="empty-state">Đang tải...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Static -->
+        <div id="tab-static" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔒 Danh sách biến tĩnh</h2>
+                    <div style="font-size:13px; color:#666; margin-left: auto;">
+                        💡 Click vào biến để copy
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert"
+                        style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px; margin-bottom: 16px; font-size: 13px;">
+                        Các biến này được hệ thống tự động điền giá trị khi chạy Flow. Bạn không thể sửa đổi chúng,
+                        nhưng có thể dùng trong tin nhắn.
+                    </div>
+                    <div id="staticContent">
+                        Đang tải...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal: Add Variable -->
+    <div class="modal-overlay" id="addVarModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Thêm biến mới</h3>
+                <button class="modal-close" onclick="closeAddVariableModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tên biến <span class="required">*</span></label>
+                    <input type="text" class="form-control" id="newVarName" placeholder="VD: email">
+                </div>
+                <div class="form-group">
+                    <label>Giá trị</label>
+                    <input type="text" class="form-control" id="newVarValue" placeholder="Giá trị khởi tạo">
+                </div>
+                <div class="form-group">
+                    <label>Loại</label>
+                    <select class="form-control" id="newVarType">
+                        <option value="text">Văn bản (text)</option>
+                        <option value="number">Số (number)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeAddVariableModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveVariable()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let dynamicVars = [];
+        let staticVars = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            connectWebSocket();
+        });
+
+        function connectWebSocket() {
+            ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
+            ws.onopen = () => {
+                console.log('✅ Connected');
+                loadData();
+            };
+            ws.onclose = () => setTimeout(connectWebSocket, 3000);
+            ws.onmessage = (e) => {
+                try { handleMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
+            };
+        }
+
+        function loadData() {
+            if (ws?.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'get_all_variables' }));
+                ws.send(JSON.stringify({ type: 'get_static_variables' }));
+            }
+        }
+
+        function handleMessage(data) {
+            if (data.type === 'variables_list') {
+                dynamicVars = data.variables || [];
+                renderDynamicTable();
+            }
+            if (data.type === 'static_variables') {
+                staticVars = data.variables || {};
+                renderStaticVars();
+            }
+            if (data.type === 'variable_deleted' || data.type === 'variables_cleared') {
+                showToast('🗑️ Đã xóa!', 'success');
+                loadData();
+            }
+            if (data.type === 'variable_set') {
+                // If server sends confirmation
+            }
+        }
+
+        // UI Functions
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        function showToast(msg, type = 'info') {
+            const t = document.createElement('div');
+            t.className = 'toast ' + type; t.textContent = msg;
+            document.body.appendChild(t); setTimeout(() => t.remove(), 3000);
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div'); d.textContent = text || ''; return d.innerHTML;
+        }
+
+        // Dynamic Render
+        function renderDynamicTable() {
+            const tbody = document.getElementById('dynamicTable');
+            if (dynamicVars.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><h3>Không có biến động</h3></div></td></tr>';
+                return;
+            }
+            tbody.innerHTML = dynamicVars.map(v => {
+                const time = v.updatedAt ? new Date(v.updatedAt).toLocaleDateString('vi-VN') : '-';
+                return `
+          <tr>
+            <td><span class="var-name">{${escapeHtml(v.variableName)}}</span></td>
+            <td><div class="var-value" title="${escapeHtml(v.variableValue)}">${escapeHtml(v.variableValue)}</div></td>
+            <td><span class="var-type">${v.variableType}</span></td>
+            <td>${escapeHtml(v.conversationID || '-')}</td>
+            <td>${time}</td>
+            <td>
+              <button class="action-btn" onclick="copyText('{${v.variableName}}')">📋</button>
+              <button class="action-btn" onclick="openEditVariableModal('${v.variableName}', '${escapeHtml(v.variableValue || '')}', '${v.variableType}')">✏️</button>
+              <button class="action-btn delete" onclick="deleteVar('${v.variableName}', '${v.conversationID}')">🗑️</button>
+            </td>
+          </tr>
+        `;
+            }).join('');
+        }
+
+        function deleteVar(name, convID) {
+            if (!confirm('Xóa biến {' + name + '}?')) return;
+            ws.send(JSON.stringify({ type: 'delete_variable', variableName: name, conversationID: convID }));
+        }
+
+        // Static Render
+        function renderStaticVars() {
+            const container = document.getElementById('staticContent');
+            if (!staticVars || Object.keys(staticVars).length === 0) {
+                container.innerHTML = '<div class="empty-state">Không có biến tĩnh</div>';
+                return;
+            }
+
+            const categories = { 'sender': { label: '👤 Người gửi', vars: [] }, 'me': { label: '🙋 Tôi', vars: [] }, 'datetime': { label: '🕐 Thời gian', vars: [] }, 'message': { label: '💬 Tin nhắn', vars: [] }, 'system': { label: '⚙️ Hệ thống', vars: [] } };
+            for (const [name, info] of Object.entries(staticVars)) {
+                const cat = info.category || 'system';
+                if (categories[cat]) categories[cat].vars.push({ name, ...info });
+            }
+
+            let html = '';
+            for (const [catKey, catData] of Object.entries(categories)) {
+                if (catData.vars.length === 0) continue;
+                html += `<div class="cat-label">${catData.label}</div><div class="grid-container">`;
+                for (const v of catData.vars) {
+                    html += `
+            <div class="static-var-item" onclick="copyText('{${v.name}}')">
+              <div>
+                <span class="static-var-code">{${v.name}}</span>
+                <span style="font-size:12px; color:#555;">${v.description}</span>
+              </div>
+              <span style="font-size:10px; color:#aaa;">COPY</span>
+            </div>
+          `;
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text);
+            showToast('✅ Đã copy: ' + text, 'success');
+        }
+
+        // Add/Edit Modal
+        function openAddVariableModal() {
+            document.getElementById('modalTitle').textContent = 'Thêm biến mới';
+            document.getElementById('newVarName').value = '';
+            document.getElementById('newVarName').readOnly = false;
+            document.getElementById('newVarValue').value = '';
+            document.getElementById('newVarType').value = 'text';
+            document.getElementById('addVarModal').classList.add('active');
+        }
+
+        function openEditVariableModal(name, val, type) {
+            document.getElementById('modalTitle').textContent = 'Cập nhật biến';
+            document.getElementById('newVarName').value = name;
+            document.getElementById('newVarName').readOnly = true; // Key should be immutable to avoid dupes
+            document.getElementById('newVarValue').value = val;
+            document.getElementById('newVarType').value = type || 'text';
+            document.getElementById('addVarModal').classList.add('active');
+        }
+        function closeAddVariableModal() {
+            document.getElementById('addVarModal').classList.remove('active');
+        }
+        function saveVariable() {
+            const name = document.getElementById('newVarName').value.trim();
+            const val = document.getElementById('newVarValue').value.trim();
+            const type = document.getElementById('newVarType').value;
+            if (!name) { showToast('⚠️ Nhập tên biến', 'error'); return; }
+
+            ws.send(JSON.stringify({ type: 'set_variable', variableName: name, variableValue: val, variableType: type }));
+            document.getElementById('newVarName').value = '';
+            document.getElementById('newVarValue').value = '';
+            closeAddVariableModal();
+            setTimeout(loadData, 500);
+        }
+    </script>
+</body>
+
+</html>

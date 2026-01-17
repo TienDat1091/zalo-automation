@@ -17,18 +17,108 @@ const autoReplyState = {
 
 const flowProcessLog = [];
 
+// ========================================
+// STATIC VARIABLES - Read-only from Zalo API
+// ========================================
+const STATIC_VARIABLES = {
+  // Sender Info (người gửi tin nhắn)
+  'zalo_name': { description: 'Tên Zalo của người gửi', category: 'sender', example: 'Nguyễn Văn A' },
+  'zalo_id': { description: 'ID Zalo của người gửi', category: 'sender', example: '716585949090695726' },
+  'zalo_phone': { description: 'Số điện thoại người gửi', category: 'sender', example: '0901234567' },
+  'zalo_avatar': { description: 'URL avatar người gửi', category: 'sender', example: 'https://...' },
+  'zalo_gender': { description: 'Giới tính người gửi (0=Nữ, 1=Nam)', category: 'sender', example: '1' },
+  'is_friend': { description: 'Đã là bạn bè chưa (true/false)', category: 'sender', example: 'true' },
+
+  // Current User (bạn - chủ tài khoản)
+  'my_name': { description: 'Tên Zalo của bạn', category: 'me', example: 'Tien Dat' },
+  'my_id': { description: 'ID Zalo của bạn', category: 'me', example: '716585949090695726' },
+
+  // Date/Time
+  'time': { description: 'Giờ hiện tại', category: 'datetime', example: '14:30:00' },
+  'date': { description: 'Ngày hiện tại', category: 'datetime', example: '18/01/2026' },
+  'datetime': { description: 'Ngày giờ đầy đủ', category: 'datetime', example: '18/01/2026, 14:30:00' },
+  'weekday': { description: 'Thứ trong tuần', category: 'datetime', example: 'Thứ Bảy' },
+  'year': { description: 'Năm hiện tại', category: 'datetime', example: '2026' },
+  'month': { description: 'Tháng hiện tại (1-12)', category: 'datetime', example: '1' },
+  'day': { description: 'Ngày trong tháng (1-31)', category: 'datetime', example: '18' },
+  'hour': { description: 'Giờ hiện tại (0-23)', category: 'datetime', example: '14' },
+  'minute': { description: 'Phút hiện tại (0-59)', category: 'datetime', example: '30' },
+
+  // Message Context
+  'message': { description: 'Nội dung tin nhắn gốc', category: 'message', example: 'Xin chào!' },
+  'trigger_name': { description: 'Tên trigger đã kích hoạt', category: 'system', example: 'Chào hỏi' },
+  'flow_name': { description: 'Tên Flow đang chạy', category: 'system', example: 'Flow Chào Mừng' }
+};
+
+// Helper: Build static context from Zalo API
+function buildStaticContext(apiState, senderId, message = null) {
+  const friend = apiState.friends?.find(f => f.userId === senderId);
+  const now = new Date();
+  const weekdays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+
+  return {
+    // Sender info
+    zalo_name: friend?.displayName || friend?.zaloName || friend?.name || 'Người dùng',
+    zalo_id: senderId || '',
+    zalo_phone: friend?.phoneNumber || friend?.phone || '',
+    zalo_avatar: friend?.avatar || friend?.thumbAvatar || '',
+    zalo_gender: friend?.gender !== undefined ? String(friend.gender) : '',
+    is_friend: friend ? 'true' : 'false',
+
+    // Current user info
+    my_name: apiState.currentUser?.name || apiState.currentUser?.displayName || 'Tôi',
+    my_id: apiState.currentUser?.uid || '',
+
+    // Date/Time
+    time: now.toLocaleTimeString('vi-VN'),
+    date: now.toLocaleDateString('vi-VN'),
+    datetime: now.toLocaleString('vi-VN'),
+    weekday: weekdays[now.getDay()],
+    year: String(now.getFullYear()),
+    month: String(now.getMonth() + 1),
+    day: String(now.getDate()),
+    hour: String(now.getHours()),
+    minute: String(now.getMinutes()),
+
+    // Message (if available)
+    message: message?.data?.content || message || ''
+  };
+}
+
 async function processAutoReply(apiState, message) {
   try {
-    if (!autoReplyState.enabled) return;
     if (!message || !message.data) return;
 
+    // DEBUG: Check if we are receiving the message and if isSelf is true
+    const currentUid = apiState.currentUser?.uid;
+    const isSelf = message.isSelf || (currentUid && message.uidFrom === currentUid);
+
+    // DEBUG LOGGING
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const dFile = path.join(__dirname, '..', 'debug_isSelf.txt');
+      const logLine = `[${new Date().toLocaleTimeString()}] RECV: Type=${message.type} Content="${message.data?.content}" IsSelf=${isSelf} UID=${message.uidFrom} MyUID=${currentUid}\n`;
+      fs.appendFileSync(dFile, logLine);
+    } catch (e) { }
+
+    console.log(`📥 processAutoReply RECV: Type=${message.type}, IsSelf=${isSelf} (API says: ${message.isSelf}), UID=${message.uidFrom}, CurrentUID=${currentUid}, Content="${message.data.content}"`);
+
+    const senderId = message.uidFrom || message.threadId;
+
+    // ✅ Handle Self-Trigger (ALWAYS Check this first, ignore global enabled state)
+    if (isSelf) {
+      await processSelfTrigger(apiState, message, senderId);
+      return;
+    }
+
+    if (!autoReplyState.enabled) return;
+
     const content = message.data.content;
-    // if (typeof content !== 'string' || !content.trim()) return; // OLD CHECK
     // Allow objects for file/image detection
     if (!content) return;
 
-    const senderId = message.uidFrom || message.threadId;
-    if (!senderId || message.isSelf) return;
+    if (!senderId) return;
 
     // ✅ Allow group messages for specific trigger check
     // if (message.type === 'Group') return; // OLD CHECK REMOVED
@@ -38,6 +128,14 @@ async function processAutoReply(apiState, message) {
 
     const userUID = apiState.currentUser?.uid;
     if (!userUID) return;
+
+    // ✅ CHECK PER-USER SETTING (New Feature)
+    // If 'auto_reply_enabled' is explicitly 'false', skip auto-reply
+    const userAutoReplySetting = triggerDB.getUserSetting(userUID, senderId, 'auto_reply_enabled');
+    if (userAutoReplySetting === 'false') {
+      console.log(`🚫 Auto-reply BLOCKED for user ${senderId} (User setting is OFF)`);
+      return;
+    }
 
     // Check bot active state
     const botState = autoReplyState.botActiveStates.get(senderId);
@@ -185,8 +283,18 @@ async function processAutoReply(apiState, message) {
         const setMode = customTrigger.setMode || 0;
         if (setMode === 1) {
           await executeFlow(apiState, senderId, customTrigger, content, userUID);
-        } else if (customTrigger.triggerContent?.trim()) {
-          await sendMessage(apiState, senderId, customTrigger.triggerContent, userUID);
+        } else {
+          const context = {
+            ...buildStaticContext(apiState, senderId, content),
+            sender_id: senderId
+          };
+          const vars = triggerDB.getAllVariables(userUID, senderId);
+          vars.forEach(v => { context[v.variableName] = v.variableValue; });
+
+          const replyContent = substituteVariables(customTrigger.triggerContent || '', context);
+          if (replyContent.trim()) {
+            await sendMessage(apiState, senderId, replyContent, userUID);
+          }
         }
         return;
       }
@@ -269,16 +377,16 @@ async function processAutoReply(apiState, message) {
       if (elapsed >= cooldownMs) {
         let replyContent = autoReplyTrigger.triggerContent || 'Xin chào!';
 
-        // Replace variables
-        const senderName = isGroup
-          ? (apiState.groupsMap?.get(senderId)?.name || 'Nhóm')
-          : (apiState.friends?.find(f => f.userId === senderId)?.displayName || 'bạn');
+        // Build Context
+        const context = {
+          ...buildStaticContext(apiState, senderId, content || ''),
+          sender_id: senderId
+        };
+        const vars = triggerDB.getAllVariables(userUID, senderId);
+        vars.forEach(v => { context[v.variableName] = v.variableValue; });
 
-        const currentTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-
-        replyContent = replyContent
-          .replace(/{name}/g, senderName)
-          .replace(/{time}/g, currentTime);
+        // Substitute
+        replyContent = substituteVariables(replyContent, context);
 
         await sendMessage(apiState, senderId, replyContent, userUID);
         autoReplyState.cooldowns.set(cooldownKey, now);
@@ -318,11 +426,22 @@ async function processAutoReply(apiState, message) {
       console.log(`🔄 Flow mode: ${matchedTrigger.triggerName}`);
       await executeFlow(apiState, senderId, matchedTrigger, content, userUID);
     } else {
-      const replyContent = matchedTrigger.triggerContent;
+      let replyContent = matchedTrigger.triggerContent;
       if (!replyContent?.trim()) {
         autoReplyState.stats.skipped++;
         return;
       }
+
+      // Build Context for substitution
+      const context = {
+        ...buildStaticContext(apiState, senderId, content || ''),
+        sender_id: senderId
+      };
+      const vars = triggerDB.getAllVariables(userUID, senderId);
+      vars.forEach(v => { context[v.variableName] = v.variableValue; });
+
+      replyContent = substituteVariables(replyContent, context);
+
       await sendMessage(apiState, senderId, replyContent, userUID);
       autoReplyState.cooldowns.set(cooldownKey, now);
       autoReplyState.stats.replied++;
@@ -337,11 +456,11 @@ async function processAutoReply(apiState, message) {
 // ========================================
 // FLOW EXECUTION - FIXED
 // ========================================
-async function executeFlow(apiState, senderId, trigger, originalMessage, userUID) {
+async function executeFlow(apiState, senderId, trigger, originalMessage, userUID, knownFlow = null) {
   const processId = `flow_${Date.now()}`;
 
   try {
-    const flow = triggerDB.getFlowByTrigger(trigger.triggerID);
+    const flow = knownFlow || triggerDB.getFlowByTrigger(trigger.triggerID);
     if (!flow || !flow.blocks?.length) {
       autoReplyState.stats.skipped++;
       return;
@@ -355,15 +474,15 @@ async function executeFlow(apiState, senderId, trigger, originalMessage, userUID
 
     console.log(`  🔍 Main blocks (no parent): ${mainBlocks.length}`);
 
+    // ✅ Build context with all static variables from Zalo API
     const context = {
+      ...buildStaticContext(apiState, senderId, originalMessage),
       sender_id: senderId,
       sender_name: getSenderName(apiState, senderId),
-      message: originalMessage,
-      time: new Date().toLocaleTimeString('vi-VN'),
-      date: new Date().toLocaleDateString('vi-VN'),
       trigger_name: trigger.triggerName,
       trigger_id: trigger.triggerID,
-      flow_id: flow.flowID
+      flow_id: flow.flowID,
+      flow_name: flow.flowName
     };
 
     // Load existing variables
@@ -1550,10 +1669,19 @@ async function resumeFlow(apiState, senderId, inputState, userUID, lastMessage) 
     return;
   }
 
-  const flow = triggerDB.getFlowByTrigger(triggerID);
+  // Try getFlowByTrigger first, then fallback to getFlowById (for Self-Trigger)
+  let flow = triggerDB.getFlowByTrigger(triggerID);
   if (!flow) {
-    console.log(`  ⚠️ Flow not found for trigger: ${triggerID}`);
-    return;
+    // Fallback: try using flowID from inputState or flowContext (Self-Trigger case)
+    const flowID = inputState.flowID || inputState.flow_id || inputState.flowContext?.flow_id;
+    if (flowID) {
+      console.log(`  🔄 Fallback: Using flowID ${flowID} from inputState`);
+      flow = triggerDB.getFlowById(flowID);
+    }
+    if (!flow) {
+      console.log(`  ⚠️ Flow not found for trigger: ${triggerID}`);
+      return;
+    }
   }
 
   const blocks = flow.blocks || [];
@@ -1852,4 +1980,171 @@ async function processFileBatch(apiState, senderId, userUID, files) {
   }
 }
 
-module.exports = { autoReplyState, processAutoReply, handleAutoReplyMessage };
+// ========================================================
+// SELF TRIGGER PROCESSOR
+// ========================================================
+async function processSelfTrigger(apiState, message, senderId) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const dFile = path.join(__dirname, '..', 'debug_isSelf.txt');
+    fs.appendFileSync(dFile, `[${new Date().toLocaleTimeString()}] processSelfTrigger CALLED for "${message.data?.content}"\n`);
+  } catch (e) { }
+  const fs = require('fs');
+  const path = require('path');
+  const logFile = path.join(__dirname, '..', 'debug_self_trigger.txt');
+  const log = (msg) => {
+    const line = `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+    // fs.appendFileSync(logFile, line); // Disabled per user request
+    console.log(msg); // Also log to console
+  };
+
+  try {
+    const userUID = apiState.currentUser?.uid;
+    if (!userUID) {
+      log('❌ No UserUID found');
+      return;
+    }
+
+    const content = message.data.content;
+    if (typeof content !== 'string') return;
+
+    // Get trigger from DB
+    const triggers = triggerDB.getTriggersByUser(userUID);
+    const selfTrigger = triggers.find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*');
+
+    if (!selfTrigger || !selfTrigger.enabled) {
+      // log('🚫 Self Trigger disabled or not found'); // Too noisy for every message
+      return;
+    }
+
+    // RULE MATCHING LOGIC
+    let rules = [];
+    let legacyCommand = '';
+    let legacyResponse = '';
+
+    try {
+      const json = JSON.parse(selfTrigger.triggerContent || '{}');
+      log(`📄 Config parsed: ${JSON.stringify(json)}`);
+
+      if (json.rules && Array.isArray(json.rules)) {
+        rules = json.rules;
+      } else if (json.command) {
+        legacyCommand = json.command;
+        legacyResponse = json.response;
+      }
+    } catch (e) {
+      legacyCommand = selfTrigger.triggerContent;
+      log(`⚠️ Config match error, using legacy content: ${legacyCommand}`);
+    }
+
+    // Sort rules by length DESC
+    rules.sort((a, b) => (b.command?.length || 0) - (a.command?.length || 0));
+
+    let matchedRule = null;
+    let matchedLegacy = false;
+
+    const contentLower = content.toLowerCase();
+
+    // 1. Check Rules
+    for (const r of rules) {
+      const cmd = (r.command || '').trim().toLowerCase();
+      if (cmd && contentLower.startsWith(cmd)) {
+        matchedRule = r;
+        log(`🎯 Rule Matched: ${r.command}`);
+        break;
+      }
+    }
+
+    // 2. Check Legacy
+    if (!matchedRule) {
+      const cmd = (legacyCommand || '').trim().toLowerCase();
+      if (cmd && contentLower.startsWith(cmd)) {
+        matchedLegacy = true;
+        log(`🎯 Legacy Matched: ${legacyCommand}`);
+      }
+    }
+
+    if (!matchedRule && !matchedLegacy) return;
+
+    const targetId = message.threadId;
+    log(`📨 Trigger TargetID: ${targetId}`);
+
+    if (!targetId) {
+      log('❌ No Target ID found for Self-Trigger');
+      return;
+    }
+
+    // EXECUTE
+    if (matchedRule) {
+      if (matchedRule.type === 'flow') {
+        const flowId = matchedRule.value;
+        log(`🔄 Attempting to run Flow ID: ${flowId}`);
+        if (flowId) {
+          const flow = triggerDB.getFlowById(flowId);
+          if (flow) {
+            log(`🚀 Executing Flow: ${flow.flowName}`);
+            await executeFlow(apiState, targetId, selfTrigger, message, userUID, flow);
+            log(`✅ Flow Execution initiated.`);
+          } else {
+            log(`⚠️ Flow ID ${flowId} not found in DB`);
+          }
+        } else {
+          log(`⚠️ Rule has no Flow ID value`);
+        }
+      } else {
+        const response = matchedRule.value || '✅ Command executed.';
+        await apiState.api.sendMessage(response, targetId);
+        log(`📤 Sent Text Response: ${response}`);
+
+        // ✅ Broadcast to Dashboard
+        const sentMsg = {
+          msgId: `self_${Date.now()}`,
+          content: response,
+          timestamp: Date.now(),
+          senderId: userUID,
+          isSelf: true
+        };
+        if (apiState.messageStore) {
+          if (!apiState.messageStore.has(targetId)) apiState.messageStore.set(targetId, []);
+          apiState.messageStore.get(targetId).push(sentMsg);
+        }
+        if (apiState.clients && apiState.clients.forEach) {
+          const json = JSON.stringify({ type: 'new_message', uid: targetId, message: sentMsg });
+          apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(json); } catch (e) { } });
+        }
+      }
+    } else if (matchedLegacy) {
+      if (selfTrigger.setMode === 1) {
+        log(`🔄 Executing Legacy Flow Mode`);
+        await executeFlow(apiState, targetId, selfTrigger, message, userUID);
+      } else {
+        const response = legacyResponse || '✅ Command executed.';
+        await apiState.api.sendMessage(response, targetId);
+        log(`📤 Sent Legacy Text Response: ${response}`);
+
+        // ✅ Broadcast to Dashboard
+        const sentMsg = {
+          msgId: `self_${Date.now()}`,
+          content: response,
+          timestamp: Date.now(),
+          senderId: userUID,
+          isSelf: true
+        };
+        if (apiState.messageStore) {
+          if (!apiState.messageStore.has(targetId)) apiState.messageStore.set(targetId, []);
+          apiState.messageStore.get(targetId).push(sentMsg);
+        }
+        if (apiState.clients && apiState.clients.forEach) {
+          const json = JSON.stringify({ type: 'new_message', uid: targetId, message: sentMsg });
+          apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(json); } catch (e) { } });
+        }
+      }
+    }
+
+  } catch (error) {
+    log(`❌ SELF TRIGGER ERROR: ${error.message}\n${error.stack}`);
+  }
+}
+
+module.exports = { autoReplyState, processAutoReply, handleAutoReplyMessage, STATIC_VARIABLES };
