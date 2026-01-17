@@ -807,7 +807,7 @@
           handlePhoneSearchNotFound();
         }
 
-        if (data.type === 'search_error') {
+        if (data.type === 'search_error' || data.type === 'find_user_error') {
           console.error('❌ Lỗi tìm kiếm SĐT:', data.error);
           handlePhoneSearchError(data.error);
         }

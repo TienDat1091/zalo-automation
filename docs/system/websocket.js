@@ -2922,6 +2922,49 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ========================================
+        // FIND USER BY PHONE
+        // ========================================
+        else if (msg.type === 'find_user') {
+          if (!apiState.api) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+
+          const phone = msg.phone || '';
+          console.log(`🔍 Finding user by phone: ${phone}`);
+
+          try {
+            const result = await apiState.api.findUser(phone);
+            console.log(`✅ Find user result:`, result);
+
+            if (result && result.uid) {
+              ws.send(JSON.stringify({
+                type: 'user_found',
+                user: {
+                  uid: result.uid,
+                  display_name: result.displayName || result.zaloName || 'Người dùng Zalo',
+                  zalo_name: result.zaloName || result.displayName || '',
+                  avatar: result.avatar || '',
+                  gender: result.gender,
+                  phone: phone
+                }
+              }));
+            } else {
+              ws.send(JSON.stringify({
+                type: 'user_not_found',
+                phone: phone
+              }));
+            }
+          } catch (err) {
+            console.error(`❌ Error finding user:`, err.message);
+            ws.send(JSON.stringify({
+              type: 'find_user_error',
+              error: err.message
+            }));
+          }
+        }
+
+        // ========================================
         // FALLBACK - Unhandled message types
         // ========================================
         else {
