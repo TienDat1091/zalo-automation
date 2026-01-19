@@ -1373,15 +1373,32 @@
     function renderFriendsVirtual() {
       const friendsListEl = document.getElementById('friendsList');
       if (!friendsListEl || filteredFriends.length === 0) {
-        console.warn('⚠️ friendsList element not found or empty');
+        // console.warn('⚠️ friendsList element not found or empty');
+        if (friendsListEl) friendsListEl.innerHTML = '<div class="notification-empty">Không tìm thấy bạn bè</div>';
         return;
       }
 
       let html = '';
+      let currentSection = '';
+
       for (const friend of filteredFriends) {
         const isSelected = selectedFriend && selectedFriend.userId === friend.userId;
         const msgData = messageStore.get(friend.userId);
         const lastMsg = msgData?.lastMessage || 'Nhắn tin...';
+
+        // Determine Section Header
+        const name = friend.displayName || friend.zaloName || '';
+        const firstLetter = name.charAt(0).toUpperCase();
+
+        // Only show header if it's a valid letter and different from previous
+        if (/[A-Z]/.test(firstLetter) && firstLetter !== currentSection) {
+          currentSection = firstLetter;
+          html += `<div class="friend-section-header" style="padding: 10px 16px; font-weight: bold; font-size: 14px; background: #f9fafc; color: #0068ff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 5;">${currentSection}</div>`;
+        } else if (!/[A-Z]/.test(firstLetter) && currentSection !== '#') {
+          // Group non-letters under #
+          currentSection = '#';
+          html += `<div class="friend-section-header" style="padding: 10px 16px; font-weight: bold; font-size: 14px; background: #f9fafc; color: #0068ff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 5;">#</div>`;
+        }
 
         html += `
           <div class="friend-item ${isSelected ? 'selected' : ''}" onclick="selectFriend('${friend.userId}', '${escapeJs(friend.displayName)}', '${friend.avatar}')">
@@ -1390,8 +1407,6 @@
               <div class="friend-name">${friend.displayName}</div>
               <div class="friend-message">${escapeHtml(lastMsg).substring(0, 30)}...</div>
             </div>
-            
-            
             
             <!-- Force Render Toggle for ALL items for debug/visibility -->
             <label class="ar-toggle" onclick="event.stopPropagation()" title="Bật/Tắt tự động trả lời">
@@ -1404,9 +1419,7 @@
       }
 
       friendsListEl.innerHTML = html;
-      console.log(`✅ Rendered ${filteredFriends.length} friends`);
-      friendsListEl.innerHTML = html;
-      console.log(`✅ Rendered ${filteredFriends.length} friends`);
+      console.log(`✅ Rendered ${filteredFriends.length} friends with headers`);
     }
 
     // Function to handle header toggle
@@ -1464,23 +1477,51 @@
       const resultsDiv = document.getElementById('friendsResults');
       if (!resultsDiv) return;
 
-      const displayName = user.display_name || user.zalo_name || 'Người dùng Zalo';
-      const gender = user.gender === 2 ? 'Nam' : user.gender === 1 ? 'Nữ' : '';
+      console.log('🔍 Processing Search Result:', user);
+
+      // 1. Name Resolution (Priority: display_name > zalo_name > Default)
+      // Robust check for non-empty strings
+      let displayName = 'Người dùng Zalo';
+      if (user.display_name && String(user.display_name).trim()) {
+        displayName = user.display_name;
+      } else if (user.zalo_name && String(user.zalo_name).trim()) {
+        displayName = user.zalo_name;
+      }
+
+      // 2. Gender Resolution
+      // Note: user.gender might be 0 (Male), 1 (Female) - ensure type safety
+      let genderText = 'Không rõ';
+      if (user.gender == 0 || user.gender === '0') genderText = 'Nam';
+      else if (user.gender == 1 || user.gender === '1') genderText = 'Nữ';
+
+      // 3. DOB Resolution (Date of Birth)
+      let dobText = '';
+      if (user.sdob && user.sdob.trim()) {
+        dobText = `• SN: ${user.sdob}`;
+      } else if (user.dob > 0) {
+        try {
+          const date = new Date(user.dob * 1000); // Assuming seconds
+          dobText = `• SN: ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+        } catch (e) { }
+      }
 
       resultsDiv.innerHTML = `
-        < div style = "padding: 8px 12px; background: #e8f5e9; border-bottom: 1px solid #c8e6c9; font-size: 12px; color: #388e3c;" >
+        <div style="padding: 8px 12px; background: #e8f5e9; border-bottom: 1px solid #c8e6c9; font-size: 12px; color: #388e3c;">
           ✅ Tìm thấy từ số điện thoại
-        </div >
+        </div>
         <div class="search-result-item" onclick="selectFriendFromSearch('${user.uid}', '${escapeJs(displayName)}', '${user.avatar || ''}')">
           <div class="result-friend">
-            <img src="${user.avatar || 'data:image/svg+xml,%3Csvg xmlns=" http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3C/svg%3E'}" 
+            <img src="${user.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E'}" 
               onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E'"
               alt="Avatar"
               style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
               <div class="result-friend-info" style="flex: 1; margin-left: 10px;">
-                <div class="result-friend-name" style="font-weight: 600; color: #333;">${escapeHtml(displayName)}</div>
-                <div class="result-friend-uid" style="font-size: 12px; color: #666; margin-top: 2px;">
-                  ${gender ? gender + ' • ' : ''}UID: ${user.uid}
+                <div class="result-friend-name" style="font-weight: 600; color: #333; font-size: 14px;">${escapeHtml(displayName)}</div>
+                <div class="result-friend-uid" style="font-size: 12px; color: #666; margin-top: 4px;">
+                  <span style="display:inline-block; background:#f5f5f5; padding: 2px 6px; border-radius: 4px; border: 1px solid #eee;">
+                    ${genderText} ${dobText}
+                  </span>
+                  <div style="margin-top:2px; font-size: 11px; color:#999;">UID: ${user.uid}</div>
                 </div>
               </div>
               <span style="background: #e8f5e9; color: #388e3c; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500;">Từ SĐT</span>
@@ -1488,7 +1529,7 @@
         </div>
       `;
 
-      console.log('✅ Đã hiển thị kết quả tìm kiếm SĐT');
+      console.log('✅ Đã hiển thị kết quả tìm kiếm SĐT (Updated)');
     }
 
     function handlePhoneSearchNotFound() {
@@ -1750,11 +1791,11 @@
     function renderFriendRequests(requests, error) {
       const list = document.getElementById('frList');
       if (error) {
-        list.innerHTML = `< div style = "padding:20px;text-align:center;color:red;" > Lỗi: ${error}</div > `;
+        list.innerHTML = `<div style="padding:20px;text-align:center;color:red;">Lỗi: ${error}</div>`;
         return;
       }
       if (!requests || requests.length === 0) {
-        list.innerHTML = `< div style = "padding:20px;text-align:center;color:#666;" > Không có lời mời nào.</div > `;
+        list.innerHTML = `<div style="padding:20px;text-align:center;color:#666;">Không có lời mời nào.</div>`;
         return;
       }
 
@@ -2208,8 +2249,8 @@
       }
 
       container.innerHTML = filteredGroups.map(g => `
-        < div class="friend-item" onclick = "selectGroup('${g.groupId}', '${escapeJs(g.name)}', '${g.avatar}')"
-      style = "display:flex; align-items:center; padding:12px; cursor:pointer; border-bottom:1px solid #eee;" >
+        <div class="friend-item" onclick="selectGroup('${g.groupId}', '${escapeJs(g.name)}', '${g.avatar}')"
+      style="display:flex; align-items:center; padding:12px; cursor:pointer; border-bottom:1px solid #eee;">
           <div style="position:relative;">
             <img src="${g.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E'}" 
               style="width:50px; height:50px; border-radius:50%; object-fit:cover;" 
@@ -2220,7 +2261,7 @@
             <div style="font-weight:600; color:#333;">${escapeHtml(g.name)}</div>
             <div style="font-size:12px; color:#888;">${g.totalMember || '?'} thành viên</div>
           </div>
-        </div >
+        </div>
         `).join('');
     }
 
@@ -2277,6 +2318,21 @@
   <script src="chat-function/search.js"></script>
   <script src="chat-function/notifications.js"></script>
   <script>
+    // ✅ ALPHABETICAL SORT FUNCTION
+    function sortFriendsAfterLoad() {
+      console.log('🔤 Sorting friends alphabetically (A-Z)...');
+      if (!friends || friends.length === 0) return;
+
+      friends.sort((a, b) => {
+        const nameA = (a.displayName || a.zaloName || '').toLowerCase();
+        const nameB = (b.displayName || b.zaloName || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+
+      filteredFriends = [...friends];
+      renderFriendsVirtual();
+    }
+
     // Auto-Reply Toggle Logic
     function toggleAutoReply(userId, enabled) {
       console.log(`👤 Toggling Auto - Reply for ${userId}: ${enabled}`);

@@ -1167,6 +1167,21 @@
         response: '',
         cooldown: 0,
         triggerID: null
+      },
+      aiConversation: {
+        id: 'builtin_ai_conversation',
+        name: 'AI Conversation',
+        description: 'Trò chuyện liên tục với AI. Tự set lệnh bật/tắt',
+        icon: '🤖',
+        enabled: false,
+        configId: null,
+        commandOn: '/ai',
+        commandOff: '/ai-off',
+        systemPrompt: 'Bạn là trợ lý AI thân thiện. Trả lời ngắn gọn và hữu ích.',
+        timeoutMinutes: 30,
+        timeoutMessage: 'Hết thời gian trò chuyện.',
+        saveHistory: true,
+        triggerID: null
       }
     };
 
@@ -1194,7 +1209,18 @@
 
     function handleWebSocketMessage(data) {
       console.log('📩', data.type);
-      if (data.type === 'current_user') { currentUser = data.user; updateUserInfo(currentUser); }
+      if (data.type === 'current_user') {
+        currentUser = data.user;
+        updateUserInfo(currentUser);
+        // Load AI Conversation state for this user
+        if (currentUser?.uid) {
+          ws.send(JSON.stringify({
+            type: 'get_builtin_trigger_state',
+            userUID: currentUser.uid,
+            triggerKey: 'builtin_ai_conversation'
+          }));
+        }
+      }
       if (data.type === 'friends_list') { friendsList = data.friends || []; console.log('👥 Friends:', friendsList.length); }
       if (data.type === 'triggers_list' || data.type === 'auto_reply_status') {
         const list = data.triggers || data.scenarios || [];
@@ -1385,6 +1411,29 @@
       if (data.type === 'activity_logs') { activityLogs = data.logs || []; renderActivityList(); }
       if (data.type === 'activity_log') { activityLogs.unshift(data.activity); activityCount++; updateActivityBadge(); renderActivityList(); }
       if (data.type === 'activity_logs_cleared') { activityLogs = []; renderActivityList(); showToast('✅ Đã xóa lịch sử', 'success'); }
+
+      // AI Configs
+      if (data.type === 'ai_configs') {
+        populateAIConfigDropdown(data.configs || []);
+      }
+
+      // Built-in trigger state
+      if (data.type === 'builtin_trigger_state') {
+        console.log('📥 Received builtin_trigger_state:', data);
+        if (data.triggerKey === 'builtin_ai_conversation') {
+          if (data.state) {
+            console.log('🔄 Merging AI Conversation state:', data.state);
+            Object.assign(builtInTriggers.aiConversation, data.state);
+            renderTriggerList();
+          } else {
+            console.log('ℹ️ No saved state for AI Conversation yet');
+          }
+        }
+      }
+
+      if (data.type === 'builtin_trigger_state_saved') {
+        console.log('✅ Built-in trigger state saved:', data.triggerKey);
+      }
     }
 
     function formatTrigger(t) {
@@ -1562,16 +1611,17 @@
 
     function renderBuiltInTriggers() {
       return `
-        <div class="trigger-group" style="margin-bottom: 24px; border: 1px solid #e0e0e0; border-radius: 12px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden;">
-          <div class="trigger-group-title" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 16px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+        <div class="trigger-group" style="margin-bottom: 24px; border: 1px solid #e0e0e0; border-radius: 14px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden;">
+          <div class="trigger-group-title" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 20px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;">
             ⚙️ Triggers Mặc Định
           </div>
-          <div style="padding: 12px;">
+          <div style="padding: 16px;">
             ${renderBuiltInTriggerItem(builtInTriggers.autoReplyUser)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoReplyGroup)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoAcceptFriend)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoFile)}
             ${renderBuiltInTriggerItem(builtInTriggers.selfTrigger)}
+            ${renderBuiltInTriggerItem(builtInTriggers.aiConversation)}
           </div>
         </div>
       `;
@@ -1580,25 +1630,23 @@
     function renderBuiltInTriggerItem(trigger) {
       const statusColor = trigger.enabled ? '#4caf50' : '#ccc';
       const statusText = trigger.enabled ? 'BẬT' : 'TẮT';
-      const statusIcon = trigger.enabled ? '✅' : '⭕';
 
       return `
-        <div class="trigger-item-compact" onclick="toggleBuiltInTrigger('${trigger.id}')" 
-          style="cursor: pointer; background: ${trigger.enabled ? '#f0f9ff' : '#fafafa'}; border: 1px solid ${trigger.enabled ? '#b3d9ff' : '#eee'}; display: flex; align-items: center; gap: 12px; padding: 0 16px; margin-bottom: 8px; height: 60px; border-radius: 8px; transition: all 0.2s;">
-          
-          <div class="trigger-icon-small" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 18px; width: 36px; height: 36px; border-radius: 8px;">
+        <div class="trigger-item-compact" onclick="toggleBuiltInTrigger('${trigger.id}')"
+          style="cursor: pointer; background: ${trigger.enabled ? '#f0f9ff' : '#fafafa'}; border: 1px solid ${trigger.enabled ? '#b3d9ff' : '#eee'}; display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 10px; min-height: 64px; border-radius: 10px; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 20px; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
             ${trigger.icon}
           </div>
-          
-          <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div style="font-weight: 600; color: #333; font-size: 13px;">${escapeHtml(trigger.name)}</div>
-              <span style="font-size: 10px; padding: 2px 8px; background: ${statusColor}; color: white; border-radius: 10px; font-weight: 600; white-space: nowrap;">${statusText}</span>
-            </div>
+
+          <div style="flex: 1; min-width: 0; overflow: hidden;">
+            <div style="font-weight: 600; color: #333; font-size: 14px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(trigger.name)}</div>
+            <div style="font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(trigger.description || '')}</div>
           </div>
 
-          <div class="trigger-actions" onclick="event.stopPropagation()" style="margin-left: 4px;">
-            <button class="action-icon" onclick="setupBuiltInTrigger('${trigger.id}')" title="Cài đặt" style="width: 28px; height: 28px; font-size: 14px; color: #667eea; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">⚙️</button>
+          <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+            <span style="font-size: 10px; padding: 3px 10px; background: ${statusColor}; color: white; border-radius: 10px; font-weight: 600; white-space: nowrap;">${statusText}</span>
+            <button class="action-icon" onclick="event.stopPropagation(); setupBuiltInTrigger('${trigger.id}')" title="Cài đặt" style="width: 32px; height: 32px; font-size: 15px; color: #667eea; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">⚙️</button>
           </div>
         </div>
       `;
@@ -1616,6 +1664,7 @@
       else if (triggerId === 'builtin_auto_friend') trigger = builtInTriggers.autoAcceptFriend;
       else if (triggerId === 'builtin_auto_file') trigger = builtInTriggers.autoFile;
       else if (triggerId === 'builtin_self_trigger') trigger = builtInTriggers.selfTrigger;
+      else if (triggerId === 'builtin_ai_conversation') trigger = builtInTriggers.aiConversation;
 
       if (!trigger) {
         console.error('Trigger not found for ID:', triggerId);
@@ -1623,16 +1672,52 @@
       }
       console.log('🔘 Trigger state:', trigger);
 
-      // Nếu chưa có triggerID (chưa tạo trong DB) → yêu cầu setup
+      // Special handling for AI Conversation (no triggerID needed, uses separate state)
+      if (triggerId === 'builtin_ai_conversation') {
+        // Check if configured
+        if (!trigger.configId && !trigger.enabled) {
+          showToast('⚠️ Vui lòng cấu hình AI Conversation trước! Click nút ⚙️ để thiết lập.', 'warning');
+          setupBuiltInTrigger(triggerId);
+          return;
+        }
+
+        // Toggle state
+        trigger.enabled = !trigger.enabled;
+        console.log('🔘 AI Conversation toggled to:', trigger.enabled);
+
+        // Save state to backend
+        ws.send(JSON.stringify({
+          type: 'save_builtin_trigger_state',
+          userUID: currentUser.uid,
+          triggerKey: 'builtin_ai_conversation',
+          stateData: {
+            configId: trigger.configId,
+            commandOn: trigger.commandOn,
+            commandOff: trigger.commandOff,
+            systemPrompt: trigger.systemPrompt,
+            timeoutMinutes: trigger.timeoutMinutes,
+            timeoutMessage: trigger.timeoutMessage,
+            saveHistory: trigger.saveHistory,
+            enabled: trigger.enabled
+          }
+        }));
+
+        renderTriggerList();
+        showToast(trigger.enabled ? '✅ Đã bật ' + trigger.name : '⏸️ Đã tắt ' + trigger.name, 'success');
+        return;
+      }
+
+      // For other triggers: Check if configured
       if (!trigger.triggerID) {
         console.log('🔘 Not created yet, opening setup modal');
+        showToast('⚠️ Vui lòng cấu hình trigger trước! Click nút ⚙️ để thiết lập.', 'warning');
         setupBuiltInTrigger(triggerId);
         return;
       }
 
-      // Nếu chưa có config (response/welcomeMessage rỗng) → yêu cầu setup
       if (!trigger.response && !trigger.welcomeMessage) {
         console.log('🔘 No config, opening setup modal');
+        showToast('⚠️ Vui lòng cấu hình nội dung trước! Click nút ⚙️ để thiết lập.', 'warning');
         setupBuiltInTrigger(triggerId);
         return;
       }
@@ -1641,7 +1726,7 @@
       trigger.enabled = !trigger.enabled;
       console.log('🔘 Toggled to:', trigger.enabled);
 
-      // Gửi toggle request (dùng toggle_trigger thay vì update_trigger)
+      // Gửi toggle request
       ws.send(JSON.stringify({
         type: 'toggle_trigger',
         id: trigger.triggerID
@@ -1662,6 +1747,8 @@
       } else if (triggerId === 'builtin_self_trigger') {
         if (typeof showSelfTriggerModal === 'function') showSelfTriggerModal();
         else alert('Tính năng đang cập nhật...');
+      } else if (triggerId === 'builtin_ai_conversation') {
+        showAIConversationSetup();
       }
     }
 
@@ -2545,7 +2632,191 @@
         window.open('flow-builder.html?triggerId=' + triggerId, '_blank');
       };
     }
+
+    // ================================================
+    // AI CONVERSATION SETUP
+    // ================================================
+    let aiConfigsCache = [];
+
+    function showAIConversationSetup() {
+      const trigger = builtInTriggers.aiConversation;
+
+      // Request AI configs from server
+      ws.send(JSON.stringify({ type: 'get_ai_configs' }));
+
+      // Populate form with current values
+      document.getElementById('aiConvEnabled').checked = trigger.enabled;
+      document.getElementById('aiConvCommandOn').value = trigger.commandOn || '/ai';
+      document.getElementById('aiConvCommandOff').value = trigger.commandOff || '/ai-off';
+      document.getElementById('aiConvSystemPrompt').value = trigger.systemPrompt || '';
+      document.getElementById('aiConvTimeout').value = trigger.timeoutMinutes || 30;
+      document.getElementById('aiConvTimeoutMsg').value = trigger.timeoutMessage || '';
+      document.getElementById('aiConvSaveHistory').checked = trigger.saveHistory !== false;
+
+      // Show modal
+      document.getElementById('aiConversationModal').style.display = 'flex';
+
+      // Will populate AI config dropdown when response arrives
+    }
+
+    function hideAIConversationModal() {
+      document.getElementById('aiConversationModal').style.display = 'none';
+    }
+
+    function saveAIConversationSetup() {
+      const configId = parseInt(document.getElementById('aiConvConfigId').value);
+      const commandOn = document.getElementById('aiConvCommandOn').value.trim();
+      const commandOff = document.getElementById('aiConvCommandOff').value.trim();
+      const systemPrompt = document.getElementById('aiConvSystemPrompt').value.trim();
+      const timeoutMinutes = parseInt(document.getElementById('aiConvTimeout').value) || 30;
+      const timeoutMessage = document.getElementById('aiConvTimeoutMsg').value.trim();
+      const saveHistory = document.getElementById('aiConvSaveHistory').checked;
+      const enabled = document.getElementById('aiConvEnabled').checked;
+
+      if (!configId && enabled) {
+        showToast('⚠️ Vui lòng chọn AI Config!', 'warning');
+        return;
+      }
+
+      if ((!commandOn || !commandOff) && enabled) {
+        showToast('⚠️ Vui lòng nhập lệnh bật/tắt!', 'warning');
+        return;
+      }
+
+      if (!currentUser?.uid) {
+        showToast('❌ Chưa đăng nhập!', 'error');
+        return;
+      }
+
+      // Update state
+      builtInTriggers.aiConversation.configId = configId;
+      builtInTriggers.aiConversation.commandOn = commandOn;
+      builtInTriggers.aiConversation.commandOff = commandOff;
+      builtInTriggers.aiConversation.systemPrompt = systemPrompt;
+      builtInTriggers.aiConversation.timeoutMinutes = timeoutMinutes;
+      builtInTriggers.aiConversation.timeoutMessage = timeoutMessage;
+      builtInTriggers.aiConversation.saveHistory = saveHistory;
+      builtInTriggers.aiConversation.enabled = enabled;
+
+      // Save to database via WebSocket
+      ws.send(JSON.stringify({
+        type: 'save_builtin_trigger_state',
+        userUID: currentUser.uid,
+        triggerKey: 'builtin_ai_conversation',
+        stateData: {
+          configId,
+          commandOn,
+          commandOff,
+          systemPrompt,
+          timeoutMinutes,
+          timeoutMessage,
+          saveHistory,
+          enabled
+        }
+      }));
+
+      // Hide modal and update UI
+      hideAIConversationModal();
+      renderTriggerList();
+      showToast('✅ Đã lưu cài đặt AI Conversation!', 'success');
+    }
+
+    function populateAIConfigDropdown(configs) {
+      aiConfigsCache = configs || [];
+      const select = document.getElementById('aiConvConfigId');
+      if (!select) return;
+
+      const currentConfigId = builtInTriggers.aiConversation.configId;
+
+      select.innerHTML = '<option value="">-- Chọn AI Config --</option>' +
+        configs.map(cfg =>
+          `<option value="${cfg.id || cfg.configID}" ${(cfg.id === currentConfigId || cfg.configID === currentConfigId) ? 'selected' : ''}>${escapeHtml(cfg.name)} (${cfg.model})</option>`
+        ).join('');
+    }
   </script>
+
+  <!-- AI CONVERSATION MODAL -->
+  <div class="modal-overlay" id="aiConversationModal" style="display:none; z-index:10002;">
+    <div class="modal" style="width:600px; max-width:90%;">
+      <div class="modal-header">
+        <h3>🤖 Cài đặt AI Conversation</h3>
+        <button class="modal-close" onclick="hideAIConversationModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:#e3f2fd; border:1px solid #90caf9; padding:12px; border-radius:8px; margin-bottom:16px;">
+          <h4 style="margin:0 0 8px 0; color:#1565c0; font-size:14px;">ℹ️ Hướng dẫn</h4>
+          <p style="margin:0; font-size:12px; line-height:1.6; color:#333;">
+            Trò chuyện liên tục với AI. User gửi lệnh → AI mode bật → Mọi tin nhắn tiếp theo được AI trả lời tự động.<br><br>
+            <strong>Tự set lệnh điều khiển:</strong> Bạn có thể đặt bất kỳ lệnh nào (/ai, /chat, /bot, v.v.)<br>
+            <strong>Timeout:</strong> Tự động tắt sau X phút không nhận tin nhắn
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="aiConvEnabled" style="width:18px; height:18px; margin-right:8px;">
+            <span style="font-weight:600;">Bật tính năng này</span>
+          </label>
+        </div>
+
+        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Lệnh BẬT AI <span style="color:red;">*</span></label>
+            <input type="text" class="form-input" id="aiConvCommandOn" placeholder="/ai" value="/ai">
+            <div class="trigger-keywords-preview" style="margin-top:6px; font-size:11px;">User gửi lệnh này → Bật AI mode</div>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Lệnh TẮT AI <span style="color:red;">*</span></label>
+            <input type="text" class="form-input" id="aiConvCommandOff" placeholder="/ai-off" value="/ai-off">
+            <div class="trigger-keywords-preview" style="margin-top:6px; font-size:11px;">User gửi lệnh này → Tắt AI mode</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Chọn AI Config <span style="color:red;">*</span></label>
+          <select class="form-input" id="aiConvConfigId">
+            <option value="">-- Chọn AI config --</option>
+          </select>
+          <div class="trigger-keywords-preview" style="margin-top:6px;">
+            Cấu hình AI từ <a href="/ai-manager.html" target="_blank" style="color:#667eea;">AI Models Manager</a>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">System Prompt</label>
+          <textarea class="form-input" id="aiConvSystemPrompt" rows="4"
+            placeholder="Bạn là trợ lý AI thân thiện. Trả lời ngắn gọn và hữu ích."></textarea>
+          <div class="trigger-keywords-preview" style="margin-top:6px;">Định nghĩa cách AI sẽ trả lời</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Timeout (phút)</label>
+          <input type="number" class="form-input" id="aiConvTimeout" value="30" min="1" max="1440">
+          <div class="trigger-keywords-preview" style="margin-top:6px;">Tự động tắt AI mode sau X phút không chat</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tin nhắn khi timeout</label>
+          <input type="text" class="form-input" id="aiConvTimeoutMsg"
+            placeholder="Hết thời gian. Gửi /ai để tiếp tục!">
+          <div class="trigger-keywords-preview" style="margin-top:6px;">Thông báo khi AI mode tự động tắt</div>
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="aiConvSaveHistory" style="width:18px; height:18px; margin-right:8px;" checked>
+            <span style="font-weight:500;">Lưu lịch sử hội thoại (20 tin nhắn cuối)</span>
+          </label>
+          <div class="trigger-keywords-preview" style="margin-top:6px;">AI sẽ nhớ ngữ cảnh cuộc trò chuyện</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="hideAIConversationModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveAIConversationSetup()">Lưu cài đặt</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 
 </html>

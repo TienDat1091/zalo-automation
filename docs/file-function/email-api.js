@@ -279,11 +279,87 @@ module.exports = function(app, triggerDB) {
   });
 
   // =====================================================
-  // GOOGLE OAUTH CALLBACK
+  // UPLOAD GOOGLE OAUTH CREDENTIALS JSON
   // =====================================================
-  app.get('/api/email/auth/google', (req, res) => {
-    // TODO: Implement Google OAuth2 flow
-    res.send('Google OAuth2 authentication - To be implemented');
+  app.post('/api/email/upload-credentials', (req, res) => {
+    try {
+      const { credentials } = req.body;
+
+      if (!credentials) {
+        return res.status(400).json({ error: 'No credentials provided', success: false });
+      }
+
+      // Validate credentials structure
+      const parsed = typeof credentials === 'string' ? JSON.parse(credentials) : credentials;
+
+      // Check for web or installed app credentials
+      const clientId = parsed.web?.client_id || parsed.installed?.client_id;
+      const clientSecret = parsed.web?.client_secret || parsed.installed?.client_secret;
+
+      if (!clientId || !clientSecret) {
+        return res.status(400).json({
+          error: 'File JSON không hợp lệ. Cần có client_id và client_secret trong web hoặc installed.',
+          success: false
+        });
+      }
+
+      // Save credentials to file
+      const credentialsPath = path.join(__dirname, '..', 'google-oauth-credentials.json');
+      fs.writeFileSync(credentialsPath, JSON.stringify(parsed, null, 2), 'utf8');
+
+      console.log('✅ Google OAuth credentials saved to:', credentialsPath);
+
+      // Reload credentials in google-oauth module
+      try {
+        // Clear require cache to reload module
+        delete require.cache[require.resolve('../system/google-oauth')];
+        // Re-require to load new credentials
+        const reloadedOAuth = require('../system/google-oauth');
+        console.log('✅ Google OAuth module reloaded');
+      } catch (reloadErr) {
+        console.warn('⚠️ Could not reload OAuth module:', reloadErr.message);
+      }
+
+      res.json({
+        success: true,
+        message: 'Credentials đã được lưu thành công!',
+        clientId: clientId.substring(0, 20) + '...'
+      });
+    } catch (error) {
+      console.error('❌ Upload credentials error:', error.message);
+      res.status(500).json({ error: 'Failed to save credentials: ' + error.message, success: false });
+    }
+  });
+
+  // =====================================================
+  // CHECK CREDENTIALS STATUS
+  // =====================================================
+  app.get('/api/email/credentials-status', (req, res) => {
+    try {
+      const credentialsPath = path.join(__dirname, '..', 'google-oauth-credentials.json');
+      const exists = fs.existsSync(credentialsPath);
+
+      let info = null;
+      if (exists) {
+        try {
+          const content = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+          const clientId = content.web?.client_id || content.installed?.client_id || '';
+          info = {
+            type: content.web ? 'Web Application' : 'Desktop Application',
+            clientId: clientId ? clientId.substring(0, 30) + '...' : 'Unknown'
+          };
+        } catch (e) {
+          info = { error: 'Invalid JSON file' };
+        }
+      }
+
+      res.json({
+        configured: exists,
+        info
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   console.log('   ✓ Email API endpoints registered');

@@ -508,6 +508,30 @@ function createTables(db) {
     CREATE INDEX IF NOT EXISTS idx_transactions_transactionCode ON transactions(transactionCode);
   `);
 
+  // ZALO BOT CONTACTS
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS zalo_bot_contacts (
+      openid TEXT PRIMARY KEY,
+      displayName TEXT,
+      avatar TEXT,
+      lastActive INTEGER DEFAULT (strftime('%s','now') * 1000),
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000)
+    )
+  `);
+
+  // BUILT-IN TRIGGERS STATE (Store configuration for built-in triggers)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS builtin_triggers_state (
+      userUID TEXT NOT NULL,
+      triggerKey TEXT NOT NULL,
+      stateData TEXT,
+      updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      PRIMARY KEY (userUID, triggerKey)
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_builtin_triggers_userUID ON builtin_triggers_state(userUID)`);
+
   console.log('✅ Database tables created/verified');
 }
 

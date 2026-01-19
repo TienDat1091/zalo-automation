@@ -235,6 +235,41 @@
 
     <!-- SENDERS TAB -->
     <div id="senders" class="tab-content active">
+      <!-- Google Credentials Card -->
+      <div class="card" id="credentialsCard">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="font-size: 16px;">Google Cloud Credentials</h2>
+          <div id="credentialsStatus"></div>
+        </div>
+        <div id="credentialsInfo" style="display: none; background: #e8f5e9; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="color: #2e7d32; font-weight: 500;">Credentials configured</span>
+              <span id="credentialsDetail" style="font-size: 12px; color: #666; margin-left: 8px;"></span>
+            </div>
+            <button class="btn btn-secondary" onclick="showReconfigureCredentials()" style="padding: 6px 12px; font-size: 12px;">Thay đổi</button>
+          </div>
+        </div>
+        <div id="credentialsUpload">
+          <div style="background: #fff3e0; padding: 16px; border-radius: 6px; border-left: 4px solid #ff9800; margin-bottom: 16px;">
+            <strong style="color: #e65100;">Cần cấu hình Google Cloud Credentials</strong>
+            <p style="font-size: 12px; color: #555; margin-top: 8px; line-height: 1.5;">
+              1. Vào <a href="https://console.cloud.google.com/" target="_blank" style="color: #1976D2;">Google Cloud Console</a><br>
+              2. Tạo project mới hoặc chọn project có sẵn<br>
+              3. Bật Gmail API tại <strong>APIs & Services > Enable APIs</strong><br>
+              4. Vào <strong>APIs & Services > Credentials</strong><br>
+              5. Tạo <strong>OAuth 2.0 Client ID</strong> (chọn Web application)<br>
+              6. Thêm <code>http://localhost:3000/api/email/auth/google/callback</code> vào Authorized redirect URIs<br>
+              7. Download file JSON và tải lên đây
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="file" id="credentialsFile" accept=".json" style="flex: 1; padding: 8px; border: 1px dashed #ccc; border-radius: 6px;">
+            <button class="btn btn-primary" onclick="uploadCredentials()">Upload JSON</button>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 style="font-size: 16px;">Tài khoản Gmail</h2>
@@ -569,8 +604,87 @@
       alert('Chi tiết log #' + id);
     }
     
+    // =====================================================
+    // CREDENTIALS MANAGEMENT
+    // =====================================================
+    function checkCredentialsStatus() {
+      fetch(API_BASE + '/credentials-status')
+        .then(r => r.json())
+        .then(data => {
+          const infoDiv = document.getElementById('credentialsInfo');
+          const uploadDiv = document.getElementById('credentialsUpload');
+          const statusDiv = document.getElementById('credentialsStatus');
+          const detailSpan = document.getElementById('credentialsDetail');
+
+          if (data.configured) {
+            infoDiv.style.display = 'block';
+            uploadDiv.style.display = 'none';
+            statusDiv.innerHTML = '<span class="status-badge status-active">Configured</span>';
+            if (data.info) {
+              detailSpan.textContent = `(${data.info.type}: ${data.info.clientId})`;
+            }
+          } else {
+            infoDiv.style.display = 'none';
+            uploadDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="status-badge status-inactive">Not Configured</span>';
+          }
+        })
+        .catch(e => console.error('Check credentials error:', e));
+    }
+
+    function showReconfigureCredentials() {
+      document.getElementById('credentialsUpload').style.display = 'block';
+    }
+
+    function uploadCredentials() {
+      const fileInput = document.getElementById('credentialsFile');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert('Vui lòng chọn file JSON');
+        return;
+      }
+
+      if (!file.name.endsWith('.json')) {
+        alert('File phải có đuôi .json');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const content = e.target.result;
+          // Validate JSON
+          JSON.parse(content);
+
+          fetch(API_BASE + '/upload-credentials', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credentials: content })
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              alert('Upload thành công! Credentials đã được cấu hình.');
+              checkCredentialsStatus();
+              fileInput.value = '';
+            } else {
+              alert('Lỗi: ' + (data.error || 'Unknown error'));
+            }
+          })
+          .catch(err => {
+            alert('Lỗi upload: ' + err.message);
+          });
+        } catch (parseErr) {
+          alert('File JSON không hợp lệ: ' + parseErr.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
     // Load initial data
     checkOAuthCallback();
+    checkCredentialsStatus();
     refreshSenders();
     refreshRecipients();
   </script>

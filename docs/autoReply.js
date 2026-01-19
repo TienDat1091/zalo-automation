@@ -12,7 +12,8 @@ const autoReplyState = {
   stats: { received: 0, replied: 0, skipped: 0, flowExecuted: 0 },
   cooldowns: new Map(),
   botActiveStates: new Map(),
-  pendingInputs: new Map()
+  pendingInputs: new Map(),
+  aiConversationModes: new Map() // senderId -> { active, configId, systemPrompt, timeout, lastMessageTime, conversationHistory }
 };
 
 const flowProcessLog = [];
@@ -399,6 +400,133 @@ async function processAutoReply(apiState, message) {
         // Don't return here, continue to check other triggers? 
         // Usually if auto-reply is on, we might not want to check keyword triggers unless designed so.
         // But the previous logic allowed falling through (lines 278).
+      }
+    }
+
+    // ========== CHECK AI CONVERSATION MODE COMMANDS ==========
+    if (typeof content === 'string') {
+      // Get built-in trigger settings
+      const aiConvSettings = triggerDB.getBuiltInTriggerState(userUID, 'builtin_ai_conversation');
+
+      if (aiConvSettings && aiConvSettings.enabled) {
+        const commandOn = aiConvSettings.commandOn || '/ai';
+        const commandOff = aiConvSettings.commandOff || '/ai-off';
+
+        // Check for command to enable AI mode
+        if (content.trim() === commandOn) {
+          console.log(`🤖 Enabling AI Conversation Mode for ${senderId} via command: ${commandOn}`);
+
+          // Get AI config
+          const aiConfig = triggerDB.getAIConfigById(aiConvSettings.configId);
+          if (!aiConfig) {
+            console.error(`❌ AI Config not found: ${aiConvSettings.configId}`);
+            return;
+          }
+
+          // Enable AI mode
+          autoReplyState.aiConversationModes.set(senderId, {
+            active: true,
+            apiKey: aiConfig.apiKey,
+            model: aiConfig.model,
+            systemPrompt: aiConvSettings.systemPrompt || '',
+            temperature: aiConfig.temperature || 0.7,
+            timeoutMinutes: aiConvSettings.timeoutMinutes || 30,
+            timeoutMessage: aiConvSettings.timeoutMessage || '',
+            saveHistory: aiConvSettings.saveHistory !== false,
+            conversationHistory: [],
+            lastMessageTime: Date.now()
+          });
+
+          await sendMessage(apiState, senderId, '🤖 Chế độ AI đã được bật! Tôi sẽ trả lời tất cả tin nhắn của bạn.', userUID);
+          return;
+        }
+
+        // Check for command to disable AI mode
+        if (content.trim() === commandOff) {
+          console.log(`🤖 Disabling AI Conversation Mode for ${senderId} via command: ${commandOff}`);
+
+          if (autoReplyState.aiConversationModes.has(senderId)) {
+            autoReplyState.aiConversationModes.delete(senderId);
+            await sendMessage(apiState, senderId, '👋 Chế độ AI đã được tắt!', userUID);
+          } else {
+            await sendMessage(apiState, senderId, 'ℹ️ Chế độ AI chưa được bật.', userUID);
+          }
+          return;
+        }
+      }
+
+      // Check if AI mode is active for this sender
+      const aiMode = autoReplyState.aiConversationModes.get(senderId);
+
+      if (aiMode && aiMode.active) {
+        // Check timeout
+        const timeSinceLastMessage = Date.now() - aiMode.lastMessageTime;
+        const timeoutMs = aiMode.timeoutMinutes * 60 * 1000;
+
+        if (timeSinceLastMessage > timeoutMs) {
+          // Timeout - disable AI mode and send timeout message
+          console.log(`⏱️ AI Mode timeout for ${senderId} (${aiMode.timeoutMinutes}m)`);
+          autoReplyState.aiConversationModes.delete(senderId);
+
+          if (aiMode.timeoutMessage) {
+            await sendMessage(apiState, senderId, aiMode.timeoutMessage, userUID);
+          }
+          // Continue to normal trigger matching
+        } else {
+          // AI mode still active - auto reply with AI
+          console.log(`🤖 AI Conversation Mode active for ${senderId}`);
+
+          try {
+            // Update last message time
+            aiMode.lastMessageTime = Date.now();
+
+            // Build conversation history
+            let conversationHistory = [];
+            if (aiMode.saveHistory && aiMode.conversationHistory) {
+              conversationHistory = aiMode.conversationHistory;
+            }
+
+            // Add user message to history
+            conversationHistory.push({ role: 'user', content: content });
+
+            // Keep only last 20 messages to avoid context overflow
+            if (conversationHistory.length > 20) {
+              conversationHistory = conversationHistory.slice(-20);
+            }
+
+            // Build prompt with history
+            let fullPrompt = '';
+            conversationHistory.forEach(msg => {
+              fullPrompt += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+            });
+            fullPrompt += 'Assistant:';
+
+            // Call Gemini API
+            const response = await callGeminiAPI(
+              aiMode.apiKey,
+              aiMode.model,
+              fullPrompt,
+              aiMode.systemPrompt,
+              aiMode.temperature
+            );
+
+            if (response && response.text) {
+              // Add AI response to history
+              conversationHistory.push({ role: 'assistant', content: response.text });
+              aiMode.conversationHistory = conversationHistory;
+
+              // Send response
+              await sendMessage(apiState, senderId, response.text, userUID);
+              autoReplyState.stats.replied++;
+              console.log(`✅ AI replied in conversation mode`);
+            }
+
+            return; // Stop processing, don't check triggers
+          } catch (error) {
+            console.error(`❌ AI Conversation Mode error: ${error.message}`);
+            // On error, continue to normal trigger matching
+          }
+        }
       }
     }
 
@@ -1211,10 +1339,68 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
       }
 
       case 'ai-gemini': {
-        if (data.saveResponseTo) {
-          const resp = `[AI: ${(data.prompt || '').substring(0, 20)}...]`;
-          triggerDB.setVariable(userUID, senderId, data.saveResponseTo, resp, 'text', block.blockID, flow.flowID);
-          context[data.saveResponseTo] = resp;
+        try {
+          console.log(`    🧠 AI Gemini: Processing...`);
+
+          // Replace variables in prompt
+          let prompt = data.prompt || '';
+          prompt = substituteVariables(prompt, context);
+
+          if (!prompt) {
+            console.log(`    ⚠️ AI Gemini: Empty prompt`);
+            break;
+          }
+
+          console.log(`    📝 Prompt: ${prompt.substring(0, 100)}...`);
+
+          let aiConfig = null;
+          let apiKey, model, temperature, systemPrompt;
+
+          // Get AI configuration
+          if (data.useConfigManager && data.configId) {
+            // Load from AI Config Manager
+            aiConfig = triggerDB.getAIConfigById(data.configId);
+            if (!aiConfig) {
+              console.log(`    ⚠️ AI Gemini: Config not found (ID: ${data.configId})`);
+              break;
+            }
+            apiKey = aiConfig.apiKey;
+            model = aiConfig.model;
+            temperature = aiConfig.temperature || 0.7;
+            systemPrompt = aiConfig.systemPrompt || '';
+            console.log(`    ⚙️ Using AI Config: ${aiConfig.name} (${model})`);
+          } else {
+            // Use manual configuration
+            apiKey = data.apiKey;
+            model = data.model || 'gemini-1.5-flash';
+            temperature = data.temperature || 0.7;
+            systemPrompt = '';
+            console.log(`    ⚙️ Using manual config: ${model}`);
+          }
+
+          if (!apiKey) {
+            console.log(`    ⚠️ AI Gemini: No API key`);
+            break;
+          }
+
+          // Call Gemini API
+          const response = await callGeminiAPI(apiKey, model, prompt, systemPrompt, temperature);
+
+          if (response && response.text) {
+            const resultText = response.text;
+            console.log(`    ✅ AI Response: ${resultText.substring(0, 100)}...`);
+
+            // Save to variable
+            if (data.saveResponseTo) {
+              triggerDB.setVariable(userUID, senderId, data.saveResponseTo, resultText, 'text', block.blockID, flow.flowID);
+              context[data.saveResponseTo] = resultText;
+              console.log(`    💾 Saved to variable: {${data.saveResponseTo}}`);
+            }
+          } else {
+            console.log(`    ❌ AI Gemini: No response from API`);
+          }
+        } catch (error) {
+          console.error(`    ❌ AI Gemini Error: ${error.message}`);
         }
         break;
       }
@@ -2144,6 +2330,52 @@ async function processSelfTrigger(apiState, message, senderId) {
 
   } catch (error) {
     log(`❌ SELF TRIGGER ERROR: ${error.message}\n${error.stack}`);
+  }
+}
+
+// ========================================
+// GEMINI API HELPER
+// ========================================
+async function callGeminiAPI(apiKey, model, prompt, systemPrompt = '', temperature = 0.7) {
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const requestBody = {
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: temperature,
+        maxOutputTokens: 2048
+      }
+    };
+
+    // Add system instruction if provided
+    if (systemPrompt) {
+      requestBody.systemInstruction = {
+        parts: [{ text: systemPrompt }]
+      };
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error.message || 'Gemini API error');
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const tokens = data.usageMetadata?.totalTokenCount || null;
+
+    return { text, tokens };
+  } catch (error) {
+    console.error(`Gemini API Error: ${error.message}`);
+    throw error;
   }
 }
 

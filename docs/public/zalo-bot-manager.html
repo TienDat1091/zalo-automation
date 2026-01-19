@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zalo Bot Manager Pro</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #0068ff;
+            --primary-dark: #0054cc;
+            --bg-body: #f4f6f8;
+            --bg-glass: rgba(255, 255, 255, 0.95);
+            --border: #e0e6ed;
+            --sidebar-width: 320px;
+            --header-height: 60px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #f4f6f8 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-glass);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .sidebar-header {
+            height: var(--header-height);
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .user-item:hover {
+            background: #f0f7ff;
+        }
+
+        .user-item.active {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #666;
+            font-size: 14px;
+            object-fit: cover;
+        }
+
+        .avatar.bot {
+            background: linear-gradient(135deg, #0068ff, #00aaff);
+            color: white;
+        }
+
+        .user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .user-last-msg {
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .config-panel {
+            padding: 15px;
+            border-top: 1px solid var(--border);
+            background: #fafafa;
+        }
+
+        /* MAIN CHAT AREA */
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            position: relative;
+        }
+
+        .chat-header {
+            height: var(--header-height);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+        }
+
+        .chat-header-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .messages-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #f4f6f8;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 70%;
+        }
+
+        .message.sent {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .message.sent .bubble {
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.received .bubble {
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #eee;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .input-box {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-box:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-send {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: transform 0.1s;
+        }
+
+        .btn-send:active {
+            transform: scale(0.9);
+        }
+
+        /* UTILS */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #ccc;
+            color: #555;
+        }
+
+        .btn-danger {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .btn-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .status-dot.online {
+            background: #4caf50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <i class="fa-solid fa-robot"></i> Zalo Bot
+            </div>
+            <div class="actions">
+                <button class="btn btn-outline" onclick="openConfigModal()"><i class="fa-solid fa-gear"></i></button>
+            </div>
+        </div>
+
+        <div class="user-list" id="contactList">
+            <!-- Items rendered via JS -->
+            <div style="text-align:center; padding: 20px; color: #999;">Loading...</div>
+        </div>
+
+        <div class="config-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-size:12px; font-weight:600;">Long Polling</span>
+                <span id="pollingStatus" class="status-dot"></span>
+            </div>
+            <button id="btnPolling" class="btn btn-outline" style="width:100%;" onclick="togglePolling()">Start Polling
+                (Dev)</button>
+        </div>
+    </div>
+
+    <!-- MAIN CHAT -->
+    <div class="main-chat">
+        <div class="chat-header">
+            <div class="chat-header-user">
+                <div class="avatar" id="currentAvatar">?</div>
+                <div>
+                    <div class="user-name" id="currentName">Select a user</div>
+                    <div class="user-last-msg" style="font-size:11px;" id="currentId">--</div>
+                </div>
+            </div>
+            <div class="chat-actions">
+                <button class="btn btn-outline" onclick="clearHistory()"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        </div>
+
+        <div class="messages-area" id="messsageArea">
+            <div style="text-align:center; margin-top:50px; color:#aaa;">
+                <i class="fa-regular fa-comments" style="font-size:48px; margin-bottom:15px;"></i><br>
+                Chọn một người dùng để bắt đầu chat
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" class="input-box" id="msgInput" placeholder="Nhập tin nhắn..."
+                onkeypress="handleEnter(event)">
+            <button class="btn-send" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <!-- CONFIG MODAL -->
+    <div class="modal" id="configModal">
+        <div class="modal-content">
+            <h3>🤖 Cấu hình Bot</h3>
+            <div style="margin-bottom:15px;">
+                <label style="display:block; font-size:12px; margin-bottom:5px;">Bot Token</label>
+                <input type="text" id="tokenInput" class="input-box" style="width:100%; border-radius:6px;"
+                    placeholder="Dán access token vào đây...">
+            </div>
+            <div style="display:flex; gap:10px; justify-content:space-between; margin-top:20px;">
+                <button class="btn btn-danger" onclick="clearAllData()" style="font-size:12px;">🗑️ Xóa Dữ Liệu</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-outline" onclick="closeConfigModal()">Cancel</button>
+                    <button class="btn btn-primary" style="background:var(--primary); color:white;"
+                        onclick="saveConfig()">Lưu Token</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION MODAL -->
+    <div class="modal" id="notificationModal" style="z-index: 200;">
+        <div class="modal-content" style="width: 350px; text-align: center;">
+            <div id="modalIcon" style="font-size: 40px; margin-bottom: 15px;">ℹ️</div>
+            <h3 id="modalTitle" style="margin-top: 0;">Thông báo</h3>
+            <p id="modalMessage" style="color: #666; font-size: 14px; line-height: 1.5;"></p>
+            <button class="btn btn-primary"
+                style="background: var(--primary); color: white; margin-top: 15px; width: 100%;"
+                onclick="closeNotificationModal()">Đóng</button>
+        </div>
+    </div>
+
+    <!-- MAIN SCRIPT -->
+    <script>
+        // --- 1. INDEXED DB HELPER ---
+        const DB_NAME = 'ZaloBotManagerDB';
+        const STORE_MSG = 'messages';
+        const STORE_USERS = 'users';
+
+        class LocalDB {
+            constructor() {
+                this.db = null;
+            }
+
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const req = indexedDB.open(DB_NAME, 2);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(STORE_MSG)) {
+                            const msgStore = db.createObjectStore(STORE_MSG, { keyPath: 'id', autoIncrement: true });
+                            msgStore.createIndex('threadId', 'threadId', { unique: false });
+                            msgStore.createIndex('timestamp', 'timestamp', { unique: false });
+                        }
+                        if (!db.objectStoreNames.contains(STORE_USERS)) {
+                            db.createObjectStore(STORE_USERS, { keyPath: 'id' });
+                        }
+                    };
+                    req.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+                    req.onerror = (e) => reject(e);
+                });
+            }
+
+            async saveMessage(msg) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(STORE_MSG, 'readwrite');
+                    tx.objectStore(STORE_MSG).add(msg);
+                    tx.oncomplete = () => resolve();
+                });
+            }
+
+            async getMessages(threadId) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(STORE_MSG, 'readonly');
+                    const store = tx.objectStore(STORE_MSG);
+                    const index = store.index('threadId');
+                    const req = index.getAll(IDBKeyRange.only(threadId));
+                    req.onsuccess = () => resolve(req.result.sort((a, b) => a.timestamp - b.timestamp));
+                });
+            }
+
+            async saveUser(user) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(STORE_USERS, 'readwrite');
+                    tx.objectStore(STORE_USERS).put(user);
+                    tx.oncomplete = () => resolve();
+                });
+            }
+
+            async getUsers() {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(STORE_USERS, 'readonly');
+                    const req = tx.objectStore(STORE_USERS).getAll();
+                    req.onsuccess = () => resolve(req.result);
+                });
+            }
+
+            async deleteUser(userId) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(STORE_USERS, 'readwrite');
+                    tx.objectStore(STORE_USERS).delete(userId);
+                    tx.oncomplete = () => resolve();
+                });
+            }
+
+            async clearHistory(threadId) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(STORE_MSG, 'readwrite');
+                    const store = tx.objectStore(STORE_MSG);
+                    const index = store.index('threadId');
+                    const req = index.openCursor(IDBKeyRange.only(threadId));
+
+                    req.onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            cursor.delete();
+                            cursor.continue();
+                        } else {
+                            resolve();
+                        }
+                    };
+                });
+            }
+
+            async clearAll() {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction([STORE_MSG, STORE_USERS], 'readwrite');
+                    tx.objectStore(STORE_MSG).clear();
+                    tx.objectStore(STORE_USERS).clear();
+                    tx.oncomplete = () => resolve();
+                });
+            }
+        }
+
+        const localDB = new LocalDB();
+
+        // --- 2. GLOBAL STATE ---
+        let ws = null;
+        let currentThreadId = null;
+        let currentToken = localStorage.getItem('zalo_bot_token') || '';
+        let contactsMap = new Map(); // id -> userObj
+        let isPolling = false;
+
+        // --- 3. INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await localDB.init();
+
+            // Check Token Force
+            if (!currentToken) {
+                openConfigModal(true);
+            } else {
+                connectWebSocket();
+            }
+
+            // Initial render from local DB cache
+            // refreshContactList(); // Wait for WS or local merge
+        });
+
+        // ... existing code ...
+
+        async function clearHistory() {
+            if (!currentThreadId) return;
+            // Confirm Modal later? For now direct action
+            if (confirm('⚠️ Bạn có chắc muốn xóa cuộc trò chuyện này?\n\nNgười dùng và toàn bộ tin nhắn sẽ bị xóa khỏi danh sách.')) {
+                const userIdToDelete = currentThreadId;
+
+                // Delete from local IndexedDB
+                await localDB.clearHistory(userIdToDelete);
+                await localDB.deleteUser(userIdToDelete);
+
+                // Delete from server database
+                ws.send(JSON.stringify({
+                    type: 'zalo_bot_delete_contact',
+                    openid: userIdToDelete
+                }));
+
+                contactsMap.delete(userIdToDelete);
+                refreshContactList();
+
+                // Reset UI
+                currentThreadId = null;
+                document.getElementById('currentName').textContent = 'Select a user';
+                document.getElementById('currentAvatar').textContent = '?';
+                document.getElementById('currentId').textContent = '--';
+                document.getElementById('messsageArea').innerHTML = `
+                    <div style="text-align:center; margin-top:50px; color:#aaa;">
+                        <i class="fa-regular fa-comments" style="font-size:48px; margin-bottom:15px;"></i><br>
+                        Chọn một người dùng để bắt đầu chat
+                    </div>`;
+
+                showModal('Thành công', 'Đã xóa hội thoại.', 'success');
+            }
+        }
+
+        function connectWebSocket() {
+            ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
+            ws.onopen = () => {
+                console.log('✅ Connected');
+                ws.send(JSON.stringify({ type: 'get_zalo_contacts' })); // Fetch Friends & Saved
+                if (currentToken) {
+                    ws.send(JSON.stringify({ type: 'zalo_bot_get_info', token: currentToken }));
+
+                    // Auto-start long polling
+                    setTimeout(() => {
+                        if (!isPolling) {
+                            console.log('🔄 Auto-starting Long Polling...');
+                            ws.send(JSON.stringify({ type: 'zalo_bot_start_polling', token: currentToken }));
+                        }
+                    }, 500);
+                }
+            };
+            ws.onmessage = (e) => handleWebSocketMessage(JSON.parse(e.data));
+            ws.onclose = () => setTimeout(connectWebSocket, 3000);
+        }
+
+        // --- 4. MESSAGE HANDLING ---
+        function handleWebSocketMessage(data) {
+            if (data.type === 'zalo_contacts_list') {
+                mergeContacts(data.friends || [], data.groups || [], data.botContacts || []);
+            }
+            if (data.type === 'zalo_webhook_event') {
+                processWebhookEvent(data.data);
+            }
+            if (data.type === 'zalo_bot_polling_status') {
+                updatePollingUI(data.active);
+            }
+            if (data.type === 'zalo_bot_response') {
+                if (data.success) {
+                    // Success logic if needed
+                } else {
+                    showModal('Lỗi Gửi Tin', data.error, 'error');
+                }
+            }
+            // Add Clear Data Response Handler if you add backend logic
+        }
+
+        async function processWebhookEvent(evt) {
+            console.log('🔔 Webhook:', evt);
+
+            // Normalize Data
+            let senderId, text, senderName, avatar;
+
+            if (evt.event_name === 'message.text.received') {
+                senderId = evt.message?.from?.id;
+                text = evt.message?.text;
+                senderName = evt.message?.from?.display_name || evt.message?.from?.name || 'Unknown';
+            } else if (evt.sender) { // Old format
+                senderId = evt.sender.id;
+                text = evt.message.text;
+                senderName = 'User ' + senderId.substr(0, 4);
+            } else {
+                console.warn('⚠️ Unknown Webhook Event Format:', evt);
+            }
+
+            console.log(`📥 Processed Bot Message: Sender=${senderId}, Name=${senderName}, Text=${text}`);
+
+            if (!senderId || !text) return;
+
+            // 1. Save Msg
+            const msgObj = {
+                threadId: senderId,
+                senderId: senderId, // "me" if bot
+                text: text,
+                timestamp: Date.now(),
+                type: 'received'
+            };
+            await localDB.saveMessage(msgObj);
+
+            // 2. Save/Update User
+            const userObj = {
+                id: senderId,
+                name: senderName,
+                avatar: '', // TODO: Extract avatar if available
+                lastActive: Date.now()
+            };
+            await localDB.saveUser(userObj);
+            contactsMap.set(senderId, userObj);
+            refreshContactList();
+
+            // 3. UI Update Logic (Auto-Select)
+            if (currentThreadId === senderId) {
+                renderOneMessage(msgObj);
+                scrollToBottom();
+            } else {
+                switchChat(senderId);
+            }
+        }
+
+        // Send Typing Action Throttled
+        let typingTimeout = null;
+        function handleInput() {
+            if (!currentThreadId) return;
+
+            // Clear existing timeout to prevent spamming
+            if (typingTimeout) clearTimeout(typingTimeout);
+
+            // Set new timeout: Signal typing, then wait 3s before allowing next signal
+            typingTimeout = setTimeout(() => {
+                ws.send(JSON.stringify({
+                    type: 'send_chat_action',
+                    uid: currentThreadId,
+                    action: 'typing'
+                }));
+                typingTimeout = null;
+            }, 500); // 500ms debounce
+        }
+
+        // Listen to Input Event
+        document.getElementById('msgInput').addEventListener('input', handleInput);
+
+        async function sendMessage() {
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
+            if (!text || !currentThreadId) return;
+
+            // 1. UI Optimistic Update
+            const msgObj = {
+                threadId: currentThreadId,
+                senderId: 'bot',
+                text: text,
+                timestamp: Date.now(),
+                type: 'sent'
+            };
+            await localDB.saveMessage(msgObj);
+            renderOneMessage(msgObj);
+            scrollToBottom();
+            input.value = '';
+
+            // 2. Send API
+            ws.send(JSON.stringify({
+                type: 'zalo_bot_send',
+                token: currentToken,
+                userId: currentThreadId,
+                text: text
+            }));
+        }
+
+        // --- 5. UI RENDERING ---
+        function mergeContacts(friends, groups, botContacts) {
+            // Priority: Bot Contacts (Most recent) -> Friends
+            botContacts.forEach(c => {
+                // Use display_name if available, fallback to displayName, then openid
+                const displayName = c.display_name || c.displayName || c.name || `User ${c.openid.substr(0, 8)}`;
+                contactsMap.set(c.openid, {
+                    id: c.openid,
+                    name: displayName,
+                    avatar: c.avatar,
+                    lastActive: c.lastActive
+                });
+            });
+            refreshContactList();
+        }
+
+        function refreshContactList() {
+            const list = document.getElementById('contactList');
+            list.innerHTML = '';
+
+            // Sort by Last Active
+            const sorted = Array.from(contactsMap.values()).sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0));
+
+            if (sorted.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding: 20px; color: #999;">Chưa có liên hệ nào</div>';
+                return;
+            }
+
+            sorted.forEach(user => {
+                const div = document.createElement('div');
+                div.className = `user-item ${currentThreadId === user.id ? 'active' : ''}`;
+                div.onclick = () => switchChat(user.id);
+                div.innerHTML = `
+                    <div class="avatar">${user.name ? user.name.charAt(0).toUpperCase() : '?'}</div>
+                    <div class="user-info">
+                        <div class="user-name">${user.name}</div>
+                        <div class="user-last-msg">${user.id}</div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function switchChat(userId) {
+            currentThreadId = userId;
+            const user = contactsMap.get(userId);
+
+            // Update Header
+            document.getElementById('currentName').textContent = user?.name || 'Unknown';
+            document.getElementById('currentId').textContent = userId;
+            document.getElementById('currentAvatar').textContent = user ? user.name.charAt(0) : '?';
+
+            // Refresh List Highlight
+            refreshContactList();
+
+            // Load History
+            const msgs = await localDB.getMessages(userId);
+            const container = document.getElementById('messsageArea');
+            container.innerHTML = '';
+
+            if (msgs.length === 0) {
+                container.innerHTML = `<div style="text-align:center; margin-top:50px; color:#aaa;">Chưa có tin nhắn nào.</div>`;
+            } else {
+                msgs.forEach(renderOneMessage);
+                scrollToBottom();
+            }
+        }
+
+        function renderOneMessage(msg) {
+            const container = document.getElementById('messsageArea');
+            // Remove placeholder if exists
+            if (container.querySelector('.fa-comments') || container.innerHTML.includes('Chưa có tin nhắn')) container.innerHTML = '';
+
+            const div = document.createElement('div');
+            div.className = `message ${msg.type}`; // sent / received
+            div.innerHTML = `
+                <div class="bubble">${msg.text}</div>
+            `;
+            container.appendChild(div);
+        }
+
+        function scrollToBottom() {
+            const d = document.getElementById('messsageArea');
+            d.scrollTop = d.scrollHeight;
+        }
+
+        function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
+
+        // --- 6. POLLING & CONFIG ---
+        function togglePolling() {
+            if (!isPolling) ws.send(JSON.stringify({ type: 'zalo_bot_start_polling', token: currentToken }));
+            else ws.send(JSON.stringify({ type: 'zalo_bot_stop_polling' }));
+        }
+
+        function updatePollingUI(active) {
+            isPolling = active;
+            const btn = document.getElementById('btnPolling');
+            const dot = document.getElementById('pollingStatus');
+            if (active) {
+                btn.textContent = 'Stop Polling';
+                btn.className = 'btn btn-danger';
+                dot.className = 'status-dot online';
+            } else {
+                btn.textContent = 'Start Polling (Dev)';
+                btn.className = 'btn btn-outline';
+                dot.className = 'status-dot';
+            }
+        }
+
+        function openConfigModal(force = false) {
+            const m = document.getElementById('configModal');
+            m.style.display = 'flex';
+            const cancelBtn = m.querySelector('.btn-outline');
+            const input = document.getElementById('tokenInput');
+
+            if (force) {
+                cancelBtn.style.display = 'none'; // Force mode: Cannot cancel
+                m.onclick = null; // Disable backdrop click
+            } else {
+                cancelBtn.style.display = 'block';
+                m.onclick = (e) => { if (e.target === m) closeConfigModal(); };
+            }
+        }
+        function closeConfigModal() { document.getElementById('configModal').style.display = 'none'; }
+
+        function saveConfig() {
+            const t = document.getElementById('tokenInput').value.trim();
+            if (!t) return showModal('Lỗi', 'Vui lòng nhập Token!', 'error');
+
+            // Show Loading
+            const btn = document.querySelector('#configModal .btn-primary');
+            const originalText = btn.textContent;
+            btn.textContent = 'Connecting...';
+            btn.disabled = true;
+
+            // Trigger get info to validate
+            // If WS not open (forced mode), try connecting temporarily or just checking if WS is ready
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+                // Wait a bit or let WS connect invoke check? 
+                // Simple hack: Just wait 1s then send
+                setTimeout(() => {
+                    ws.send(JSON.stringify({ type: 'zalo_bot_get_info', token: t }));
+                }, 1000);
+            } else {
+                ws.send(JSON.stringify({ type: 'zalo_bot_get_info', token: t }));
+            }
+
+            // Temporary listener for one-time validation
+            const validator = (e) => {
+                const d = JSON.parse(e.data);
+                if (d.type === 'zalo_bot_info') {
+                    if (d.success) {
+                        localStorage.setItem('zalo_bot_token', t);
+                        currentToken = t;
+                        showModal('Thành công', '✅ Kết nối thành công! Token đã lưu.', 'success');
+                        closeConfigModal();
+                        document.getElementById('currentName').textContent = 'Bot: ' + d.data.account_name;
+
+                        // Clear data if changing user? Maybe later add logic.
+                    } else {
+                        showModal('Thát bại', '❌ Kết nối thất bại: ' + d.error, 'error');
+                    }
+                    // Cleanup
+                    ws.removeEventListener('message', validator);
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            };
+            ws.addEventListener('message', validator);
+        }
+
+        async function clearAllData() {
+            if (confirm('⚠️ CẢNH BÁO: Hành động này sẽ xóa toàn bộ tin nhắn và danh bạ đã lưu TRÊN TRÌNH DUYỆT này.\n\nBạn có chắc chắn không?')) {
+                await localDB.clearAll();
+                contactsMap.clear();
+                refreshContactList();
+                document.getElementById('messsageArea').innerHTML = `
+                    <div style="text-align:center; margin-top:50px; color:#aaa;">
+                        <i class="fa-regular fa-comments" style="font-size:48px; margin-bottom:15px;"></i><br>
+                        Chọn một người dùng để bắt đầu chat
+                    </div>`;
+                showModal('Đã xóa', 'Toàn bộ dữ liệu cục bộ đã được xóa.', 'success');
+            }
+        }
+
+
+
+        function showModal(title, msg, type = 'info') {
+            const m = document.getElementById('notificationModal');
+            const icon = document.getElementById('modalIcon');
+
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = msg;
+
+            if (type === 'success') {
+                icon.textContent = '✅';
+                icon.style.color = '#4caf50';
+            } else if (type === 'error') {
+                icon.textContent = '❌';
+                icon.style.color = '#f44336';
+            } else {
+                icon.textContent = 'ℹ️';
+                icon.style.color = '#2196f3';
+            }
+
+            m.style.display = 'flex';
+        }
+
+        function closeNotificationModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>

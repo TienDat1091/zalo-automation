@@ -256,12 +256,18 @@
 
         <div class="form-group">
           <label>Số tài khoản <span class="required">*</span></label>
-          <input type="text" class="form-control" id="gateAccountNumber" placeholder="Số tài khoản">
+          <div style="display: flex; gap: 8px;">
+            <input type="text" class="form-control" id="gateAccountNumber" placeholder="Số tài khoản" style="flex: 1;">
+            <button type="button" class="btn btn-outline" id="lookupBtn" onclick="lookupAccountInfo()" style="white-space: nowrap;">
+              🔍 Tra cứu
+            </button>
+          </div>
+          <div id="lookupStatus" style="font-size: 12px; margin-top: 4px; display: none;"></div>
         </div>
 
         <div class="form-group">
           <label>Tên chủ tài khoản <span class="required">*</span></label>
-          <input type="text" class="form-control" id="gateAccountName" placeholder="NGUYEN VAN A">
+          <input type="text" class="form-control" id="gateAccountName" placeholder="NGUYEN VAN A (tự động điền khi tra cứu)">
         </div>
 
         <div class="form-group">
@@ -674,6 +680,7 @@
       document.getElementById('gateAccountNumber').value = '';
       document.getElementById('gateAccountName').value = '';
       document.getElementById('gateStatus').value = '1';
+      document.getElementById('lookupStatus').style.display = 'none';
       document.getElementById('gateModal').classList.add('active');
     }
 
@@ -688,6 +695,7 @@
       document.getElementById('gateAccountNumber').value = g.accountNumber || '';
       document.getElementById('gateAccountName').value = g.accountName || '';
       document.getElementById('gateStatus').value = g.status ? '1' : '0';
+      document.getElementById('lookupStatus').style.display = 'none';
       document.getElementById('gateModal').classList.add('active');
     }
 
@@ -725,6 +733,63 @@
     function deleteGate(id) {
       if (!confirm('Bạn có chắc muốn xóa cổng thanh toán này?')) return;
       ws.send(JSON.stringify({ type: 'delete_payment_gate', gateID: id }));
+    }
+
+    // Account Lookup
+    async function lookupAccountInfo() {
+      const accountNumber = document.getElementById('gateAccountNumber').value.trim();
+      const bankBin = document.getElementById('gateBank').value;
+      const statusDiv = document.getElementById('lookupStatus');
+      const lookupBtn = document.getElementById('lookupBtn');
+
+      if (!accountNumber) {
+        showToast('⚠️ Vui lòng nhập số tài khoản!', 'error');
+        return;
+      }
+
+      if (!bankBin) {
+        showToast('⚠️ Vui lòng chọn ngân hàng trước!', 'error');
+        return;
+      }
+
+      // Show loading state
+      lookupBtn.disabled = true;
+      lookupBtn.innerHTML = '⏳ Đang tra cứu...';
+      statusDiv.style.display = 'block';
+      statusDiv.innerHTML = '<span style="color: #666;">Đang tra cứu thông tin tài khoản...</span>';
+
+      try {
+        const response = await fetch('/api/bank/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountNumber, bankBin: parseInt(bankBin) })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.accountName) {
+          document.getElementById('gateAccountName').value = data.accountName;
+          statusDiv.innerHTML = '<span style="color: #4CAF50;">✅ Đã tìm thấy: ' + escapeHtml(data.accountName) + '</span>';
+          showToast('✅ Đã tìm thấy thông tin tài khoản!', 'success');
+
+          // Auto-fill gate name if empty
+          const gateNameInput = document.getElementById('gateName');
+          if (!gateNameInput.value.trim()) {
+            const bank = BANKS.find(b => b.bin === parseInt(bankBin));
+            gateNameInput.value = (bank?.code || 'Bank') + ' - ' + data.accountName;
+          }
+        } else {
+          statusDiv.innerHTML = '<span style="color: #f44336;">❌ ' + (data.error || 'Không tìm thấy thông tin') + '</span>';
+          showToast('❌ ' + (data.error || 'Không tìm thấy thông tin tài khoản'), 'error');
+        }
+      } catch (error) {
+        console.error('Lookup error:', error);
+        statusDiv.innerHTML = '<span style="color: #f44336;">❌ Lỗi kết nối: ' + error.message + '</span>';
+        showToast('❌ Lỗi: ' + error.message, 'error');
+      } finally {
+        lookupBtn.disabled = false;
+        lookupBtn.innerHTML = '🔍 Tra cứu';
+      }
     }
 
     // Helpers

@@ -234,6 +234,8 @@ function ensureBuiltInTriggers(userUID) {
 // ============================================
 // FILE CONTENT READER - Đọc nội dung file để preview
 // ============================================
+// Initialize WebSocket Server
+
 function readFileContentForPreview(filePath, mimeType, fileType) {
   if (!filePath || !fs.existsSync(filePath)) {
     return null;
@@ -1090,6 +1092,20 @@ function startWebSocketServer(apiState, httpServer) {
             messages: messages
           }));
           console.log(`📤 Sent ${messages.length} messages for ${msg.uid} (from ${messages.length > 0 ? 'SQLite' : 'memory'})`);
+        }
+
+        // ============================================
+        // SEND CHAT ACTION (TYPING, ETC)
+        // ============================================
+        else if (msg.type === 'send_chat_action') {
+          const { uid, action } = msg;
+          if (uid) {
+            // Use zaloBot if available, or apiState
+            // Typically we use zaloBot for official API actions
+            if (apiState.zaloBotToken) {
+              await zaloBot.sendChatAction(apiState.zaloBotToken, uid, action || 'typing');
+            }
+          }
         }
 
         // ============================================
@@ -2437,6 +2453,51 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ========================================
+        // BUILT-IN TRIGGERS STATE
+        // ========================================
+        else if (msg.type === 'save_builtin_trigger_state') {
+          const { userUID, triggerKey, stateData } = msg;
+          console.log('💾 Saving builtin trigger state:', { userUID, triggerKey, stateData });
+
+          if (!userUID || !triggerKey) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Missing userUID or triggerKey' }));
+            return;
+          }
+
+          const success = triggerDB.saveBuiltInTriggerState(userUID, triggerKey, stateData);
+          if (success) {
+            console.log('✅ State saved successfully');
+            ws.send(JSON.stringify({
+              type: 'builtin_trigger_state_saved',
+              triggerKey,
+              message: 'Đã lưu cài đặt thành công'
+            }));
+          } else {
+            console.error('❌ Failed to save state');
+            ws.send(JSON.stringify({ type: 'error', message: 'Không thể lưu cài đặt' }));
+          }
+        }
+
+        else if (msg.type === 'get_builtin_trigger_state') {
+          const { userUID, triggerKey } = msg;
+          console.log('📥 Getting builtin trigger state:', { userUID, triggerKey });
+
+          if (!userUID || !triggerKey) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Missing userUID or triggerKey' }));
+            return;
+          }
+
+          const state = triggerDB.getBuiltInTriggerState(userUID, triggerKey);
+          console.log('📤 Sending state:', state);
+
+          ws.send(JSON.stringify({
+            type: 'builtin_trigger_state',
+            triggerKey,
+            state
+          }));
+        }
+
+        // ========================================
         // IMAGES HANDLERS - QUAN TRỌNG!
         // ========================================
         else if (msg.type === 'get_images') {
@@ -2990,16 +3051,70 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
 
+        // ============================================
+        // GET FRIEND REQUESTS (Enhanced with Scan)
+        // ============================================
         else if (msg.type === 'get_friend_requests') {
           try {
             let pending = [];
-            if (apiState.api && typeof apiState.api.getPendingFriendRequests === 'function') {
-              pending = await apiState.api.getPendingFriendRequests();
-            } else if (apiState.api && typeof apiState.api.getFriendRequests === 'function') {
-              pending = await apiState.api.getFriendRequests();
+
+            // 1. Try standard API
+            try {
+              if (apiState.api && typeof apiState.api.getFriendRequests === 'function') {
+                pending = await apiState.api.getFriendRequests();
+              } else if (apiState.api && typeof apiState.api.getPendingFriendRequests === 'function') {
+                pending = await apiState.api.getPendingFriendRequests();
+              }
+            } catch (err) { console.error('Standard friend req API failed, falling back to scan'); }
+
+            // 2. Scan recent conversations (Discovery Mode)
+            // Use messageDB to get recent users who are NOT friends and check status
+            if (apiState.api && typeof apiState.api.getFriendRequestStatus === 'function') {
+              const recentConvos = messageDB.getAllConversations ? messageDB.getAllConversations().slice(0, 20) : [];
+
+              for (const convo of recentConvos) {
+                const uid = convo.conversationId;
+
+                // Skip if already in pending list
+                if (pending && pending.some(p => (p.userId === uid || p.uid === uid))) continue;
+
+                // Skip if invalid UID (groups/system)
+                if (!/^\d+$/.test(uid)) continue;
+
+                try {
+                  const status = await apiState.api.getFriendRequestStatus(uid);
+                  // Check if they are requesting US (is_requesting) and NOT already a friend
+                  if (status && status.is_requesting === 1 && status.is_friend === 0) {
+
+                    // Check duplication again
+                    if (pending.some(p => p.userId === uid)) continue;
+
+                    // Fetch user profile to get name/avatar
+                    let profile = null;
+                    if (apiState.api.getProfile) {
+                      profile = await apiState.api.getProfile(uid).catch(() => null);
+                    }
+
+                    pending.push({
+                      userId: uid,
+                      zaloName: profile?.data?.name || profile?.params?.name || `Người dùng ${uid}`,
+                      avatar: profile?.data?.avatar || profile?.params?.avatar || '',
+                      msg: 'Lời mời từ tin nhắn (được phát hiện)',
+                      time: convo.lastTimestamp
+                    });
+                    console.log(`✅ Discovered friend request from conversation: ${uid}`);
+                  }
+                } catch (err) {
+                  // Ignore individual errors during scan
+                }
+              }
             }
+
             ws.send(JSON.stringify({ type: 'friend_requests_response', requests: pending || [] }));
-          } catch (e) { console.error('Friend Req Error:', e); ws.send(JSON.stringify({ type: 'friend_requests_response', requests: [] })); }
+          } catch (e) {
+            console.error('Friend Req Error:', e);
+            ws.send(JSON.stringify({ type: 'friend_requests_response', requests: [] }));
+          }
         }
 
         else if (msg.type === 'delete_conversation') {
@@ -3212,8 +3327,8 @@ function startWebSocketServer(apiState, httpServer) {
                 type: 'user_found',
                 user: {
                   uid: result.uid,
-                  display_name: result.displayName || result.zaloName || 'Người dùng Zalo',
-                  zalo_name: result.zaloName || result.displayName || '',
+                  display_name: result.display_name || result.zalo_name || 'Người dùng Zalo',
+                  zalo_name: result.zalo_name || result.display_name || '',
                   avatar: result.avatar || '',
                   gender: result.gender,
                   phone: phone
@@ -3575,6 +3690,136 @@ function startWebSocketServer(apiState, httpServer) {
           }
         }
 
+        // ========================================
+        // ZALO BOT HANDLERS
+        // ========================================
+        else if (msg.type === 'zalo_bot_get_info') {
+          const zaloBot = require('./zaloBot');
+          const token = msg.token;
+          const res = await zaloBot.getMe(token);
+
+          ws.send(JSON.stringify({
+            type: 'zalo_bot_info',
+            success: res.ok,
+            data: res.result || res,
+            error: res.description,
+            token: token // Echoback
+          }));
+        }
+
+        else if (msg.type === 'zalo_bot_send') {
+          const zaloBot = require('./zaloBot');
+          const token = msg.token;
+          const res = await zaloBot.sendMessage(token, msg.userId, msg.text);
+
+          ws.send(JSON.stringify({
+            type: 'zalo_bot_response',
+            success: res.ok,
+            data: res.result || res,
+            error: res.description
+          }));
+        }
+
+        // ZALO BOT POLLING
+        else if (msg.type === 'zalo_bot_start_polling') {
+          const zaloBot = require('./zaloBot');
+          const token = msg.token;
+
+          if (apiState.zaloBotPolling) {
+            apiState.zaloBotPolling = false; // Stop existing
+            await new Promise(r => setTimeout(r, 1000));
+          }
+
+          apiState.zaloBotPolling = true;
+          ws.send(JSON.stringify({ type: 'zalo_bot_polling_status', active: true }));
+          console.log('🔄 Zalo Bot: Started Polling...');
+
+          // Start Loop
+          (async () => {
+            let offset = 0;
+            while (apiState.zaloBotPolling) {
+              try {
+                const res = await zaloBot.getUpdates(token, offset);
+                if (res && res.ok && res.result) {
+                  const updates = Array.isArray(res.result) ? res.result : [res.result];
+
+                  for (const update of updates) {
+                    // Broadcast each update as webhook event
+                    const eventMsg = JSON.stringify({
+                      type: 'zalo_webhook_event',
+                      data: update
+                    });
+                    apiState.clients.forEach(c => { if (c.readyState === 1) c.send(eventMsg); });
+
+                    // PROCESSS AUTO REPLY
+                    await processBotMessage(update, token);
+
+                    // Update offset if update_id exists
+                    if (update.update_id) offset = update.update_id + 1;
+                  }
+                }
+              } catch (e) {
+                console.error('Polling error:', e.message);
+                await new Promise(r => setTimeout(r, 5000)); // Backoff
+              }
+              // Wait a bit if no polling timeout is implicit, but getUpdates has timeout=30
+              // However, checking loop break
+              if (!apiState.zaloBotPolling) break;
+            }
+            console.log('⏹️ Zalo Bot: Stopped Polling');
+          })();
+        }
+
+        else if (msg.type === 'zalo_bot_stop_polling') {
+          apiState.zaloBotPolling = false;
+          ws.send(JSON.stringify({ type: 'zalo_bot_polling_status', active: false }));
+        }
+
+        else if (msg.type === 'get_zalo_contacts') {
+          // Flatten groups map if needed, or just use friends
+          const friends = apiState.friends || [];
+          const groups = [];
+          if (apiState.groupsMap) {
+            apiState.groupsMap.forEach(g => groups.push({ id: g.id, name: g.name }));
+          } else if (Array.isArray(apiState.groups)) {
+            apiState.groups.forEach(g => groups.push({ id: g.id, name: g.name }));
+          }
+
+          // Get Captured Bot Contacts
+          const botContacts = triggerDB.getZaloBotContacts();
+
+          ws.send(JSON.stringify({
+            type: 'zalo_contacts_list',
+            friends: friends.map(f => ({ id: f.userId, name: f.displayName || f.name })),
+            groups: groups,
+            botContacts: botContacts
+          }));
+        }
+
+        else if (msg.type === 'zalo_bot_delete_contact') {
+          const { openid } = msg;
+          if (!openid) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Missing openid' }));
+            return;
+          }
+
+          console.log(`🗑️ Deleting Zalo Bot contact: ${openid}`);
+          const success = triggerDB.deleteZaloBotContact(openid);
+
+          if (success) {
+            ws.send(JSON.stringify({
+              type: 'zalo_bot_contact_deleted',
+              openid,
+              message: 'Contact deleted successfully'
+            }));
+          } else {
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: 'Failed to delete contact'
+            }));
+          }
+        }
+
         else {
           const handled = handleAutoReplyMessage(apiState, ws, msg);
           if (!handled) {
@@ -3619,5 +3864,72 @@ function startWebSocketServer(apiState, httpServer) {
   return wss;
 }
 
+
+// Helper to process Zalo Bot Messages (Webhook or Polling)
+async function processBotMessage(update, token) {
+  try {
+    const zaloBot = require('./zaloBot');
+    // Extract Info
+    // Zalo structure: { sender: { id: "..." }, message: { text: "..." }, event_name: "user_send_text" }
+    // OR New Structure: { event_name: "message.text.received", message: { text: "...", from: { id: "..." } } }
+
+    const eventName = update.event_name;
+    let senderId = update.sender?.id || update.sender?.user_id || update.user_id_by_app;
+    let text = update.message?.text || update.message;
+
+    // Handle "message.text.received" format
+    if (eventName === 'message.text.received') {
+      senderId = update.message?.from?.id; // Or update.sender.id if exists
+      text = update.message?.text;
+    }
+
+    if (!senderId || !text) return;
+    if (eventName !== 'user_send_text' && eventName !== 'message.text.received') return;
+
+    // ✅ SAVE CONTACT TO DB
+    const senderName = update.message?.from?.display_name || update.sender?.display_name || update.sender?.name || update.message?.from?.name || 'Unknown Zalo Name';
+    const senderAvatar = update.sender?.avatar || update.message?.from?.avatar || '';
+    triggerDB.saveZaloBotContact(senderId, senderName, senderAvatar);
+
+    console.log(`🤖 Bot Msg from ${senderId}: ${text}`);
+
+    // Load Triggers (Default Group for now, or match all)
+    const allTriggers = triggerDB.getAllTriggers();
+    // Default group? Users usually have "General" or specific groups. 
+    // We will scan ALL enabled triggers for now.
+
+    // Simple Keyword Match
+    const matched = allTriggers.find(t => {
+      if (!t.isEnabled) return false;
+      const content = t.triggerContent.toLowerCase();
+      const input = text.toLowerCase();
+
+      if (t.triggerType === 'exact') return input === content;
+      if (t.triggerType === 'contains') return input.includes(content);
+      return false;
+    });
+
+    if (matched) {
+      console.log(`🎯 Bot Trigger Matched: ${matched.triggerName}`);
+
+      // Handle Reply
+      let replyContent = '';
+      if (matched.responses && matched.responses.length > 0) {
+        // Pick one or all? AutoReply.js usually picks one random or sequential.
+        // Simplified: Pick first
+        replyContent = matched.responses[0].content;
+      }
+
+      if (replyContent) {
+        await zaloBot.sendMessage(token, senderId, replyContent);
+        console.log(`✅ Bot Replied: ${replyContent}`);
+      }
+    }
+
+  } catch (err) {
+    console.error('Bot AutoReply Error:', err.message);
+  }
+}
+
 // Export triggerDB và print agent functions để các module khác có thể dùng
-module.exports = { startWebSocketServer, broadcast, triggerDB, sendToPrintAgent, hasPrintAgent };
+module.exports = { startWebSocketServer, broadcast, triggerDB, sendToPrintAgent, hasPrintAgent, processBotMessage };

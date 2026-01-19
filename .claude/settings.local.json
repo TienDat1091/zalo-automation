@@ -14,7 +14,8 @@
       "Bash(node:*)",
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(find:*)"
     ]
   }
 }

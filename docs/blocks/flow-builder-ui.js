@@ -773,11 +773,25 @@
     }
     block.blockData = blockData;
 
-    // Render form
-    var formHtml = FlowBuilder.renderPropertiesForm(block, {
+    // Build context for block rendering
+    var context = {
       allTriggers: window.allTriggers,
-      currentTriggerId: state.triggerId
+      currentTriggerId: state.triggerId,
+      aiConfigs: window.aiConfigs || [],
+      paymentGates: window.paymentGates || [],
+      googleSheetConfigs: window.googleSheetConfigs || [],
+      uploadedImages: window.uploadedImages || [],
+      uploadedFiles: window.uploadedFiles || []
+    };
+
+    console.log('📋 Rendering block properties with context:', {
+      aiConfigs: context.aiConfigs.length,
+      paymentGates: context.paymentGates.length,
+      triggers: context.allTriggers.length
     });
+
+    // Render form
+    var formHtml = FlowBuilder.renderPropertiesForm(block, context);
 
     // Add save button
     formHtml += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e0e0e0;">';

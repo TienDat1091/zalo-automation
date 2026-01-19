@@ -23,3 +23,54 @@
 [02:43:34] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
 [02:45:57] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
 [02:46:03] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:56:54] RECV: Type=0 Content="[Thông báo] Khởi tạo Bot thành công 
+
+Bạn có thể truy cập ứng dụng để quản lý Bot tại: https://zalo.me/s/botcreator/
+Vui lòng sử dụng token sau để tích hợp HTTP API: 
+ 4435898059866070350:vRxILfrWdcGtpmmXjywazRwueNDBjshQNrLRqtCurUZtDsvVQpAvUlCLKoaKaszJ 
+
+Lưu ý: hãy giữ token này an toàn và bảo mật, vì bất kỳ ai có token này để có thể điều khiển bot của bạn.Tham khảo thêm tài liệu tích hợp Zalo Bot tại: https://bot.zaloplatforms.com/docs/build-your-bot/" IsSelf=false UID=undefined MyUID=716585949090695726
+[11:36:08] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[17:46:14] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[17:46:18] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:43:27] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:43:32] RECV: Type=0 Content="Xin chào bạn" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:49:02] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:49:06] RECV: Type=0 Content="Xin chào" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:49:48] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:49:51] RECV: Type=0 Content="Xin chào bạn" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:52:49] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:52:52] RECV: Type=0 Content="Xin chào bạn" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:53:44] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:53:47] RECV: Type=0 Content="Xin chào bạn" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:57:14] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:57:17] RECV: Type=0 Content="Xin chào bạn" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:57:37] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:57:42] RECV: Type=0 Content="Xin chào bạn" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:58:48] RECV: Type=0 Content="Dhjd" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:08:05] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:08:15] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:08:24] RECV: Type=0 Content="Xin chào bạn" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:08:44] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:10:20] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:10:25] RECV: Type=0 Content="Xin chào" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:10:40] RECV: Type=0 Content="Bạn là AI của model nào" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:23:26] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:31:03] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:31:07] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:31:16] RECV: Type=0 Content="/ai-off" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:31:26] RECV: Type=0 Content="Ok" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:31:30] RECV: Type=0 Content="Ok" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:32:27] RECV: Type=0 Content="Fj" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:32:32] RECV: Type=0 Content="Dbjd" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:32:39] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:32:58] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:33:02] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:33:13] RECV: Type=0 Content="/ai-off" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:33:15] RECV: Type=0 Content="Hfjfj" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:33:19] RECV: Type=0 Content="Nfj" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:33:20] RECV: Type=0 Content="Jfjf" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:34:32] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:34:49] RECV: Type=0 Content="Viết cho tôi đoạn mã tính tổng 2 số với python" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:34:59] RECV: Type=0 Content="/ai-off" IsSelf=false UID=undefined MyUID=716585949090695726
+[20:18:28] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726

@@ -14,38 +14,40 @@ const path = require('path');
 // 6. Place in root folder of this project
 // 7. Update CLIENT_ID, CLIENT_SECRET, REDIRECT_URI below if different
 
+const fs = require('fs');
 const CREDENTIALS_PATH = path.join(__dirname, '..', 'google-oauth-credentials.json');
+const DEFAULT_REDIRECT_URI = 'http://localhost:3000/api/email/auth/google/callback';
 
-// You need to set these from your Google Cloud Console
-let CLIENT_ID = '';
-let CLIENT_SECRET = '';
-let REDIRECT_URI = 'http://localhost:3000/api/email/auth/google/callback';
+// Load credentials from file dynamically (reads fresh each time)
+function loadCredentials() {
+  try {
+    if (fs.existsSync(CREDENTIALS_PATH)) {
+      const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+      const clientId = credentials.web?.client_id || credentials.installed?.client_id || '';
+      const clientSecret = credentials.web?.client_secret || credentials.installed?.client_secret || '';
+      const redirectUri = credentials.web?.redirect_uris?.[0] || DEFAULT_REDIRECT_URI;
 
-// Load credentials from file if exists
-try {
-  const fs = require('fs');
-  if (fs.existsSync(CREDENTIALS_PATH)) {
-    const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
-    CLIENT_ID = credentials.web?.client_id || credentials.installed?.client_id || '';
-    CLIENT_SECRET = credentials.web?.client_secret || credentials.installed?.client_secret || '';
-    REDIRECT_URI = credentials.web?.redirect_uris?.[0] || REDIRECT_URI;
-    console.log('✅ Google OAuth credentials loaded from:', CREDENTIALS_PATH);
+      return { clientId, clientSecret, redirectUri, loaded: true };
+    }
+  } catch (error) {
+    console.warn('⚠️ Could not load google-oauth-credentials.json:', error.message);
   }
-} catch (error) {
-  console.warn('⚠️ Could not load google-oauth-credentials.json:', error.message);
-  console.log('📝 Create credentials at: https://console.cloud.google.com/');
+
+  return { clientId: '', clientSecret: '', redirectUri: DEFAULT_REDIRECT_URI, loaded: false };
 }
 
-// Create OAuth2 client
+// Create OAuth2 client (loads credentials fresh each time)
 function createOAuth2Client() {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
+  const { clientId, clientSecret, redirectUri, loaded } = loadCredentials();
+
+  if (!clientId || !clientSecret) {
     throw new Error('Google OAuth2 credentials not configured. Please setup Google Cloud credentials.');
   }
-  
+
   return new google.auth.OAuth2(
-    CLIENT_ID,
-    CLIENT_SECRET,
-    REDIRECT_URI
+    clientId,
+    clientSecret,
+    redirectUri
   );
 }
 
@@ -183,8 +185,6 @@ module.exports = {
   getUserInfo,
   refreshAccessToken,
   sendEmailViaGmail,
-  CLIENT_ID,
-  CLIENT_SECRET,
-  REDIRECT_URI,
+  loadCredentials,
   CREDENTIALS_PATH
 };

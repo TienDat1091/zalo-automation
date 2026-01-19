@@ -210,7 +210,7 @@ const BLOCK_TYPES = {
     color: '#e8f5e9',
     defaultData: { prompt: '', apiKey: '', saveResponseTo: '' }
   },
-  
+
   // ========== DATA BLOCKS ==========
   'table-data': {
     type: 'table-data',

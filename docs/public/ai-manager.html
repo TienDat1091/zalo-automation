@@ -131,9 +131,14 @@
           </div>
           <div class="form-group">
             <label>Model</label>
-            <select class="form-select" id="cfgModel">
+            <select class="form-select" id="cfgModel" onchange="handleModelChange()">
               <!-- Options will be populated based on provider -->
             </select>
+          </div>
+          <div class="form-group" id="customModelGroup" style="display: none;">
+            <label>Custom Model Name</label>
+            <input type="text" class="form-input" id="cfgCustomModel" placeholder="VD: gemini-2.0-flash-exp">
+            <div class="form-hint">Nhập tên model chính xác từ tài liệu API</div>
           </div>
         </div>
 
@@ -203,23 +208,30 @@
     // Model options for each provider
     var MODEL_OPTIONS = {
       gemini: [
-        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Mới nhất)' },
+        { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview (Mới nhất - 2026)' },
+        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview (Mới nhất - 2026)' },
+        { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Experimental' },
+        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+        { value: 'gemini-exp-1206', label: 'Gemini Experimental 1206' },
         { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
         { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-        { value: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro' }
+        { value: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro' },
+        { value: '_custom_', label: '➕ Custom Model...' }
       ],
       openai: [
         { value: 'gpt-4o', label: 'GPT-4o (Mới nhất)' },
         { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
         { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
         { value: 'gpt-4', label: 'GPT-4' },
-        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+        { value: '_custom_', label: '➕ Custom Model...' }
       ],
       claude: [
         { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Mới nhất)' },
         { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
         { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
-        { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' }
+        { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
+        { value: '_custom_', label: '➕ Custom Model...' }
       ],
       custom: [
         { value: 'custom', label: 'Custom Model' }
@@ -432,10 +444,12 @@
       document.getElementById('cfgName').value = '';
       document.getElementById('cfgApiKey').value = '';
       document.getElementById('cfgEndpoint').value = '';
+      document.getElementById('cfgCustomModel').value = '';
       document.getElementById('cfgTemperature').value = '0.7';
       document.getElementById('cfgMaxTokens').value = '1024';
       document.getElementById('cfgSystemPrompt').value = '';
       document.getElementById('connectionResult').style.display = 'none';
+      document.getElementById('customModelGroup').style.display = 'none';
       document.getElementById('modalTitle').textContent = '➕ Thêm AI Model';
       selectProvider('gemini');
     }
@@ -464,12 +478,28 @@
     }
 
     // ========================================
+    // MODEL SELECTION
+    // ========================================
+    function handleModelChange() {
+      var modelSelect = document.getElementById('cfgModel');
+      var customModelGroup = document.getElementById('customModelGroup');
+
+      if (modelSelect.value === '_custom_') {
+        customModelGroup.style.display = 'block';
+      } else {
+        customModelGroup.style.display = 'none';
+      }
+    }
+
+    // ========================================
     // CRUD
     // ========================================
     function saveConfig() {
       var name = document.getElementById('cfgName').value.trim();
       var apiKey = document.getElementById('cfgApiKey').value.trim();
-      var model = document.getElementById('cfgModel').value;
+      var modelSelect = document.getElementById('cfgModel').value;
+      var customModel = document.getElementById('cfgCustomModel').value.trim();
+      var model = modelSelect === '_custom_' ? customModel : modelSelect;
       var endpoint = document.getElementById('cfgEndpoint').value.trim();
       var temperature = parseFloat(document.getElementById('cfgTemperature').value) || 0.7;
       var maxTokens = parseInt(document.getElementById('cfgMaxTokens').value) || 1024;
@@ -478,6 +508,11 @@
 
       if (!name || !apiKey) {
         toast('❌ Vui lòng nhập Tên và API Key', 'error');
+        return;
+      }
+
+      if (modelSelect === '_custom_' && !customModel) {
+        toast('❌ Vui lòng nhập tên model', 'error');
         return;
       }
 
@@ -521,7 +556,19 @@
 
       // Set model after provider is selected
       setTimeout(function () {
-        document.getElementById('cfgModel').value = cfg.model || '';
+        var modelSelect = document.getElementById('cfgModel');
+        var options = MODEL_OPTIONS[cfg.provider || 'gemini'] || [];
+        var modelExists = options.some(function(opt) { return opt.value === cfg.model; });
+
+        if (modelExists) {
+          modelSelect.value = cfg.model || '';
+          document.getElementById('customModelGroup').style.display = 'none';
+        } else {
+          // Model not in list, use custom option
+          modelSelect.value = '_custom_';
+          document.getElementById('cfgCustomModel').value = cfg.model || '';
+          document.getElementById('customModelGroup').style.display = 'block';
+        }
       }, 50);
 
       openModal('configModal');

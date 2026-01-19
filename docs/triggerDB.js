@@ -339,6 +339,58 @@ module.exports = {
     }
   },
 
+  getAllTriggers() {
+    try {
+      const triggers = db.prepare('SELECT * FROM triggers').all();
+      return triggers.map(t => this._formatTrigger(t));
+    } catch (error) {
+      console.error('❌ Get all triggers error:', error.message);
+      return [];
+    }
+  },
+
+  // ========================================
+  // ZALO BOT CONTACTS
+  // ========================================
+  saveZaloBotContact(openid, displayName, avatar) {
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO zalo_bot_contacts (openid, displayName, avatar, lastActive)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(openid) DO UPDATE SET
+          displayName = excluded.displayName,
+          avatar = excluded.avatar,
+          lastActive = excluded.lastActive
+      `);
+      stmt.run(openid, displayName || 'Unknown User', avatar || '', Date.now());
+      return true;
+    } catch (error) {
+      console.error('❌ Save Zalo contact error:', error.message);
+      return false;
+    }
+  },
+
+  getZaloBotContacts() {
+    try {
+      return db.prepare('SELECT * FROM zalo_bot_contacts ORDER BY lastActive DESC').all();
+    } catch (error) {
+      console.error('❌ Get Zalo contacts error:', error.message);
+      return [];
+    }
+  },
+
+  deleteZaloBotContact(openid) {
+    try {
+      const stmt = db.prepare('DELETE FROM zalo_bot_contacts WHERE openid = ?');
+      stmt.run(openid);
+      console.log(`✅ Deleted Zalo Bot contact: ${openid}`);
+      return true;
+    } catch (error) {
+      console.error('❌ Delete Zalo contact error:', error.message);
+      return false;
+    }
+  },
+
   updateTrigger(triggerID, updates) {
     try {
       const fields = [];
@@ -2687,6 +2739,73 @@ module.exports = {
     } catch (e) {
       console.error('❌ Get activity logs error:', e.message);
       return [];
+    }
+  },
+
+  // ========================================
+  // BUILT-IN TRIGGERS STATE
+  // ========================================
+  saveBuiltInTriggerState(userUID, triggerKey, stateData) {
+    try {
+      const dataJSON = JSON.stringify(stateData);
+      console.log(`💾 Saving to DB - userUID: ${userUID}, triggerKey: ${triggerKey}`);
+      console.log(`📦 Data to save:`, stateData);
+      console.log(`📝 JSON string length: ${dataJSON.length} chars`);
+
+      const stmt = db.prepare(`
+        INSERT OR REPLACE INTO builtin_triggers_state (userUID, triggerKey, stateData, updatedAt)
+        VALUES (?, ?, ?, ?)
+      `);
+      stmt.run(userUID, triggerKey, dataJSON, Date.now());
+      console.log(`✅ Saved built-in trigger state: ${triggerKey} for user ${userUID}`);
+      return true;
+    } catch (e) {
+      console.error('❌ Save built-in trigger state error:', e.message);
+      console.error('Stack:', e.stack);
+      return false;
+    }
+  },
+
+  getBuiltInTriggerState(userUID, triggerKey) {
+    try {
+      console.log(`📥 Loading from DB - userUID: ${userUID}, triggerKey: ${triggerKey}`);
+
+      const row = db.prepare(`
+        SELECT stateData FROM builtin_triggers_state
+        WHERE userUID = ? AND triggerKey = ?
+      `).get(userUID, triggerKey);
+
+      if (row && row.stateData) {
+        const parsed = JSON.parse(row.stateData);
+        console.log(`✅ Loaded state:`, parsed);
+        return parsed;
+      }
+      console.log(`ℹ️ No state found in DB for ${triggerKey}`);
+      return null;
+    } catch (e) {
+      console.error('❌ Get built-in trigger state error:', e.message);
+      console.error('Stack:', e.stack);
+      return null;
+    }
+  },
+
+  getAllBuiltInTriggerStates(userUID) {
+    try {
+      const rows = db.prepare(`
+        SELECT triggerKey, stateData FROM builtin_triggers_state
+        WHERE userUID = ?
+      `).all(userUID);
+
+      const states = {};
+      rows.forEach(row => {
+        if (row.stateData) {
+          states[row.triggerKey] = JSON.parse(row.stateData);
+        }
+      });
+      return states;
+    } catch (e) {
+      console.error('❌ Get all built-in trigger states error:', e.message);
+      return {};
     }
   },
 

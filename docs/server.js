@@ -383,11 +383,41 @@ app.get('/api/proxy-file', async (req, res) => {
   }
 });
 
+// ✅ Zalo Bot Webhook Endpoint
+app.post('/zalo-webhook', (req, res) => {
+  const body = req.body;
+  console.log('🔔 Webhook Received:', JSON.stringify(body).substring(0, 200) + '...');
+
+  // Broadcast to Frontend (Zalo Bot Manager)
+  if (apiState && apiState.clients) {
+    const msg = JSON.stringify({
+      type: 'zalo_webhook_event',
+      data: body
+    });
+    apiState.clients.forEach(client => {
+      if (client.readyState === 1) { // OPEN
+        client.send(msg);
+      }
+    });
+
+    // Handle Auto-Reply Logic
+    // Token is unknown here, so we use DEFAULT_TOKEN inside processBotMessage if not provided.
+    // Or we should update processBotMessage to accept null token and use default.
+    const { processBotMessage } = require('./system/websocket');
+    processBotMessage(body, null);
+  }
+
+  res.status(200).send('OK');
+});
+
 // Register File & Template API endpoints
 require('./file-function/file-api.js')(app, triggerDB);
 
 // Register Email API endpoints
 require('./file-function/email-api.js')(app, triggerDB);
+
+// Register Bank API endpoints
+require('./file-function/bank-api.js')(app, triggerDB);
 
 // 404 handler
 app.use((req, res) => {
