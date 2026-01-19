@@ -821,6 +821,36 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
+        // REPLY MODE (Personal / Bot)
+        // ============================================
+        else if (msg.type === 'get_reply_mode') {
+          const autoReplyState = require('../autoReply').autoReplyState;
+          ws.send(JSON.stringify({
+            type: 'reply_mode_status',
+            mode: autoReplyState.replyMode || 'personal'
+          }));
+        }
+
+        else if (msg.type === 'set_reply_mode') {
+          const autoReplyState = require('../autoReply').autoReplyState;
+          const mode = msg.mode || 'personal';
+
+          autoReplyState.replyMode = mode;
+
+          // If bot mode, also store the token
+          if (mode === 'bot' && msg.botToken) {
+            autoReplyState.botToken = msg.botToken;
+          }
+
+          broadcast(apiState, {
+            type: 'reply_mode_status',
+            mode: mode
+          });
+
+          console.log('📱 Reply Mode:', mode === 'personal' ? '👤 Cá nhân' : '🤖 Bot');
+        }
+
+        // ============================================
         // CREATE TRIGGER (SQLite)
         // ============================================
         else if (msg.type === 'add_scenario' || msg.type === 'create_trigger') {
