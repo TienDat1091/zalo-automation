@@ -9,8 +9,6 @@ const fileBatchMap = new Map(); // senderId -> { files: [], timer: null }
 
 const autoReplyState = {
   enabled: false,
-  replyMode: 'personal', // 'personal' or 'bot'
-  botToken: null, // Bot OA access token
   stats: { received: 0, replied: 0, skipped: 0, flowExecuted: 0 },
   cooldowns: new Map(),
   botActiveStates: new Map(),
@@ -1987,74 +1985,15 @@ function getSenderName(apiState, senderId) {
 }
 
 async function sendMessage(apiState, senderId, content, userUID) {
-  // Check reply mode
-  if (autoReplyState.replyMode === 'bot' && autoReplyState.botToken) {
-    // Send via Zalo Bot OA
-    try {
-      await sendMessageViaBot(autoReplyState.botToken, senderId, content);
-      console.log('🤖 [Bot] Sent message to', senderId);
-    } catch (err) {
-      console.error('❌ [Bot] Error sending message:', err.message);
-      // Fallback to personal account if bot fails
-      const { ThreadType } = require('zca-js');
-      await apiState.api.sendMessage({ msg: content }, senderId, ThreadType.User);
-    }
-  } else {
-    // Send via personal account
-    const { ThreadType } = require('zca-js');
-    await apiState.api.sendMessage({ msg: content }, senderId, ThreadType.User);
-  }
+  // Send via personal account only
+  const { ThreadType } = require('zca-js');
+  await apiState.api.sendMessage({ msg: content }, senderId, ThreadType.User);
 
   const msg = { msgId: `auto_${Date.now()}`, content, timestamp: Date.now(), senderId: userUID, isSelf: true, isAutoReply: true };
   if (!apiState.messageStore.has(senderId)) apiState.messageStore.set(senderId, []);
   apiState.messageStore.get(senderId).push(msg);
 
   apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_message', uid: senderId, message: msg })); } catch (e) { } });
-}
-
-// Send message via Zalo Bot OA API
-async function sendMessageViaBot(token, userId, text) {
-  const https = require('https');
-
-  return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({
-      recipient: { user_id: userId },
-      message: { text: text }
-    });
-
-    const options = {
-      hostname: 'openapi.zalo.me',
-      port: 443,
-      path: '/v3.0/oa/message/cs',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': token,
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          const response = JSON.parse(data);
-          if (response.error === 0) {
-            resolve(response);
-          } else {
-            reject(new Error(response.message || 'Bot API error'));
-          }
-        } catch (e) {
-          reject(new Error('Invalid response from Bot API'));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.write(postData);
-    req.end();
-  });
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

@@ -23,56 +23,6 @@
       position: relative;
     }
 
-    /* Reply Mode Toggle */
-    .reply-mode-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 6px 12px;
-      background: #f0f4f8;
-      border-radius: 8px;
-      margin-right: 10px;
-    }
-
-    .mode-switch {
-      display: flex;
-      background: #e0e5eb;
-      border-radius: 6px;
-      padding: 2px;
-    }
-
-    .mode-btn {
-      padding: 6px 12px;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      border-radius: 5px;
-      transition: all 0.2s;
-      color: #666;
-    }
-
-    .mode-btn:hover {
-      background: rgba(255,255,255,0.5);
-    }
-
-    .mode-btn.active {
-      background: white;
-      color: #333;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .mode-btn.active.personal {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: white;
-    }
-
-    .mode-btn.active.bot {
-      background: linear-gradient(135deg, #0068ff, #00aaff);
-      color: white;
-    }
-
     .user-info-panel {
       display: flex;
       align-items: center;
@@ -791,23 +741,19 @@
       </div>
     </div>
     <div class="header-right">
-      <!-- Reply Mode Toggle -->
-      <div class="reply-mode-container" id="replyModeContainer">
-        <span class="toggle-label"><span>📱</span><span>Chế độ</span></span>
-        <div class="mode-switch">
-          <button class="mode-btn active" id="modePersonal" onclick="setReplyMode('personal')" title="Dùng tài khoản cá nhân để trả lời">
-            👤 Cá nhân
-          </button>
-          <button class="mode-btn" id="modeBot" onclick="setReplyMode('bot')" title="Dùng Bot OA để trả lời">
-            🤖 Bot
-          </button>
-        </div>
-      </div>
+      <!-- Personal Auto Reply Toggle -->
       <div class="auto-reply-toggle-container" id="autoReplyToggleContainer">
-        <span class="toggle-label"><span>🤖</span><span>Auto Reply</span></span>
+        <span class="toggle-label"><span>👤</span><span>Cá nhân</span></span>
         <label class="toggle-switch"><input type="checkbox" id="autoReplyToggle" onchange="toggleAutoReply()"
             disabled><span class="toggle-slider"></span></label>
         <span class="toggle-status loading" id="autoReplyStatus">...</span>
+      </div>
+      <!-- Bot Auto Reply Toggle -->
+      <div class="auto-reply-toggle-container" id="botAutoReplyContainer">
+        <span class="toggle-label"><span>🤖</span><span>Bot OA</span></span>
+        <label class="toggle-switch"><input type="checkbox" id="botAutoReplyToggle" onchange="toggleBotAutoReply()">
+          <span class="toggle-slider"></span></label>
+        <span class="toggle-status off" id="botAutoReplyStatus">OFF</span>
       </div>
       <button class="header-btn notification-btn" onclick="openActivityWindow()">
         <span>📋</span><span>Lịch sử</span>
@@ -1259,7 +1205,7 @@
           if (ws?.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'get_current_user' }));
             ws.send(JSON.stringify({ type: 'get_auto_reply_status' }));
-            ws.send(JSON.stringify({ type: 'get_reply_mode' }));
+            ws.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
             ws.send(JSON.stringify({ type: 'get_triggers' }));
             ws.send(JSON.stringify({ type: 'get_friends' }));
             ws.send(JSON.stringify({ type: 'get_activity_logs', limit: 100 }));
@@ -1351,12 +1297,13 @@
         }
       }
 
-      // Reply Mode status
-      if (data.type === 'reply_mode_status') {
-        currentReplyMode = data.mode || 'personal';
-        localStorage.setItem('replyMode', currentReplyMode);
-        updateReplyModeUI(currentReplyMode);
-        console.log('📱 Reply mode:', currentReplyMode);
+      // Bot Auto Reply status
+      if (data.type === 'bot_auto_reply_status') {
+        botAutoReplyEnabled = data.enabled;
+        const toggle = document.getElementById('botAutoReplyToggle');
+        if (toggle) toggle.checked = data.enabled;
+        updateBotAutoReplyStatus(data.enabled ? 'on' : 'off', data.enabled ? 'ON' : 'OFF');
+        console.log('🤖 Bot Auto Reply:', data.enabled ? 'ON' : 'OFF');
       }
 
       if (data.type === 'flows_list') {
@@ -1570,62 +1517,54 @@
       }
     }
 
-    // Reply Mode (Personal / Bot)
-    let currentReplyMode = localStorage.getItem('replyMode') || 'personal';
+    // Bot Auto Reply
+    let botAutoReplyEnabled = false;
 
-    function initReplyMode() {
-      // Load saved mode
-      updateReplyModeUI(currentReplyMode);
-      // Get current mode from server
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'get_reply_mode' }));
+    function updateBotAutoReplyStatus(state, text) {
+      const s = document.getElementById('botAutoReplyStatus');
+      if (s) {
+        s.className = 'toggle-status ' + state;
+        s.textContent = text;
       }
     }
 
-    function setReplyMode(mode) {
-      if (mode === currentReplyMode) return;
+    function toggleBotAutoReply() {
+      const t = document.getElementById('botAutoReplyToggle');
+      if (!t) return;
 
-      // Check if bot token is configured when switching to bot mode
-      if (mode === 'bot') {
-        const botToken = localStorage.getItem('zalo_bot_token');
-        if (!botToken) {
-          showToast('⚠️ Chưa cấu hình Bot Token! Vui lòng vào Zalo Bot Manager để cấu hình.', 'warning');
-          // Open bot manager in new tab
-          if (confirm('Bạn muốn mở Zalo Bot Manager để cấu hình token?')) {
-            window.open('/zalo-bot-manager.html', '_blank');
-          }
-          return;
+      const newState = t.checked;
+
+      // Check if bot token is configured
+      const botToken = localStorage.getItem('zalo_bot_token');
+      if (newState && !botToken) {
+        t.checked = false;
+        showToast('⚠️ Chưa cấu hình Bot Token! Vui lòng vào Zalo Bot Manager để cấu hình.', 'warning');
+        if (confirm('Bạn muốn mở Zalo Bot Manager để cấu hình token?')) {
+          window.open('/zalo-bot-manager.html', '_blank');
         }
+        return;
       }
 
-      currentReplyMode = mode;
-      localStorage.setItem('replyMode', mode);
-      updateReplyModeUI(mode);
+      updateBotAutoReplyStatus(newState ? 'on' : 'off', newState ? 'ON' : 'OFF');
 
-      // Send to server
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
-          type: 'set_reply_mode',
-          mode: mode,
-          botToken: mode === 'bot' ? localStorage.getItem('zalo_bot_token') : null
+          type: 'set_bot_auto_reply',
+          enabled: newState,
+          botToken: botToken
         }));
-        showToast(`✅ Đã chuyển sang chế độ ${mode === 'personal' ? 'Cá nhân' : 'Bot'}`, 'success');
+        showToast(`✅ Bot Auto Reply: ${newState ? 'BẬT' : 'TẮT'}`, 'success');
       } else {
+        t.checked = !newState;
+        updateBotAutoReplyStatus(!newState ? 'on' : 'off', !newState ? 'ON' : 'OFF');
         showToast('❌ Mất kết nối!', 'error');
       }
     }
 
-    function updateReplyModeUI(mode) {
-      const personalBtn = document.getElementById('modePersonal');
-      const botBtn = document.getElementById('modeBot');
-
-      personalBtn.classList.remove('active', 'personal');
-      botBtn.classList.remove('active', 'bot');
-
-      if (mode === 'personal') {
-        personalBtn.classList.add('active', 'personal');
-      } else {
-        botBtn.classList.add('active', 'bot');
+    function initBotAutoReply() {
+      // Get current status from server
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
       }
     }
 

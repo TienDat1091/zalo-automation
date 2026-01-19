@@ -821,33 +821,41 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
-        // REPLY MODE (Personal / Bot)
+        // BOT AUTO REPLY (Independent from Personal)
         // ============================================
-        else if (msg.type === 'get_reply_mode') {
-          const autoReplyState = require('../autoReply').autoReplyState;
+        else if (msg.type === 'get_bot_auto_reply_status') {
           ws.send(JSON.stringify({
-            type: 'reply_mode_status',
-            mode: autoReplyState.replyMode || 'personal'
+            type: 'bot_auto_reply_status',
+            enabled: apiState.botAutoReplyEnabled || false
           }));
         }
 
-        else if (msg.type === 'set_reply_mode') {
-          const autoReplyState = require('../autoReply').autoReplyState;
-          const mode = msg.mode || 'personal';
+        else if (msg.type === 'set_bot_auto_reply') {
+          apiState.botAutoReplyEnabled = msg.enabled;
 
-          autoReplyState.replyMode = mode;
+          // Store bot token for auto reply
+          if (msg.enabled && msg.botToken) {
+            apiState.botToken = msg.botToken;
 
-          // If bot mode, also store the token
-          if (mode === 'bot' && msg.botToken) {
-            autoReplyState.botToken = msg.botToken;
+            // Start polling if not already
+            if (!apiState.zaloBotPolling) {
+              console.log('🤖 Bot Auto Reply enabled, starting polling...');
+              // Trigger polling start
+              ws.send(JSON.stringify({ type: 'zalo_bot_start_polling', token: msg.botToken }));
+            }
+          } else if (!msg.enabled) {
+            // Stop polling when disabled
+            if (apiState.zaloBotPolling) {
+              apiState.zaloBotPolling = false;
+            }
           }
 
           broadcast(apiState, {
-            type: 'reply_mode_status',
-            mode: mode
+            type: 'bot_auto_reply_status',
+            enabled: msg.enabled
           });
 
-          console.log('📱 Reply Mode:', mode === 'personal' ? '👤 Cá nhân' : '🤖 Bot');
+          console.log('🤖 Bot Auto Reply:', msg.enabled ? 'BẬT' : 'TẮT');
         }
 
         // ============================================
@@ -3782,7 +3790,7 @@ function startWebSocketServer(apiState, httpServer) {
                     apiState.clients.forEach(c => { if (c.readyState === 1) c.send(eventMsg); });
 
                     // PROCESSS AUTO REPLY
-                    await processBotMessage(update, token);
+                    await processBotMessage(update, token, apiState);
 
                     // Update offset if update_id exists
                     if (update.update_id) offset = update.update_id + 1;
@@ -3896,8 +3904,14 @@ function startWebSocketServer(apiState, httpServer) {
 
 
 // Helper to process Zalo Bot Messages (Webhook or Polling)
-async function processBotMessage(update, token) {
+async function processBotMessage(update, token, apiState) {
   try {
+    // Check if bot auto reply is enabled
+    if (!apiState?.botAutoReplyEnabled) {
+      console.log('🤖 Bot Auto Reply is disabled, skipping...');
+      return;
+    }
+
     const zaloBot = require('./zaloBot');
     // Extract Info
     // Zalo structure: { sender: { id: "..." }, message: { text: "..." }, event_name: "user_send_text" }
@@ -3909,7 +3923,7 @@ async function processBotMessage(update, token) {
 
     // Handle "message.text.received" format
     if (eventName === 'message.text.received') {
-      senderId = update.message?.from?.id; // Or update.sender.id if exists
+      senderId = update.message?.from?.id;
       text = update.message?.text;
     }
 
@@ -3917,47 +3931,71 @@ async function processBotMessage(update, token) {
     if (eventName !== 'user_send_text' && eventName !== 'message.text.received') return;
 
     // ✅ SAVE CONTACT TO DB
-    const senderName = update.message?.from?.display_name || update.sender?.display_name || update.sender?.name || update.message?.from?.name || 'Unknown Zalo Name';
+    const senderName = update.message?.from?.display_name || update.sender?.display_name || update.sender?.name || update.message?.from?.name || 'Unknown';
     const senderAvatar = update.sender?.avatar || update.message?.from?.avatar || '';
     triggerDB.saveZaloBotContact(senderId, senderName, senderAvatar);
 
-    console.log(`🤖 Bot Msg from ${senderId}: ${text}`);
+    console.log(`🤖 Bot Msg from ${senderName} (${senderId}): ${text}`);
 
-    // Load Triggers (Default Group for now, or match all)
+    // Load ALL enabled triggers
     const allTriggers = triggerDB.getAllTriggers();
-    // Default group? Users usually have "General" or specific groups. 
-    // We will scan ALL enabled triggers for now.
+    const inputLower = text.toLowerCase().trim();
 
-    // Simple Keyword Match
+    // Match trigger by keyword
     const matched = allTriggers.find(t => {
       if (!t.isEnabled) return false;
-      const content = t.triggerContent.toLowerCase();
-      const input = text.toLowerCase();
 
-      if (t.triggerType === 'exact') return input === content;
-      if (t.triggerType === 'contains') return input.includes(content);
+      // Get keywords from triggerKey (comma-separated)
+      const keywords = (t.triggerKey || '').split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+      if (keywords.length === 0) return false;
+
+      // Check match based on setMode
+      // setMode: 0 = contains, 1 = exact, 2 = startsWith, 3 = endsWith
+      for (const keyword of keywords) {
+        if (t.setMode === 1) {
+          if (inputLower === keyword) return true;
+        } else if (t.setMode === 2) {
+          if (inputLower.startsWith(keyword)) return true;
+        } else if (t.setMode === 3) {
+          if (inputLower.endsWith(keyword)) return true;
+        } else {
+          // Default: contains
+          if (inputLower.includes(keyword)) return true;
+        }
+      }
       return false;
     });
 
     if (matched) {
       console.log(`🎯 Bot Trigger Matched: ${matched.triggerName}`);
 
-      // Handle Reply
-      let replyContent = '';
-      if (matched.responses && matched.responses.length > 0) {
-        // Pick one or all? AutoReply.js usually picks one random or sequential.
-        // Simplified: Pick first
-        replyContent = matched.responses[0].content;
+      // Get reply content
+      let replyContent = matched.triggerContent || '';
+
+      // Check if has flow
+      if (matched.flowId) {
+        // TODO: Execute flow for bot (complex - needs separate implementation)
+        console.log(`⚙️ Bot Flow execution not implemented yet, using direct reply`);
       }
 
       if (replyContent) {
+        // Simple variable substitution
+        replyContent = replyContent
+          .replace(/\{zalo_name\}/gi, senderName)
+          .replace(/\{zalo_id\}/gi, senderId)
+          .replace(/\{message\}/gi, text)
+          .replace(/\{time\}/gi, new Date().toLocaleTimeString('vi-VN'))
+          .replace(/\{date\}/gi, new Date().toLocaleDateString('vi-VN'));
+
         await zaloBot.sendMessage(token, senderId, replyContent);
-        console.log(`✅ Bot Replied: ${replyContent}`);
+        console.log(`✅ Bot Replied: ${replyContent.substring(0, 50)}...`);
       }
+    } else {
+      console.log(`📭 No trigger matched for: "${text}"`);
     }
 
   } catch (err) {
-    console.error('Bot AutoReply Error:', err.message);
+    console.error('❌ Bot AutoReply Error:', err.message);
   }
 }
 
