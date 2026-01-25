@@ -15,7 +15,7 @@ body {
   height: calc(100vh - 64px);
   /* Subtract Unified Header height */
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 320px minmax(0, 1fr);
   background: white;
   overflow: hidden;
 }
@@ -37,6 +37,10 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -282,6 +286,8 @@ body {
   overflow-y: auto;
   background: white;
   min-height: 0;
+  height: 0;
+  /* Force flex calculation */
 }
 
 .virtual-scroll-container {
