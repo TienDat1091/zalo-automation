@@ -1,7 +1,7 @@
 // public/blocks/index.js
 // Block Registry for BROWSER - Load đầu tiên!
 
-(function(global) {
+(function (global) {
   'use strict';
 
   // ========================================
@@ -60,7 +60,7 @@
   // ========================================
   // UTILITY FUNCTIONS
   // ========================================
-  FlowBuilder.escapeHtml = function(text) {
+  FlowBuilder.escapeHtml = function (text) {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
@@ -69,12 +69,12 @@
   // ========================================
   // BLOCK REGISTRATION
   // ========================================
-  FlowBuilder.registerBlock = function(type, config) {
+  FlowBuilder.registerBlock = function (type, config) {
     if (!type || !config) {
       console.error('❌ registerBlock: type and config required');
       return;
     }
-    
+
     FlowBuilder.blocks[type] = config;
     console.log('  ✓ Block registered:', type);
   };
@@ -82,38 +82,63 @@
   // ========================================
   // BLOCK METHODS
   // ========================================
-  FlowBuilder.getBlockTypes = function() {
+  FlowBuilder.getBlockTypes = function () {
     return FlowBuilder.blocks;
   };
 
-  FlowBuilder.getBlock = function(type) {
+  FlowBuilder.getBlock = function (type) {
     return FlowBuilder.blocks[type] || null;
   };
 
-  FlowBuilder.getBlockList = function() {
+  FlowBuilder.getBlockList = function () {
     return Object.values(FlowBuilder.blocks);
   };
 
   // Render properties form for a block
-  FlowBuilder.renderPropertiesForm = function(block, context) {
+  FlowBuilder.renderPropertiesForm = function (block, context) {
     const config = FlowBuilder.blocks[block.blockType];
     if (!config || !config.renderForm) {
       return '<div class="property-info">⚠️ Block này chưa có form cấu hình</div>';
     }
-    return config.renderForm(block, block.blockData || {}, context || {});
+
+    const data = block.blockData || {};
+    let html = config.renderForm(block, data, context || {});
+
+    // Common Note Field for ALL blocks
+    html += `
+      <div class="property-group" style="margin-top:20px; border-top: 1px dashed #ddd; padding-top:16px;">
+        <label class="property-label">📝 Ghi chú Block</label>
+        <textarea class="property-input property-textarea" id="prop_common_note" rows="3" 
+          placeholder="Ghi chú chức năng của block này...">${FlowBuilder.escapeHtml(data.note || '')}</textarea>
+        <div class="property-hint">Ghi chú hiển thị trên canvas giúp bạn dễ quản lý flow.</div>
+      </div>
+    `;
+
+    return html;
   };
 
   // Save properties from form
-  FlowBuilder.saveBlockProperties = function(blockType) {
+  FlowBuilder.saveBlockProperties = function (blockType) {
     const config = FlowBuilder.blocks[blockType];
-    if (!config || !config.saveForm) {
-      return { blockData: {} };
+    const data = config && config.saveForm ? config.saveForm() : { blockData: {} };
+
+    // Auto-wrap if simple object returned
+    if (!data.blockData) {
+      const wrapped = { blockData: data };
+      data = wrapped; // This is a bit messy, but let's see how they handle it
     }
-    return config.saveForm();
+
+    // Capture common note
+    const noteEl = document.getElementById('prop_common_note');
+    if (noteEl) {
+      data.blockData.note = noteEl.value;
+    }
+
+    return data;
   };
 
   // Get preview text for block
-  FlowBuilder.getBlockPreview = function(blockType, data) {
+  FlowBuilder.getBlockPreview = function (blockType, data) {
     const config = FlowBuilder.blocks[blockType];
     if (!config || !config.preview) {
       return '';
@@ -122,7 +147,7 @@
   };
 
   // Render block palette (danh sách blocks bên trái)
-  FlowBuilder.renderBlockPalette = function(containerId) {
+  FlowBuilder.renderBlockPalette = function (containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -161,7 +186,7 @@
   // ========================================
   // INITIALIZATION
   // ========================================
-  FlowBuilder.init = function() {
+  FlowBuilder.init = function () {
     if (FlowBuilder.initialized) return;
     FlowBuilder.initialized = true;
     console.log('✅ FlowBuilder v' + FlowBuilder.version + ' initialized');

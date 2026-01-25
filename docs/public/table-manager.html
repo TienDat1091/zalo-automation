@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Table Manager - Quản lý bảng dữ liệu</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; min-height: 100vh; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #f5f7fa;
+      min-height: 100vh;
+    }
 
     .header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -18,19 +28,42 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
-    .header-left { display: flex; align-items: center; gap: 16px; }
-    .back-link { color: white; font-size: 20px; cursor: pointer; text-decoration: none; opacity: 0.9; }
-    .back-link:hover { opacity: 1; }
-    .header h1 { font-size: 18px; font-weight: 600; }
-    .header-actions { display: flex; gap: 8px; }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .back-link {
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      text-decoration: none;
+      opacity: 0.9;
+    }
+
+    .back-link:hover {
+      opacity: 1;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
 
     .btn {
       padding: 8px 16px;
-      border: 1px solid rgba(255,255,255,0.3);
+      border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 6px;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       color: white;
       font-size: 13px;
       font-weight: 600;
@@ -40,18 +73,62 @@
       gap: 6px;
       transition: all 0.2s;
     }
-    .btn:hover { background: rgba(255,255,255,0.2); }
-    .btn-white { background: white; color: #667eea; border-color: white; }
-    .btn-white:hover { background: #f0f0f0; }
-    .btn-primary { background: #0084ff; color: white; border-color: #0084ff; }
-    .btn-primary:hover { background: #006edb; }
-    .btn-danger { color: #f44336; border-color: #f44336; background: white; }
-    .btn-danger:hover { background: #f44336; color: white; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-    .btn-outline { background: white; color: #333; border-color: #e0e0e0; }
-    .btn-outline:hover { border-color: #0084ff; color: #0084ff; }
 
-    .main-container { display: flex; height: calc(100vh - 53px); }
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-white {
+      background: white;
+      color: #667eea;
+      border-color: white;
+    }
+
+    .btn-white:hover {
+      background: #f0f0f0;
+    }
+
+    .btn-primary {
+      background: #0084ff;
+      color: white;
+      border-color: #0084ff;
+    }
+
+    .btn-primary:hover {
+      background: #006edb;
+    }
+
+    .btn-danger {
+      color: #f44336;
+      border-color: #f44336;
+      background: white;
+    }
+
+    .btn-danger:hover {
+      background: #f44336;
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    .btn-outline {
+      background: white;
+      color: #333;
+      border-color: #e0e0e0;
+    }
+
+    .btn-outline:hover {
+      border-color: #0084ff;
+      color: #0084ff;
+    }
+
+    .main-container {
+      display: flex;
+      height: calc(100vh - 53px);
+    }
 
     .sidebar {
       width: 280px;
@@ -60,9 +137,25 @@
       display: flex;
       flex-direction: column;
     }
-    .sidebar-header { padding: 16px; border-bottom: 1px solid #e0e0e0; }
-    .sidebar-header h3 { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; }
-    .tables-list { flex: 1; overflow-y: auto; padding: 12px; }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .sidebar-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 12px;
+    }
+
+    .tables-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
     .table-item {
       padding: 12px;
       border: 1px solid #e0e0e0;
@@ -71,13 +164,43 @@
       cursor: pointer;
       transition: all 0.2s;
     }
-    .table-item:hover { border-color: #0084ff; background: #f5f9ff; }
-    .table-item.active { border-color: #0084ff; background: #e3f2fd; }
-    .table-item-name { font-weight: 600; font-size: 14px; color: #333; margin-bottom: 4px; }
-    .table-item-info { font-size: 11px; color: #999; display: flex; gap: 12px; }
-    .table-item-actions { display: flex; gap: 4px; margin-top: 8px; }
 
-    .content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .table-item:hover {
+      border-color: #0084ff;
+      background: #f5f9ff;
+    }
+
+    .table-item.active {
+      border-color: #0084ff;
+      background: #e3f2fd;
+    }
+
+    .table-item-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .table-item-info {
+      font-size: 11px;
+      color: #999;
+      display: flex;
+      gap: 12px;
+    }
+
+    .table-item-actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    .content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
     .toolbar {
       background: #fff;
@@ -88,6 +211,7 @@
       gap: 12px;
       flex-wrap: wrap;
     }
+
     .toolbar-group {
       display: flex;
       align-items: center;
@@ -95,8 +219,17 @@
       padding-right: 12px;
       border-right: 1px solid #e0e0e0;
     }
-    .toolbar-group:last-child { border-right: none; }
-    .toolbar-label { font-size: 13px; color: #333; font-weight: 600; }
+
+    .toolbar-group:last-child {
+      border-right: none;
+    }
+
+    .toolbar-label {
+      font-size: 13px;
+      color: #333;
+      font-weight: 600;
+    }
+
     .search-input {
       padding: 6px 12px;
       border: 1px solid #e0e0e0;
@@ -105,9 +238,17 @@
       width: 200px;
       outline: none;
     }
-    .search-input:focus { border-color: #0084ff; }
 
-    .table-container { flex: 1; overflow: auto; padding: 20px; background: #fafbfc; }
+    .search-input:focus {
+      border-color: #0084ff;
+    }
+
+    .table-container {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+      background: #fafbfc;
+    }
 
     .empty-state {
       display: flex;
@@ -117,7 +258,11 @@
       height: 100%;
       color: #999;
     }
-    .empty-state-icon { font-size: 64px; margin-bottom: 16px; }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
 
     .spreadsheet {
       background: #fff;
@@ -126,8 +271,20 @@
       overflow: hidden;
       display: none;
     }
-    .spreadsheet table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-    .spreadsheet th, .spreadsheet td { border: 1px solid #e0e0e0; padding: 0; position: relative; }
+
+    .spreadsheet table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .spreadsheet th,
+    .spreadsheet td {
+      border: 1px solid #e0e0e0;
+      padding: 0;
+      position: relative;
+    }
+
     .spreadsheet th {
       background: linear-gradient(180deg, #f8f9fa 0%, #f0f2f5 100%);
       font-weight: 600;
@@ -149,8 +306,15 @@
       cursor: pointer;
       font-weight: 500;
     }
-    .row-num:hover { background: #e3f2fd; }
-    .row-num.selected { background: #0084ff; color: white; }
+
+    .row-num:hover {
+      background: #e3f2fd;
+    }
+
+    .row-num.selected {
+      background: #0084ff;
+      color: white;
+    }
 
     .col-header {
       height: 40px;
@@ -160,13 +324,45 @@
       cursor: pointer;
       gap: 8px;
     }
-    .col-header:hover { background: rgba(0,0,0,0.05); }
-    .col-header-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-    .col-header-type { font-size: 10px; color: #999; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
-    .col-resize { position: absolute; right: 0; top: 0; bottom: 0; width: 5px; cursor: col-resize; }
-    .col-resize:hover { background: #0084ff; }
 
-    .cell { min-width: 120px; height: 36px; }
+    .col-header:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .col-header-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
+    .col-header-type {
+      font-size: 10px;
+      color: #999;
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .col-resize {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      cursor: col-resize;
+    }
+
+    .col-resize:hover {
+      background: #0084ff;
+    }
+
+    .cell {
+      min-width: 120px;
+      height: 36px;
+    }
+
     .cell-input {
       width: 100%;
       height: 100%;
@@ -176,9 +372,17 @@
       background: transparent;
       outline: none;
     }
-    .cell-input:focus { background: #fff8e1; box-shadow: inset 0 0 0 2px #0084ff; }
 
-    .add-col-th { width: 50px !important; min-width: 50px !important; }
+    .cell-input:focus {
+      background: #fff8e1;
+      box-shadow: inset 0 0 0 2px #0084ff;
+    }
+
+    .add-col-th {
+      width: 50px !important;
+      min-width: 50px !important;
+    }
+
     .add-col-btn {
       width: 100%;
       height: 40px;
@@ -190,7 +394,10 @@
       font-size: 18px;
       font-weight: bold;
     }
-    .add-col-btn:hover { background: #e3f2fd; }
+
+    .add-col-btn:hover {
+      background: #e3f2fd;
+    }
 
     .add-row-btn {
       background: #fafbfc;
@@ -201,19 +408,29 @@
       padding: 12px;
       font-weight: 500;
     }
-    .add-row-btn:hover { background: #e3f2fd; }
+
+    .add-row-btn:hover {
+      background: #e3f2fd;
+    }
 
     /* Modal */
     .modal-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
       display: none;
       align-items: center;
       justify-content: center;
       z-index: 1000;
     }
-    .modal-overlay.show { display: flex; }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
     .modal {
       background: #fff;
       border-radius: 12px;
@@ -221,9 +438,13 @@
       max-width: 500px;
       max-height: 90vh;
       overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     }
-    .modal.wide { max-width: 800px; }
+
+    .modal.wide {
+      max-width: 800px;
+    }
+
     .modal-header {
       padding: 16px 20px;
       border-bottom: 1px solid #e0e0e0;
@@ -231,9 +452,26 @@
       align-items: center;
       justify-content: space-between;
     }
-    .modal-header h3 { font-size: 16px; font-weight: 600; }
-    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #999; }
-    .modal-body { padding: 20px; overflow-y: auto; max-height: 60vh; }
+
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+
     .modal-footer {
       padding: 16px 20px;
       border-top: 1px solid #e0e0e0;
@@ -242,8 +480,18 @@
       gap: 8px;
     }
 
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 6px;
+    }
+
     .form-input {
       width: 100%;
       padding: 10px 12px;
@@ -252,10 +500,17 @@
       font-size: 14px;
       outline: none;
     }
-    .form-input:focus { border-color: #0084ff; }
+
+    .form-input:focus {
+      border-color: #0084ff;
+    }
 
     /* Activity Log Styles */
-    .log-list { max-height: 400px; overflow-y: auto; }
+    .log-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
     .log-item {
       padding: 12px;
       border-bottom: 1px solid #f0f0f0;
@@ -263,7 +518,11 @@
       gap: 12px;
       align-items: flex-start;
     }
-    .log-item:last-child { border-bottom: none; }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
     .log-icon {
       width: 32px;
       height: 32px;
@@ -274,15 +533,50 @@
       font-size: 14px;
       flex-shrink: 0;
     }
-    .log-icon.create { background: #e8f5e9; }
-    .log-icon.update { background: #e3f2fd; }
-    .log-icon.delete { background: #ffebee; }
-    .log-icon.add { background: #fff3e0; }
-    .log-content { flex: 1; }
-    .log-title { font-size: 13px; font-weight: 600; color: #333; }
-    .log-detail { font-size: 12px; color: #666; margin-top: 2px; }
-    .log-time { font-size: 11px; color: #999; margin-top: 4px; }
-    .log-empty { text-align: center; padding: 40px; color: #999; }
+
+    .log-icon.create {
+      background: #e8f5e9;
+    }
+
+    .log-icon.update {
+      background: #e3f2fd;
+    }
+
+    .log-icon.delete {
+      background: #ffebee;
+    }
+
+    .log-icon.add {
+      background: #fff3e0;
+    }
+
+    .log-content {
+      flex: 1;
+    }
+
+    .log-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .log-detail {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .log-time {
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    .log-empty {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
 
     /* Toast */
     .toast {
@@ -296,12 +590,29 @@
       z-index: 9999;
       animation: slideIn 0.3s ease;
     }
-    .toast.success { background: #4caf50; }
-    .toast.error { background: #f44336; }
-    .toast.info { background: #2196f3; }
+
+    .toast.success {
+      background: #4caf50;
+    }
+
+    .toast.error {
+      background: #f44336;
+    }
+
+    .toast.info {
+      background: #2196f3;
+    }
+
     @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
     }
 
     /* Context Menu */
@@ -310,13 +621,17 @@
       background: #fff;
       border: 1px solid #e0e0e0;
       border-radius: 8px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
       padding: 8px 0;
       min-width: 180px;
       z-index: 1000;
       display: none;
     }
-    .context-menu.show { display: block; }
+
+    .context-menu.show {
+      display: block;
+    }
+
     .context-menu-item {
       padding: 10px 16px;
       cursor: pointer;
@@ -325,9 +640,20 @@
       align-items: center;
       gap: 10px;
     }
-    .context-menu-item:hover { background: #f5f7fa; }
-    .context-menu-item.danger { color: #f44336; }
-    .context-menu-divider { height: 1px; background: #e0e0e0; margin: 8px 0; }
+
+    .context-menu-item:hover {
+      background: #f5f7fa;
+    }
+
+    .context-menu-item.danger {
+      color: #f44336;
+    }
+
+    .context-menu-divider {
+      height: 1px;
+      background: #e0e0e0;
+      margin: 8px 0;
+    }
 
     .status-badge {
       display: inline-block;
@@ -336,10 +662,19 @@
       font-size: 11px;
       font-weight: 600;
     }
-    .status-badge.active { background: #e8f5e9; color: #4caf50; }
-    .status-badge.inactive { background: #fce4ec; color: #e91e63; }
+
+    .status-badge.active {
+      background: #e8f5e9;
+      color: #4caf50;
+    }
+
+    .status-badge.inactive {
+      background: #fce4ec;
+      color: #e91e63;
+    }
   </style>
 </head>
+
 <body>
   <div class="header">
     <div class="header-left">
@@ -374,7 +709,8 @@
           <button class="btn btn-sm btn-danger" onclick="deleteSelectedRows()">🗑️ Xóa hàng</button>
         </div>
         <div class="toolbar-group">
-          <input type="text" class="search-input" placeholder="🔍 Tìm trong bảng..." oninput="searchInTable(this.value)">
+          <input type="text" class="search-input" placeholder="🔍 Tìm trong bảng..."
+            oninput="searchInTable(this.value)">
         </div>
       </div>
 
@@ -505,22 +841,22 @@
       const wsUrl = `${protocol}//${location.host || 'localhost:3000'}`;
 
       ws = new WebSocket(wsUrl);
-      
+
       ws.onopen = () => {
         console.log('✅ WebSocket connected');
         send({ type: 'get_tables' });
       };
-      
+
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         handleMessage(data);
       };
-      
+
       ws.onerror = (err) => {
         console.error('❌ WebSocket error:', err);
         showToast('❌ Lỗi kết nối WebSocket', 'error');
       };
-      
+
       ws.onclose = () => {
         console.log('WebSocket closed, reconnecting...');
         setTimeout(connect, 3000);
@@ -535,19 +871,19 @@
 
     function handleMessage(data) {
       console.log('📩 Received:', data.type);
-      
+
       switch (data.type) {
         case 'tables_list':
           state.tables = data.tables || [];
           renderTablesList();
           break;
-          
+
         case 'table_created':
           showToast('✅ Tạo bảng thành công', 'success');
           send({ type: 'get_tables' });
           if (data.table) selectTable(data.table.tableID);
           break;
-          
+
         case 'table_updated':
           if (data.table && state.currentTableId === data.table.tableID) {
             state.currentTable = data.table;
@@ -555,7 +891,7 @@
           }
           send({ type: 'get_tables' });
           break;
-          
+
         case 'table_deleted':
           showToast('🗑️ Đã xóa bảng', 'info');
           state.currentTableId = null;
@@ -565,7 +901,7 @@
           document.getElementById('toolbar').style.display = 'none';
           send({ type: 'get_tables' });
           break;
-          
+
         case 'row_added':
         case 'row_deleted':
         case 'rows_deleted':
@@ -577,25 +913,25 @@
             send({ type: 'get_table_detail', tableID: state.currentTableId });
           }
           break;
-          
+
         case 'table_detail':
           if (data.table) {
             state.currentTable = data.table;
             renderSpreadsheet();
           }
           break;
-          
+
         case 'activity_logs':
           state.logs = data.logs || [];
           renderLogs();
           break;
-          
+
         case 'logs_cleared':
           state.logs = [];
           renderLogs();
           showToast('✅ Đã xóa log', 'success');
           break;
-          
+
         case 'error':
           showToast('❌ ' + (data.message || 'Có lỗi xảy ra'), 'error');
           break;
@@ -605,11 +941,11 @@
     function renderTablesList() {
       const container = document.getElementById('tablesList');
       const searchTerm = state.searchTerm.toLowerCase();
-      
-      const filtered = state.tables.filter(t => 
+
+      const filtered = state.tables.filter(t =>
         t.tableName.toLowerCase().includes(searchTerm)
       );
-      
+
       if (filtered.length === 0) {
         container.innerHTML = `
           <div style="text-align:center;padding:40px 20px;color:#999;">
@@ -619,7 +955,7 @@
         `;
         return;
       }
-      
+
       container.innerHTML = filtered.map(t => `
         <div class="table-item ${state.currentTableId === t.tableID ? 'active' : ''}" 
              onclick="selectTable(${t.tableID})">
@@ -652,13 +988,13 @@
       // Header
       let headHtml = '<tr>';
       headHtml += '<th class="row-num">#</th>';
-      
+
       columns.forEach((col) => {
         const colId = col.columnID;
         const colName = col.columnName || col.name || 'Cột';
         const colType = col.columnType || col.type || 'text';
         const colWidth = col.width || 150;
-        
+
         headHtml += `
           <th style="width: ${colWidth}px; min-width: ${colWidth}px;">
             <div class="col-header" onclick="editColumn(${colId})" title="Click để chỉnh sửa">
@@ -669,7 +1005,7 @@
           </th>
         `;
       });
-      
+
       headHtml += '<th class="add-col-th"><div class="add-col-btn" onclick="addColumn()" title="Thêm cột">+</div></th>';
       headHtml += '</tr>';
       document.getElementById('tableHead').innerHTML = headHtml;
@@ -686,21 +1022,21 @@
             ${rowIdx + 1}
           </td>
         `;
-        
+
         columns.forEach(col => {
           const colId = col.columnID;
           const colName = col.columnName || col.name;
           let value = '';
-          
+
           if (row.rowData) {
             value = row.rowData[colId] || row.rowData[colName] || '';
           }
-          
+
           if (!value && row.cells) {
             const cell = row.cells.find(c => c.columnID === colId || c.columnID == colId);
             if (cell) value = cell.cellValue || cell.value || '';
           }
-          
+
           const colWidth = col.width || 150;
           bodyHtml += `
             <td class="cell" style="width: ${colWidth}px; min-width: ${colWidth}px;">
@@ -708,7 +1044,7 @@
             </td>
           `;
         });
-        
+
         bodyHtml += '<td></td></tr>';
       });
 
@@ -737,9 +1073,9 @@
         `;
       }
 
-      const inputType = colType === 'number' ? 'number' : 
-                        colType === 'date' ? 'date' : 
-                        colType === 'email' ? 'email' : 'text';
+      const inputType = colType === 'number' ? 'number' :
+        colType === 'date' ? 'date' :
+          colType === 'email' ? 'email' : 'text';
 
       return `
         <input type="${inputType}" 
@@ -768,20 +1104,20 @@
 
     function renderLogs() {
       const container = document.getElementById('logList');
-      
+
       if (state.logs.length === 0) {
         container.innerHTML = '<div class="log-empty">📭 Chưa có hoạt động nào</div>';
         return;
       }
-      
+
       const actionIcons = { create: '➕', update: '✏️', delete: '🗑️', add: '📝' };
       const actionLabels = { create: 'Tạo mới', update: 'Cập nhật', delete: 'Xóa', add: 'Thêm' };
-      
+
       container.innerHTML = state.logs.map(log => {
         const time = new Date(log.timestamp).toLocaleString('vi-VN');
         const icon = actionIcons[log.action] || '📄';
         const actionLabel = actionLabels[log.action] || log.action;
-        
+
         return `
           <div class="log-item">
             <div class="log-icon ${log.action}">${icon}</div>
@@ -999,4 +1335,5 @@
     connect();
   </script>
 </body>
+
 </html>

@@ -1,5 +1,5 @@
 // auto-reconnect.js - Auto reconnect WebSocket when server restarts
-(function() {
+(function () {
   if (typeof window.ws === 'undefined') return;
 
   const originalWs = window.ws;
@@ -7,9 +7,10 @@
   let isReconnecting = false;
 
   // Override WebSocket close handler
+  if (!originalWs) return;
   const originalOnClose = originalWs.onclose;
 
-  originalWs.onclose = function(event) {
+  originalWs.onclose = function (event) {
     console.log('🔌 WebSocket closed, attempting to reconnect...');
 
     if (originalOnClose) {

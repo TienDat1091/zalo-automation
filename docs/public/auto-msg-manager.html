@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Tin nhắn Tự động - Zalo Automation</title>
+    <link rel="stylesheet" href="/assets/style_bank_manager.css">
+    <style>
+        .routine-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .routine-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f0f0f0;
+            transition: all 0.3s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .routine-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .routine-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .routine-info h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #1e3a5f;
+        }
+
+        .routine-info p {
+            margin: 5px 0 0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .routine-time {
+            background: #e3f2fd;
+            color: #007bff;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .integration-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .int-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: #f5f5f5;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .int-badge.active {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .routine-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* Integration Config UI */
+        .config-section {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+
+        .config-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .switch-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .switch-label {
+            font-size: 13px;
+            color: #444;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>🤖 Quản lý Tin nhắn Tự động</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openRoutineModal()">+ Tạo Routine mới</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="routine-grid" id="routinesList">
+            <div style="grid-column: 1/-1; text-align: center; padding: 50px;">
+                <div class="spinner"></div>
+                <p>Đang tải danh sách routines...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create/Edit Routine -->
+    <div class="modal-overlay" id="routineModal">
+        <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 id="modalTitle">Thiết lập Routine mới</h3>
+                <button class="modal-close" onclick="closeRoutineModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editRoutineId">
+
+                <div class="form-group">
+                    <label>Tên Routine (vd: Chào buổi sáng)</label>
+                    <input type="text" class="form-control" id="routineName" placeholder="Nhập tên routine...">
+                </div>
+
+                <div class="form-row" style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Khung giờ chạy (HH:mm)</label>
+                        <input type="time" class="form-control" id="atTime">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Tần suất</label>
+                        <select class="form-control" id="frequency">
+                            <option value="daily">Hàng ngày</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Người nhận / Nhóm</label>
+                    <select class="form-control" id="targetSelect">
+                        <option value="">-- Chọn người nhận --</option>
+                    </select>
+                </div>
+
+                <div class="config-section">
+                    <div class="config-title">🛠️ Các module tích hợp</div>
+
+                    <div class="switch-group">
+                        <span class="switch-label">🌤️ Thông tin thời tiết</span>
+                        <label class="uh-toggle-switch">
+                            <input type="checkbox" id="int-weather">
+                            <span class="uh-toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="switch-group">
+                        <span class="switch-label">🌬️ Chất lượng không khí</span>
+                        <label class="uh-toggle-switch">
+                            <input type="checkbox" id="int-air">
+                            <span class="uh-toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="switch-group">
+                        <span class="switch-label">📰 Tin tức mới nhất (RSS)</span>
+                        <label class="uh-toggle-switch">
+                            <input type="checkbox" id="int-news">
+                            <span class="uh-toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="switch-group">
+                        <span class="switch-label">📊 Lấy dữ liệu Google Sheet</span>
+                        <label class="uh-toggle-switch">
+                            <input type="checkbox" id="int-gsheet" onchange="toggleGSheetConfig()">
+                            <span class="uh-toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div id="gsheet-config"
+                        style="display:none; margin-top:10px; padding-left:10px; border-left:2px solid #ddd;">
+                        <select class="form-control" id="gsheet-id">
+                            <option value="">-- Chọn cấu hình Sheet --</option>
+                        </select>
+                    </div>
+
+                    <div class="switch-group">
+                        <span class="switch-label">⚡ Chạy Kịch bản (Flow Builder)</span>
+                        <label class="uh-toggle-switch">
+                            <input type="checkbox" id="int-flow" onchange="toggleFlowConfig()">
+                            <span class="uh-toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div id="flow-config"
+                        style="display:none; margin-top:10px; padding-left:10px; border-left:2px solid #ddd;">
+                        <select class="form-control" id="flow-id">
+                            <option value="">-- Chọn kịch bản --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Lời nhắn tùy chỉnh kèm theo</label>
+                    <textarea class="form-control" id="customMsg" rows="3"
+                        placeholder="Chúc một ngày tốt lành..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeRoutineModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveRoutine()">💾 Lưu Routine</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let routines = [];
+        let cachedFriends = [];
+        let cachedGroups = [];
+        let cachedFlows = [];
+        let cachedSheets = [];
+
+        function connectWS() {
+            ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ type: 'get_automation_routines' }));
+                ws.send(JSON.stringify({ type: 'get_friends' }));
+                ws.send(JSON.stringify({ type: 'get_groups' }));
+                ws.send(JSON.stringify({ type: 'get_all_flows' }));
+                ws.send(JSON.stringify({ type: 'get_google_sheet_configs' }));
+            };
+            ws.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                switch (data.type) {
+                    case 'automation_routines_list':
+                        routines = data.routines;
+                        renderRoutines();
+                        break;
+                    case 'friends_list':
+                        cachedFriends = data.friends || [];
+                        updateTargetSelect();
+                        break;
+                    case 'groups_list':
+                        cachedGroups = data.groups || [];
+                        updateTargetSelect();
+                        break;
+                    case 'flows_list':
+                        cachedFlows = data.flows || [];
+                        updateFlowSelect();
+                        break;
+                    case 'google_sheet_configs':
+                        cachedSheets = data.configs || [];
+                        updateSheetSelect();
+                        break;
+                }
+            };
+            ws.onclose = () => setTimeout(connectWS, 3000);
+        }
+
+        function updateTargetSelect() {
+            const select = document.getElementById('targetSelect');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">-- Chọn người nhận --</option>';
+
+            const fg = document.createElement('optgroup'); fg.label = '👤 Bạn bè';
+            cachedFriends.forEach(f => fg.innerHTML += `<option value="${f.userId}" data-name="${f.displayName}">${f.displayName}</option>`);
+            select.appendChild(fg);
+
+            const gg = document.createElement('optgroup'); gg.label = '👪 Nhóm';
+            cachedGroups.forEach(g => gg.innerHTML += `<option value="${g.id}" data-name="${g.name}">${g.name}</option>`);
+            select.appendChild(gg);
+
+            if (currentVal) select.value = currentVal;
+        }
+
+        function updateFlowSelect() {
+            const select = document.getElementById('flow-id');
+            select.innerHTML = '<option value="">-- Chọn kịch bản --</option>';
+            cachedFlows.forEach(f => select.innerHTML += `<option value="${f.flowID}">${f.flowName}</option>`);
+        }
+
+        function updateSheetSelect() {
+            const select = document.getElementById('gsheet-id');
+            select.innerHTML = '<option value="">-- Chọn cấu hình Sheet --</option>';
+            cachedSheets.forEach(s => select.innerHTML += `<option value="${s.configID}">${s.name}</option>`);
+        }
+
+        function renderRoutines() {
+            const list = document.getElementById('routinesList');
+            if (routines.length === 0) {
+                list.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 50px; color: #999;">
+                    <div style="font-size: 40px; margin-bottom: 10px;">⏰</div>
+                    <p>Chưa có Routine tự động nào được thiết lập.</p>
+                </div>`;
+                return;
+            }
+
+            list.innerHTML = routines.map(r => `
+                <div class="routine-card">
+                    <div class="routine-header">
+                        <div class="routine-info">
+                            <h3>${escapeHtml(r.routineName)}</h3>
+                            <p>Đến: <b>${escapeHtml(r.targetName)}</b></p>
+                        </div>
+                        <div class="routine-time">${r.atTime}</div>
+                    </div>
+
+                    <div class="integration-badges">
+                        ${r.integrations.weather ? '<span class="int-badge active">🌤️ Thời tiết</span>' : ''}
+                        ${r.integrations.air ? '<span class="int-badge active">🌬️ Không khí</span>' : ''}
+                        ${r.integrations.news ? '<span class="int-badge active">📰 Tin tức</span>' : ''}
+                        ${r.integrations.googleSheet ? '<span class="int-badge active">📊 G-Sheet</span>' : ''}
+                        ${r.integrations.flowId ? '<span class="int-badge active">⚡ Flow</span>' : ''}
+                    </div>
+
+                    <div class="routine-footer">
+                        <div class="status-toggle">
+                            <label class="uh-toggle-switch">
+                                <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRoutine(${r.id}, this.checked)">
+                                <span class="uh-toggle-slider"></span>
+                            </label>
+                            <span>${r.enabled ? 'Đang bật' : 'Đã tắt'}</span>
+                        </div>
+                        <div class="actions">
+                            <button class="action-btn" onclick="editRoutine(${r.id})" style="color: #2196f3">✏️</button>
+                            <button class="action-btn" onclick="deleteRoutine(${r.id})" style="color: #f44336">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleGSheetConfig() {
+            document.getElementById('gsheet-config').style.display = document.getElementById('int-gsheet').checked ? 'block' : 'none';
+        }
+
+        function toggleFlowConfig() {
+            document.getElementById('flow-config').style.display = document.getElementById('int-flow').checked ? 'block' : 'none';
+        }
+
+        function openRoutineModal() {
+            document.getElementById('modalTitle').textContent = 'Thiết lập Routine mới';
+            document.getElementById('editRoutineId').value = '';
+            document.getElementById('routineName').value = '';
+            document.getElementById('atTime').value = '07:30';
+            document.getElementById('targetSelect').value = '';
+            document.getElementById('int-weather').checked = true;
+            document.getElementById('int-air').checked = true;
+            document.getElementById('int-news').checked = true;
+            document.getElementById('int-gsheet').checked = false;
+            document.getElementById('int-flow').checked = false;
+            document.getElementById('customMsg').value = '';
+            toggleGSheetConfig();
+            toggleFlowConfig();
+            document.getElementById('routineModal').classList.add('active');
+        }
+
+        function editRoutine(id) {
+            const r = routines.find(x => x.id === id);
+            if (!r) return;
+
+            document.getElementById('modalTitle').textContent = 'Chỉnh sửa Routine';
+            document.getElementById('editRoutineId').value = r.id;
+            document.getElementById('routineName').value = r.routineName;
+            document.getElementById('atTime').value = r.atTime;
+            document.getElementById('targetSelect').value = r.targetId;
+            document.getElementById('int-weather').checked = !!r.integrations.weather;
+            document.getElementById('int-air').checked = !!r.integrations.air;
+            document.getElementById('int-news').checked = !!r.integrations.news;
+            document.getElementById('int-gsheet').checked = !!r.integrations.googleSheet;
+            document.getElementById('gsheet-id').value = r.integrations.gsheetId || '';
+            document.getElementById('int-flow').checked = !!r.integrations.flowId;
+            document.getElementById('flow-id').value = r.integrations.flowId || '';
+            document.getElementById('customMsg').value = r.integrations.customMessage || '';
+
+            toggleGSheetConfig();
+            toggleFlowConfig();
+            document.getElementById('routineModal').classList.add('active');
+        }
+
+        function closeRoutineModal() {
+            document.getElementById('routineModal').classList.remove('active');
+        }
+
+        function saveRoutine() {
+            const name = document.getElementById('routineName').value;
+            const time = document.getElementById('atTime').value;
+            const target = document.getElementById('targetSelect');
+            const editId = document.getElementById('editRoutineId').value;
+
+            if (!name || !time || !target.value) {
+                alert('Vui lòng điền đủ thông tin cơ bản!');
+                return;
+            }
+
+            const routine = {
+                routineName: name,
+                atTime: time,
+                targetId: target.value,
+                targetName: target.options[target.selectedIndex].dataset.name,
+                integrations: {
+                    weather: document.getElementById('int-weather').checked,
+                    air: document.getElementById('int-air').checked,
+                    news: document.getElementById('int-news').checked,
+                    googleSheet: document.getElementById('int-gsheet').checked,
+                    gsheetId: document.getElementById('gsheet-id').value,
+                    flowId: document.getElementById('int-flow').checked ? document.getElementById('flow-id').value : null,
+                    customMessage: document.getElementById('customMsg').value
+                }
+            };
+
+            if (editId) {
+                ws.send(JSON.stringify({ type: 'update_automation_routine', id: parseInt(editId), updates: routine }));
+            } else {
+                ws.send(JSON.stringify({ type: 'create_automation_routine', routine }));
+            }
+            closeRoutineModal();
+        }
+
+        function toggleRoutine(id, enabled) {
+            ws.send(JSON.stringify({ type: 'update_automation_routine', id, updates: { enabled } }));
+        }
+
+        function deleteRoutine(id) {
+            if (confirm('Bạn có chắc muốn xóa routine này?')) {
+                ws.send(JSON.stringify({ type: 'delete_automation_routine', id }));
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        document.addEventListener('DOMContentLoaded', connectWS);
+    </script>
+</body>
+
+</html>

@@ -128,6 +128,33 @@ module.exports = {
           triggerUserID: 'system',
           triggerContent: '/test',
           enabled: false,
+        });
+      }
+
+      // ✅ Check Auto Unread Trigger
+      const checkUnreadTracker = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_unread__' AND triggerUserID = 'system'").get();
+      if (!checkUnreadTracker) {
+        console.log('✨ Creating built-in trigger: Auto Unread (System)');
+        this.createTrigger({
+          triggerName: 'Tự động đánh dấu chưa đọc',
+          triggerKey: '__builtin_auto_unread__',
+          triggerUserID: 'system',
+          triggerContent: 'Đánh dấu hội thoại là chưa đọc sau khi Bot phản hồi.',
+          enabled: false,
+          scope: AutoReplyScope.Everyone
+        });
+      }
+
+      // ✅ Check Auto Delete Messages Trigger
+      const checkAutoDelete = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_delete_messages__' AND triggerUserID = 'system'").get();
+      if (!checkAutoDelete) {
+        console.log('✨ Creating built-in trigger: Auto Delete Messages (System)');
+        this.createTrigger({
+          triggerName: 'Kích hoạt tự động xóa tin nhắn',
+          triggerKey: '__builtin_auto_delete_messages__',
+          triggerUserID: 'system',
+          triggerContent: 'Tự động bật tính năng tin nhắn tự xóa (1 ngày) sau khi kết bạn.',
+          enabled: false,
           scope: AutoReplyScope.Everyone
         });
       }
@@ -246,6 +273,33 @@ module.exports = {
           });
         }
       }
+
+      // 5. Auto Unread
+      let unreadTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_unread__' AND triggerUserID = ?").get(userUID);
+      if (!unreadTrigger) {
+        console.log(`✨ Creating user trigger for ${userUID}: Auto Unread`);
+        const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_auto_unread__' AND triggerUserID = 'system'").get();
+
+        if (systemTrigger) {
+          this.createTrigger({
+            triggerName: systemTrigger.triggerName,
+            triggerKey: systemTrigger.triggerKey,
+            triggerUserID: userUID,
+            triggerContent: systemTrigger.triggerContent,
+            enabled: false,
+            scope: systemTrigger.scope
+          });
+        } else {
+          this.createTrigger({
+            triggerName: 'Tự động đánh dấu chưa đọc',
+            triggerKey: '__builtin_auto_unread__',
+            triggerUserID: userUID,
+            triggerContent: 'Đánh dấu hội thoại là chưa đọc sau khi Bot phản hồi.',
+            enabled: false,
+            scope: AutoReplyScope.Everyone
+          });
+        }
+      }
     } catch (e) {
       console.error('❌ Ensure user triggers error:', e.message);
     }
@@ -258,8 +312,9 @@ module.exports = {
   // ========================================
   createTrigger(data) {
     try {
+      const isBuiltIn = data.triggerKey && data.triggerKey.startsWith('__builtin_');
       const stmt = db.prepare(`
-        INSERT INTO triggers (triggerName, triggerKey, triggerType, triggerUserID, triggerContent, 
+        ${isBuiltIn ? 'INSERT OR REPLACE' : 'INSERT'} INTO triggers (triggerName, triggerKey, triggerType, triggerUserID, triggerContent, 
           timeStartActive, timeEndActive, dateStartActive, dateEndActive, 
           cooldown, scope, uids, enabled, setMode)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -934,6 +989,22 @@ module.exports = {
     }
   },
 
+  deleteVariables(userUID, variables) {
+    try {
+      const stmt = db.prepare('DELETE FROM variables WHERE userUID = ? AND conversationID = ? AND variableName = ?');
+      const transaction = db.transaction(() => {
+        for (const v of variables) {
+          stmt.run(userUID, v.conversationID, v.variableName);
+        }
+      });
+      transaction();
+      return true;
+    } catch (error) {
+      console.error('❌ Delete variables error:', error.message);
+      return false;
+    }
+  },
+
   clearVariables(userUID, conversationID) {
     try {
       db.prepare('DELETE FROM variables WHERE userUID = ? AND conversationID = ?')
@@ -1164,7 +1235,7 @@ module.exports = {
   createPaymentGate(userUID, data) {
     try {
       const stmt = db.prepare(`
-        INSERT INTO payment_gates (userUID, gateName, bankBin, accountNumber, accountName, status)
+        INSERT INTO payment_gates (userUID, gateName, bankCode, accountNumber, accountName, isActive)
         VALUES (?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(userUID, data.gateName, data.bankBin, data.accountNumber, data.accountName, data.status ? 1 : 0);
@@ -1185,6 +1256,7 @@ module.exports = {
       if (updates.accountNumber !== undefined) { fields.push('accountNumber = ?'); values.push(updates.accountNumber); }
       if (updates.accountName !== undefined) { fields.push('accountName = ?'); values.push(updates.accountName); }
       if (updates.status !== undefined) { fields.push('status = ?'); values.push(updates.status ? 1 : 0); }
+      if (updates.isDefault !== undefined) { fields.push('isDefault = ?'); values.push(updates.isDefault ? 1 : 0); }
 
       if (fields.length === 0) return this.getPaymentGateById(gateID);
 
@@ -1196,6 +1268,41 @@ module.exports = {
       return this.getPaymentGateById(gateID);
     } catch (error) {
       console.error('❌ Update payment gate error:', error.message);
+      return null;
+    }
+  },
+
+  setDefaultGate(userUID, gateID) {
+    try {
+      // 1. Unset all defaults for this user
+      db.prepare('UPDATE payment_gates SET isDefault = 0 WHERE userUID = ?').run(userUID);
+
+      // 2. Set new default
+      db.prepare('UPDATE payment_gates SET isDefault = 1 WHERE userUID = ? AND gateID = ?').run(userUID, gateID);
+      return true;
+    } catch (error) {
+      console.error('❌ Set default gate error:', error.message);
+      return false;
+    }
+  },
+
+  unsetDefaultGate(userUID) {
+    try {
+      db.prepare('UPDATE payment_gates SET isDefault = 0 WHERE userUID = ?').run(userUID);
+      return true;
+    } catch (error) {
+      console.error('❌ Unset default gate error:', error.message);
+      return false;
+    }
+  },
+
+
+
+  getDefaultGate(userUID) {
+    try {
+      return db.prepare('SELECT * FROM payment_gates WHERE userUID = ? AND isDefault = 1 AND isActive = 1 LIMIT 1').get(userUID);
+    } catch (error) {
+      console.error('❌ Get default gate error:', error.message);
       return null;
     }
   },
@@ -1217,7 +1324,7 @@ module.exports = {
     const prefix = 'DHS';
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = prefix;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
@@ -1250,6 +1357,9 @@ module.exports = {
     }
   },
 
+  // Removed duplicate getAllTransactions definition
+
+
   getWaitingTransactions(userUID) {
     try {
       return db.prepare('SELECT * FROM transactions WHERE userUID = ? AND status = ? ORDER BY createdAt DESC').all(userUID, 'WAITING');
@@ -1263,16 +1373,45 @@ module.exports = {
     try {
       const transactionCode = this.generateTransactionCode();
       const stmt = db.prepare(`
-        INSERT INTO transactions (userUID, transactionCode, gateID, bankBin, accountNumber, accountName, amount, currency, status, customerID, customerName, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'WAITING', ?, ?, ?)
+        INSERT INTO transactions (userUID, transactionCode, gateID, amount, currency, status, description, senderName, senderAccount, updatedAt)
+        VALUES (?, ?, ?, ?, ?, 'WAITING', ?, ?, ?, ?)
       `);
+
+      // Fix: Handle mapping of customerName/customerID -> senderName/senderAccount
+      const senderName = data.senderName || data.customerName || null;
+      const senderAccount = data.senderAccount || data.customerID || null;
+      const now = Date.now();
+
+      // Fallback gateID if missing (gateID is NOT NULL in DB)
+      let gateID = data.gateID;
+      if (!gateID) {
+        console.log(`⚠️ Missing gateID for transaction, attempting to find default...`);
+        const defaultGate = this.getDefaultGate(userUID);
+        gateID = defaultGate?.gateID;
+      }
+
+      if (!gateID) {
+        throw new Error('Cannot create transaction: No payment gate ID provided and no default gate found.');
+      }
+
+      console.log(`💾 Creating transaction ${transactionCode} for ${userUID}, gate: ${gateID}, amount: ${data.amount}`);
+
       const result = stmt.run(
-        userUID, transactionCode, data.gateID || null, data.bankBin, data.accountNumber, data.accountName,
-        data.amount, data.currency || 'VND', data.customerID || null, data.customerName || null, data.note || null
+        userUID || 'system',
+        transactionCode,
+        gateID,
+        parseFloat(data.amount) || 0,
+        data.currency || 'VND',
+        data.note || data.description || null,
+        senderName,
+        senderAccount,
+        now
       );
+
+      console.log(`✅ Transaction created with ID: ${result.lastInsertRowid}`);
       return this.getTransactionById(result.lastInsertRowid);
     } catch (error) {
-      console.error('❌ Create transaction error:', error.message);
+      console.error('❌ Create transaction error:', error.message, error.stack);
       return null;
     }
   },
@@ -1289,8 +1428,17 @@ module.exports = {
       if (updates.amount !== undefined) { fields.push('amount = ?'); values.push(updates.amount); }
       if (updates.currency !== undefined) { fields.push('currency = ?'); values.push(updates.currency); }
       if (updates.status !== undefined) { fields.push('status = ?'); values.push(updates.status); }
-      if (updates.customerID !== undefined) { fields.push('customerID = ?'); values.push(updates.customerID); }
-      if (updates.customerName !== undefined) { fields.push('customerName = ?'); values.push(updates.customerName); }
+
+      // Fix: Map customerID/customerName to senderAccount/senderName columns
+      if (updates.customerID !== undefined || updates.senderAccount !== undefined) {
+        fields.push('senderAccount = ?');
+        values.push(updates.senderAccount || updates.customerID);
+      }
+      if (updates.customerName !== undefined || updates.senderName !== undefined) {
+        fields.push('senderName = ?');
+        values.push(updates.senderName || updates.customerName);
+      }
+
       if (updates.note !== undefined) { fields.push('note = ?'); values.push(updates.note); }
       if (updates.paidAt !== undefined) { fields.push('paidAt = ?'); values.push(updates.paidAt); }
 
@@ -1308,11 +1456,32 @@ module.exports = {
     }
   },
 
+  getAllTransactions(userUID) {
+    try {
+      if (userUID) {
+        return db.prepare('SELECT * FROM transactions WHERE userUID = ? ORDER BY createdAt DESC').all(userUID);
+      }
+      return db.prepare('SELECT * FROM transactions ORDER BY createdAt DESC').all();
+    } catch (error) {
+      console.error('❌ Get all transactions error:', error.message);
+      return [];
+    }
+  },
+
+  getTransactionById(transactionID) {
+    try {
+      return db.prepare('SELECT * FROM transactions WHERE transactionID = ?').get(transactionID);
+    } catch (error) {
+      console.error('❌ Get transaction by ID error:', error.message);
+      return null;
+    }
+  },
+
   markTransactionPaid(transactionID) {
     try {
-      const paidAt = Date.now();
-      db.prepare('UPDATE transactions SET status = ?, paidAt = ?, updatedAt = ? WHERE transactionID = ?')
-        .run('PAID', paidAt, paidAt, transactionID);
+      const now = Date.now();
+      db.prepare('UPDATE transactions SET status = ?, processedAt = ? WHERE transactionID = ?')
+        .run('PAID', now, transactionID);
       return this.getTransactionById(transactionID);
     } catch (error) {
       console.error('❌ Mark transaction paid error:', error.message);
@@ -1330,12 +1499,146 @@ module.exports = {
     }
   },
 
+  generateTransactionCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'SEVQR';
+    for (let i = 0; i < 5; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  },
+
+  // ========================================
+  // TRANSACTION STATISTICS
+  // ========================================
+
+  /**
+   * Get top users by payment amount
+   * @param {number} limit - Max users to return
+   * @param {string} month - Optional month filter (YYYY-MM format)
+   * @returns {Array} Top users with total amounts
+   */
+  getTopUsersByAmount(limit = 10, month = null) {
+    try {
+      let sql = `
+        SELECT 
+          senderName,
+          senderAccount,
+          SUM(amount) as totalAmount,
+          COUNT(*) as transactionCount
+        FROM transactions
+        WHERE status = 'PAID' AND senderAccount IS NOT NULL
+      `;
+
+      if (month) {
+        sql += ` AND strftime('%Y-%m', datetime(createdAt/1000, 'unixepoch')) = ?`;
+      }
+
+      sql += `
+        GROUP BY senderAccount
+        ORDER BY totalAmount DESC
+        LIMIT ?
+      `;
+
+      return month ?
+        db.prepare(sql).all(month, limit) :
+        db.prepare(sql).all(limit);
+    } catch (error) {
+      console.error('❌ Get top users error:', error.message);
+      return [];
+    }
+  },
+
+  /**
+   * Get monthly transaction totals
+   * @param {number} year - Year to get stats for
+   * @param {number} months - Number of months
+   * @returns {Array} Monthly statistics
+   */
+  getMonthlyTransactionStats(year = new Date().getFullYear(), months = 12) {
+    try {
+      const sql = `
+        SELECT 
+          strftime('%m', datetime(createdAt/1000, 'unixepoch')) as month,
+          SUM(amount) as totalAmount,
+          COUNT(*) as count
+        FROM transactions
+        WHERE status = 'PAID'
+        AND strftime('%Y', datetime(createdAt/1000, 'unixepoch')) = ?
+        GROUP BY month
+        ORDER BY month ASC
+      `;
+
+      const results = db.prepare(sql).all(String(year));
+
+      // Fill in missing months with zeros
+      const monthMap = {};
+      results.forEach(r => {
+        monthMap[parseInt(r.month)] = {
+          month: parseInt(r.month),
+          totalAmount: r.totalAmount || 0,
+          count: r.count || 0
+        };
+      });
+
+      const fullResults = [];
+      for (let i = 1; i <= 12; i++) {
+        fullResults.push(monthMap[i] || {
+          month: i,
+          totalAmount: 0,
+          count: 0
+        });
+      }
+
+      return fullResults;
+    } catch (error) {
+      console.error('❌ Get monthly stats error:', error.message);
+      return [];
+    }
+  },
+
+  /**
+   * Get transaction summary statistics
+   * @returns {Object} Summary stats
+   */
+  getTransactionSummary() {
+    try {
+      const total = db.prepare('SELECT COUNT(*) as count FROM transactions').get();
+      const paid = db.prepare('SELECT COUNT(*) as count, SUM(amount) as total FROM transactions WHERE status = \'PAID\'').get();
+      const waiting = db.prepare('SELECT COUNT(*) as count FROM transactions WHERE status = \'WAITING\'').get();
+      const expired = db.prepare('SELECT COUNT(*) as count FROM transactions WHERE status = \'EXPIRED\'').get();
+
+      return {
+        total: total.count || 0,
+        paid: paid.count || 0,
+        waiting: waiting.count || 0,
+        expired: expired.count || 0,
+        totalAmount: paid.total || 0,
+        successRate: total.count > 0 ? ((paid.count / total.count) * 100).toFixed(1) : 0,
+        avgAmount: paid.count > 0 ? Math.round(paid.total / paid.count) : 0
+      };
+    } catch (error) {
+      console.error('❌ Get transaction summary error:', error.message);
+      return {
+        total: 0,
+        paid: 0,
+        waiting: 0,
+        expired: 0,
+        totalAmount: 0,
+        successRate: 0,
+        avgAmount: 0
+      };
+    }
+  },
+
   // ========================================
   // PAYMENT LOGS CRUD
   // ========================================
   getPaymentLogs(userUID, limit = 100) {
     try {
-      return db.prepare('SELECT * FROM payment_logs WHERE userUID = ? ORDER BY paidAt DESC LIMIT ?').all(userUID, limit);
+      // TODO: Create payment_logs table first
+      // return db.prepare('SELECT * FROM payment_logs WHERE userUID = ? ORDER BY paidAt DESC LIMIT ?').all(userUID, limit);
+      return []; // Return empty array for now
     } catch (error) {
       console.error('❌ Get payment logs error:', error.message);
       return [];
@@ -2823,5 +3126,224 @@ module.exports = {
     } catch (error) {
       console.error('❌ Close database error:', error.message);
     }
+  },
+
+  // ========================================
+  // PAYMENT GATES
+  // ========================================
+  getAllPaymentGates(userUID) {
+    try {
+      if (userUID) {
+        return db.prepare('SELECT * FROM payment_gates WHERE userUID = ? ORDER BY createdAt DESC').all(userUID);
+      }
+      return db.prepare('SELECT * FROM payment_gates ORDER BY createdAt DESC').all();
+    } catch (error) {
+      console.error('❌ Get all payment gates error:', error.message);
+      return [];
+    }
+  },
+
+  getPaymentGateById(gateID) {
+    try {
+      return db.prepare('SELECT * FROM payment_gates WHERE gateID = ?').get(gateID);
+    } catch (error) {
+      console.error('❌ Get payment gate by ID error:', error.message);
+      return null;
+    }
+  },
+
+  getDefaultGate(userUID) {
+    try {
+      let gate = null;
+      if (userUID) {
+        gate = db.prepare('SELECT * FROM payment_gates WHERE userUID = ? AND isDefault = 1').get(userUID);
+      }
+
+      if (!gate) {
+        gate = db.prepare('SELECT * FROM payment_gates WHERE isDefault = 1 LIMIT 1').get();
+      }
+
+      if (!gate) {
+        // Ultimate fallback: get any active gate
+        gate = db.prepare('SELECT * FROM payment_gates WHERE isActive = 1 ORDER BY createdAt DESC LIMIT 1').get();
+      }
+
+      return gate;
+    } catch (error) {
+      console.error('❌ Get default gate error:', error.message);
+      return null;
+    }
+  },
+
+  createPaymentGate(userUID, data) {
+    try {
+      const targetUID = userUID || 'system';
+      console.log(`💾 Attempting to create payment gate for ${targetUID}:`, {
+        name: data.gateName,
+        bank: data.bankCode,
+        account: data.accountNumber
+      });
+
+      // If this is default, unset others first for this UID
+      if (data.isDefault) {
+        try {
+          db.prepare('UPDATE payment_gates SET isDefault = 0 WHERE userUID = ? OR userUID IS NULL').run(targetUID);
+        } catch (e) {
+          console.warn('⚠️ Could not unset default gates:', e.message);
+        }
+      }
+
+      const stmt = db.prepare(`
+        INSERT INTO payment_gates (
+          userUID, gateName, gateType, bankCode, accountNumber, accountName, 
+          isActive, isDefault, createdAt, updatedAt
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+      `);
+
+      const now = Date.now();
+      const result = stmt.run(
+        targetUID,
+        data.gateName || 'Chưa đặt tên',
+        data.gateType || 'manual',
+        String(data.bankCode || ''),
+        String(data.accountNumber || ''),
+        String(data.accountName || ''),
+        data.isDefault ? 1 : 0,
+        now,
+        now
+      );
+
+      console.log(`✅ Payment gate created successfully, ID: ${result.lastInsertRowid}`);
+      return this.getPaymentGateById(result.lastInsertRowid);
+    } catch (error) {
+      console.error('❌ Create payment gate failed in triggerDB:', error.message);
+      // Fallback: If it failed due to unique constraint or something, we want to know
+      throw new Error(`Database Error: ${error.message}`);
+    }
+  },
+
+  setDefaultGate(userUID, gateID) {
+    try {
+      const targetUID = userUID || 'system';
+      console.log(`⭐ Setting gate ${gateID} as default for ${targetUID}`);
+
+      db.transaction(() => {
+        // Unset all as default (including those with null userUID)
+        db.prepare('UPDATE payment_gates SET isDefault = 0 WHERE userUID = ? OR userUID IS NULL').run(targetUID);
+        // Set this specific one as default
+        db.prepare('UPDATE payment_gates SET isDefault = 1 WHERE gateID = ?').run(gateID);
+      })();
+      return true;
+    } catch (error) {
+      console.error('❌ Set default gate error:', error.message);
+      return false;
+    }
+  },
+
+  deletePaymentGate(gateID) {
+    try {
+      const result = db.prepare('DELETE FROM payment_gates WHERE gateID = ?').get(gateID);
+      return result.changes > 0;
+    } catch (error) {
+      console.error('❌ Delete payment gate error:', error.message);
+      return false;
+    }
+  },
+
+  // ========================================
+  // AUTOMATION ROUTINES (New)
+  // ========================================
+  getAutomationRoutines(userUID) {
+    try {
+      const rows = db.prepare("SELECT * FROM automation_routines WHERE userUID = ? ORDER BY createdAt DESC").all(userUID);
+      return rows.map(r => ({
+        ...r,
+        integrations: r.integrations ? JSON.parse(r.integrations) : {},
+        enabled: !!r.enabled
+      }));
+    } catch (e) { console.error('❌ Get routines error:', e.message); return []; }
+  },
+
+  getAutomationRoutineById(id) {
+    try {
+      const r = db.prepare("SELECT * FROM automation_routines WHERE id = ?").get(id);
+      if (r) {
+        r.integrations = r.integrations ? JSON.parse(r.integrations) : {};
+        r.enabled = !!r.enabled;
+      }
+      return r;
+    } catch (e) { return null; }
+  },
+
+  createAutomationRoutine(data) {
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO automation_routines (userUID, targetId, targetName, routineName, frequency, atTime, integrations, enabled)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const res = stmt.run(
+        data.userUID,
+        data.targetId,
+        data.targetName || 'Unknown',
+        data.routineName,
+        data.frequency || 'daily',
+        data.atTime,
+        data.integrations ? JSON.stringify(data.integrations) : '{}',
+        data.enabled !== false ? 1 : 0
+      );
+      return res.lastInsertRowid;
+    } catch (e) { console.error('❌ Create routine error:', e.message); return null; }
+  },
+
+  updateAutomationRoutine(id, userUID, updates) {
+    try {
+      const allowedFields = ['targetId', 'targetName', 'routineName', 'frequency', 'atTime', 'integrations', 'enabled', 'lastRun'];
+      const fields = [];
+      const values = [];
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key) && value !== undefined) {
+          fields.push(`${key} = ?`);
+          if (key === 'integrations' && typeof value === 'object') {
+            values.push(JSON.stringify(value));
+          } else if (key === 'enabled') {
+            values.push(value ? 1 : 0);
+          } else {
+            values.push(value);
+          }
+        }
+      }
+
+      if (fields.length === 0) return false;
+
+      values.push(id);
+      values.push(userUID);
+
+      const stmt = db.prepare(`UPDATE automation_routines SET ${fields.join(', ')} WHERE id = ? AND userUID = ?`);
+      const result = stmt.run(...values);
+      return result.changes > 0;
+    } catch (error) {
+      console.error('❌ Update routine error:', error.message);
+      return false;
+    }
+  },
+
+  deleteAutomationRoutine(id, userUID) {
+    try {
+      db.prepare("DELETE FROM automation_routines WHERE id = ? AND userUID = ?").run(id, userUID);
+      return true;
+    } catch (e) { console.error('❌ Delete routine error:', e.message); return false; }
+  },
+
+  getDueAutomationRoutines() {
+    try {
+      const rows = db.prepare("SELECT * FROM automation_routines WHERE enabled = 1").all();
+      return rows.map(r => ({
+        ...r,
+        integrations: r.integrations ? JSON.parse(r.integrations) : {},
+        enabled: !!r.enabled
+      }));
+    } catch (e) { return []; }
   }
 };

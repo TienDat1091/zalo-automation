@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cổng Thanh Toán - Zalo Bot</title>
+  <link rel="stylesheet" href="/assets/style_bank_manager.css">
+</head>
+
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1>💳 Cổng Thanh Toán</h1>
+      <div class="header-actions">
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('transactions')">Transactions</button>
+          <button class="tab" onclick="switchTab('gates')">Payment Gates</button>
+          <button class="tab" onclick="switchTab('sepay')">⚡ SEPAY Config</button>
+          <button class="tab" onclick="switchTab('logs')">Payment Logs</button>
+        </div>
+        <button class="btn btn-primary" onclick="openCreateTransaction()">+ Thêm mới</button>
+        <a href="/trigger-manager.html" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+          <span>🏠</span>
+          <span>Trigger Manager</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="icon blue">📋</div>
+        <div class="value" id="totalTransactions">0</div>
+        <div class="label">Tổng giao dịch</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon orange">⏳</div>
+        <div class="value" id="waitingCount">0</div>
+        <div class="label">Đang chờ</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon green">✅</div>
+        <div class="value" id="paidCount">0</div>
+        <div class="label">Đã thanh toán</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon green">💰</div>
+        <div class="value" id="totalAmount">0đ</div>
+        <div class="label">Tổng thu</div>
+      </div>
+    </div>
+
+    <!-- Tab: Transactions -->
+    <div id="tab-transactions" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <h2>📋 Danh sách giao dịch</h2>
+          <button class="btn btn-outline" onclick="loadTransactions()">🔄 Làm mới</button>
+        </div>
+        <div class="filter-bar">
+          <input type="text" id="searchTransaction" placeholder="🔍 Tìm mã giao dịch..." oninput="filterTransactions()">
+          <select id="filterStatus" onchange="filterTransactions()">
+            <option value="">Tất cả trạng thái</option>
+            <option value="WAITING">Đang chờ</option>
+            <option value="PAID">Đã thanh toán</option>
+            <option value="EXPIRED">Hết hạn</option>
+          </select>
+          <select id="filterBank" onchange="filterTransactions()">
+            <option value="">Tất cả ngân hàng</option>
+          </select>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Mã giao dịch</th>
+                  <th>Trạng thái</th>
+                  <th>Khách hàng</th>
+                  <th>Tổng tiền</th>
+                  <th>Đơn vị</th>
+                  <th>Cổng thanh toán</th>
+                  <th>Thời gian tạo</th>
+                  <th>Thời gian cập nhật</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="transactionsTable">
+                <tr>
+                  <td colspan="10">
+                    <div class="empty-state">
+                      <div class="icon">📋</div>
+                      <h3>Chưa có giao dịch nào</h3>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Payment Gates -->
+    <div id="tab-gates" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>🏦 Cổng thanh toán</h2>
+          <button class="btn btn-primary" onclick="openAddGate()">+ Thêm cổng</button>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tên cổng</th>
+                  <th>Ngân hàng</th>
+                  <th>Số tài khoản</th>
+                  <th>Chủ tài khoản</th>
+                  <th>Trạng thái</th>
+                  <th>Mặc định</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="gatesTable">
+                <tr>
+                  <td colspan="8">
+                    <div class="empty-state">
+                      <div class="icon">🏦</div>
+                      <h3>Chưa có cổng thanh toán</h3>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: SEPAY Configuration -->
+    <div id="tab-sepay" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>⚡ SEPAY Configuration</h2>
+          <button class="btn btn-outline" onclick="checkSepayStatus()">🔄 Refresh</button>
+        </div>
+        <div class="card-body">
+          <div id="sepayStatusBanner" class="status-banner"></div>
+
+          <div class="form-group">
+            <label>Account ID (Mã đơn vị) <span class="required">*</span></label>
+            <input type="text" id="sepayAccountId" class="form-control" placeholder="SP-TEST-TT3AA629"
+              value="SP-TEST-TT3AA629">
+            <small>Lấy từ SEPAY dashboard → Settings → API</small>
+          </div>
+
+          <div class="form-group">
+            <label>Secret Key <span class="required">*</span></label>
+            <input type="password" id="sepaySecretKey" class="form-control" placeholder="sp_k_..."
+              value="sp_k_test_StvsH26PVfrZDvPGdUCd7VhXCg9gXEEH">
+            <small>Giữ bí mật - không chia sẻ với ai</small>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="saveSepayCredentials()">💾 Lưu cấu hình</button>
+            <button class="btn btn-success" onclick="testSepayConnection()">🔍 Test Connection</button>
+          </div>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+
+          <h3 style="color: #333; margin-bottom: 15px;">🔗 Webhook Configuration</h3>
+          <p style="color: #666; margin-bottom: 15px;">
+            Cấu hình URL này trong SEPAY dashboard để nhận thông báo thanh toán tự động:
+          </p>
+
+          <div class="webhook-box">
+            <strong>Webhook URL:</strong><br>
+            <code id="sepayWebhookUrl" style="font-size: 13px; word-break: break-all;"></code>
+            <button class="btn btn-outline" style="margin-left: 10px; padding: 6px 12px;"
+              onclick="copySepayWebhook()">📋 Copy</button>
+          </div>
+
+          <div class="info-box" style="margin-top: 20px;">
+            <strong>⚙️ Hướng dẫn cấu hình:</strong>
+            <ol style="margin: 10px 0 0 20px;">
+              <li>Truy cập: <a href="https://my.sepay.vn" target="_blank">my.sepay.vn</a> (hoặc my.dev.sepay.vn cho
+                sandbox)</li>
+              <li>Vào Settings → Webhooks</li>
+              <li>Thêm webhook mới với URL ở trên</li>
+              <li>Chọn sự kiện: "Money In" (Tiền vào)</li>
+              <li>Lưu và kích hoạt</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Payment Logs -->
+    <div id="tab-logs" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>📜 Lịch sử thanh toán</h2>
+          <button class="btn btn-outline" onclick="loadPaymentLogs()">🔄 Làm mới</button>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>Code</th>
+                  <th>Thời gian tạo</th>
+                  <th>Bank</th>
+                  <th>Account Number</th>
+                  <th>Account Holder Name</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="logsTable">
+                <tr>
+                  <td colspan="7">
+                    <div class="empty-state">
+                      <div class="icon">📜</div>
+                      <h3>Chưa có log thanh toán</h3>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Create Transaction -->
+  <div class="modal-overlay" id="transactionModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="transactionModalTitle">Tạo giao dịch mới</h3>
+        <button class="modal-close" onclick="closeTransactionModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editTransactionId">
+
+        <div class="form-group">
+          <label>Cổng thanh toán <span class="required">*</span></label>
+          <select class="form-control" id="transactionGate">
+            <option value="">-- Chọn cổng --</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Số tiền <span class="required">*</span></label>
+            <input type="number" class="form-control" id="transactionAmount" placeholder="10000">
+          </div>
+          <div class="form-group">
+            <label>Đơn vị</label>
+            <select class="form-control" id="transactionCurrency">
+              <option value="VND">VND</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Khách hàng (User ID)</label>
+          <input type="text" class="form-control" id="transactionCustomerId" placeholder="Zalo User ID">
+        </div>
+
+        <div class="form-group">
+          <label>Tên khách hàng</label>
+          <input type="text" class="form-control" id="transactionCustomerName" placeholder="Tên khách hàng">
+        </div>
+
+        <div class="form-group">
+          <label>Ghi chú</label>
+          <input type="text" class="form-control" id="transactionNote" placeholder="Nội dung thanh toán">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeTransactionModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveTransaction()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Gate -->
+  <div class="modal-overlay" id="gateModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="gateModalTitle">Thêm cổng thanh toán</h3>
+        <button class="modal-close" onclick="closeGateModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editGateId">
+
+        <div class="form-group">
+          <label>Tên cổng <span class="required">*</span></label>
+          <input type="text" class="form-control" id="gateName" placeholder="VD: MB Bank - Tien Dat">
+        </div>
+
+        <div class="form-group">
+          <label>Ngân hàng <span class="required">*</span></label>
+          <select class="form-control" id="gateBank">
+            <option value="">-- Chọn ngân hàng --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Số tài khoản <span class="required">*</span></label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" class="form-control" id="gateAccountNumber" placeholder="Số tài khoản" style="flex: 1;">
+            <button type="button" class="btn btn-outline" id="lookupBtn" onclick="lookupAccountInfo()"
+              style="white-space: nowrap;">
+              🔍 Tra cứu
+            </button>
+          </div>
+          <div id="lookupStatus" style="font-size: 12px; margin-top: 4px; display: none;"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Tên chủ tài khoản <span class="required">*</span></label>
+          <input type="text" class="form-control" id="gateAccountName"
+            placeholder="NGUYEN VAN A (tự động điền khi tra cứu)">
+        </div>
+
+        <div class="form-group">
+          <label>Trạng thái</label>
+          <select class="form-control" id="gateStatus">
+            <option value="1">Hoạt động</option>
+            <option value="0">Tạm dừng</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeGateModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveGate()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Bank list
+    const BANKS = [
+      { code: 'VCB', name: 'Vietcombank', bin: 970436 },
+      { code: 'TCB', name: 'Techcombank', bin: 970407 },
+      { code: 'MB', name: 'MB Bank', bin: 970422 },
+      { code: 'VPB', name: 'VPBank', bin: 970432 },
+      { code: 'ACB', name: 'ACB', bin: 970416 },
+      { code: 'TPB', name: 'TPBank', bin: 970423 },
+      { code: 'STB', name: 'Sacombank', bin: 970403 },
+      { code: 'HDB', name: 'HDBank', bin: 970437 },
+      { code: 'VIB', name: 'VIB', bin: 970441 },
+      { code: 'SHB', name: 'SHB', bin: 970443 },
+      { code: 'EIB', name: 'Eximbank', bin: 970431 },
+      { code: 'MSB', name: 'MSB', bin: 970426 },
+      { code: 'BIDV', name: 'BIDV', bin: 970418 },
+      { code: 'VTB', name: 'Vietinbank', bin: 970415 },
+      { code: 'MOMO', name: 'MoMo', bin: 971012 }
+    ];
+
+    let ws = null;
+    let transactions = [];
+    let paymentGates = [];
+    let paymentLogs = [];
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      populateBankSelects();
+      connectWebSocket();
+    });
+
+    function populateBankSelects() {
+      const selects = ['gateBank', 'filterBank'];
+      selects.forEach(id => {
+        const select = document.getElementById(id);
+        if (!select) return;
+        BANKS.forEach(bank => {
+          const option = document.createElement('option');
+          option.value = bank.bin;
+          option.textContent = `${bank.name} (${bank.code})`;
+          option.dataset.code = bank.code;
+          select.appendChild(option);
+        });
+      });
+    }
+
+    function connectWebSocket() {
+      ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
+      ws.onopen = () => {
+        console.log('✅ Connected');
+        loadTransactions();
+        loadPaymentGates();
+        loadPaymentLogs();
+      };
+      ws.onclose = () => setTimeout(connectWebSocket, 3000);
+      ws.onmessage = (e) => {
+        try { handleMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
+      };
+    }
+
+    function handleMessage(data) {
+      console.log('📩', data.type, data);
+
+      switch (data.type) {
+        case 'transactions_list':
+          transactions = data.transactions || [];
+          renderTransactions();
+          updateStats();
+          break;
+        case 'transaction_created':
+          transactions.unshift(data.transaction);
+          renderTransactions();
+          updateStats();
+          closeTransactionModal();
+          showToast('✅ Đã tạo giao dịch!', 'success');
+          break;
+        case 'transaction_updated':
+          const idx = transactions.findIndex(t => t.transactionID === data.transaction.transactionID);
+          if (idx !== -1) transactions[idx] = data.transaction;
+          renderTransactions();
+          updateStats();
+          closeTransactionModal();
+          showToast('✅ Đã cập nhật!', 'success');
+          break;
+        case 'transaction_deleted':
+          transactions = transactions.filter(t => t.transactionID !== data.transactionID);
+          renderTransactions();
+          updateStats();
+          showToast('✅ Đã xóa!', 'success');
+          break;
+        case 'payment_gates_list':
+          paymentGates = data.gates || [];
+          renderPaymentGates();
+          updateGateSelect();
+          break;
+        case 'payment_gate_created':
+          paymentGates.push(data.gate);
+          renderPaymentGates();
+          updateGateSelect();
+          closeGateModal();
+          showToast('✅ Đã thêm cổng!', 'success');
+          break;
+        case 'payment_gate_updated':
+          const gIdx = paymentGates.findIndex(g => g.gateID === data.gate.gateID);
+          if (gIdx !== -1) paymentGates[gIdx] = data.gate;
+          renderPaymentGates();
+          updateGateSelect();
+          closeGateModal();
+          showToast('✅ Đã cập nhật!', 'success');
+          break;
+        case 'payment_gate_deleted':
+          paymentGates = paymentGates.filter(g => g.gateID !== data.gateID);
+          renderPaymentGates();
+          updateGateSelect();
+          showToast('✅ Đã xóa!', 'success');
+          break;
+        case 'default_gate_set':
+          // Update all gates: set isDefault=0 except the selected one
+          paymentGates = paymentGates.map(g => ({
+            ...g,
+            isDefault: (data.gateID && g.gateID === data.gateID) ? 1 : 0
+          }));
+          renderPaymentGates();
+          updateGateSelect();
+          showToast(data.gateID ? '⭐ Đã đặt cổng mặc định!' : '✅ Đã hủy cổng mặc định!', 'success');
+          break;
+        case 'payment_logs_list':
+          paymentLogs = data.logs || [];
+          renderPaymentLogs();
+          break;
+        case 'payment_received':
+          // New payment received - update transaction and add to logs
+          loadTransactions();
+          loadPaymentLogs();
+          showToast('💰 Đã nhận thanh toán: ' + data.amount + 'đ', 'success');
+          break;
+        case 'payment_error':
+          showToast('❌ ' + data.message, 'error');
+          break;
+      }
+    }
+
+    // Tab switching
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById('tab-' + tabName).classList.add('active');
+    }
+
+    // Load data
+    function loadTransactions() {
+      if (ws?.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'get_transactions' }));
+      }
+    }
+
+    function loadPaymentGates() {
+      if (ws?.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'get_payment_gates' }));
+      }
+    }
+
+    function loadPaymentLogs() {
+      if (ws?.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'get_payment_logs' }));
+      }
+    }
+
+    // Render functions
+    function renderTransactions() {
+      const tbody = document.getElementById('transactionsTable');
+      const filtered = filterTransactionsList();
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="icon">📋</div><h3>Không có giao dịch</h3></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((t, i) => {
+        const bank = BANKS.find(b => b.bin === t.bankBin) || { code: '?', name: 'Unknown' };
+        const statusClass = t.status.toLowerCase();
+
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td><code>${t.transactionCode}</code></td>
+            <td><span class="status-badge ${statusClass}">${t.status}</span></td>
+            <td>
+              <div class="customer-cell">
+                <div class="customer-avatar">👤</div>
+                <div class="customer-info">
+                  <div class="customer-name">${escapeHtml(t.customerName || 'Khách')}</div>
+                  <div class="customer-id">ID: ${t.customerID || 'N/A'}</div>
+                </div>
+              </div>
+            </td>
+            <td class="amount">${formatMoney(t.amount)}</td>
+            <td>${t.currency || 'VND'}</td>
+            <td>
+              <div class="bank-badge">
+                <div class="bank-icon">🏦</div>
+                <span>${bank.code}</span>
+              </div>
+            </td>
+            <td>${formatDateTime(t.createdAt)}</td>
+            <td>${formatDateTime(t.updatedAt)}</td>
+            <td>
+              <div class="action-btns">
+                <button class="action-btn edit" title="Sửa" onclick="editTransaction(${t.transactionID})">✏️</button>
+                <button class="action-btn delete" title="Xóa" onclick="deleteTransaction(${t.transactionID})">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterTransactionsList() {
+      const search = document.getElementById('searchTransaction').value.toLowerCase();
+      const status = document.getElementById('filterStatus').value;
+      const bank = document.getElementById('filterBank').value;
+
+      return transactions.filter(t => {
+        if (search && !t.transactionCode.toLowerCase().includes(search)) return false;
+        if (status && t.status !== status) return false;
+        if (bank && t.bankBin !== parseInt(bank)) return false;
+        return true;
+      });
+    }
+
+    function filterTransactions() {
+      renderTransactions();
+    }
+
+    function renderPaymentGates() {
+      const tbody = document.getElementById('gatesTable');
+
+      if (paymentGates.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🏦</div><h3>Chưa có cổng thanh toán</h3></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = paymentGates.map((g, i) => {
+        const bank = BANKS.find(b => b.bin === g.bankBin) || { code: '?', name: 'Unknown' };
+        const isDefault = g.isDefault === 1 || g.isDefault === true;
+
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td><strong>${escapeHtml(g.gateName)}</strong></td>
+            <td>
+              <div class="bank-badge">
+                <div class="bank-icon">🏦</div>
+                <span>${bank.name}</span>
+              </div>
+            </td>
+            <td><code>${g.accountNumber}</code></td>
+            <td>${escapeHtml(g.accountName)}</td>
+            <td><span class="status-badge ${g.status ? 'paid' : 'expired'}">${g.status ? 'Hoạt động' : 'Tạm dừng'}</span></td>
+            <td>
+              <button 
+                class="action-btn ${isDefault ? 'active' : ''}" 
+                onclick="setDefaultGate(${g.gateID}, ${isDefault})" 
+                title="${isDefault ? 'Hủy mặc định' : 'Đặt làm mặc định'}"
+                style="font-size: 18px; ${isDefault ? 'color: #ffd700;' : 'color: #ccc;'}">
+                ${isDefault ? '⭐' : '☆'}
+              </button>
+            </td>
+            <td>
+              <div class="action-btns">
+                <button class="action-btn edit" onclick="editGate(${g.gateID})">✏️</button>
+                <button class="action-btn delete" onclick="deleteGate(${g.gateID})">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderPaymentLogs() {
+      const tbody = document.getElementById('logsTable');
+
+      if (paymentLogs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">📜</div><h3>Chưa có log thanh toán</h3></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = paymentLogs.map((log, i) => {
+        const bank = BANKS.find(b => b.bin === log.bankBin) || { code: '?', name: 'Unknown' };
+
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td><code>${log.transactionCode}</code></td>
+            <td>${formatDateTime(log.paidAt)}</td>
+            <td>
+              <div class="bank-badge">
+                <div class="bank-icon">🏦</div>
+                <span>${bank.code}</span>
+              </div>
+            </td>
+            <td><code>${log.accountNumber}</code></td>
+            <td>${escapeHtml(log.accountName)}</td>
+            <td class="amount positive">${formatMoney(log.amount)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function updateStats() {
+      const total = transactions.length;
+      const waiting = transactions.filter(t => t.status === 'WAITING').length;
+      const paid = transactions.filter(t => t.status === 'PAID').length;
+      const totalAmount = transactions.filter(t => t.status === 'PAID').reduce((sum, t) => sum + (t.amount || 0), 0);
+
+      document.getElementById('totalTransactions').textContent = total;
+      document.getElementById('waitingCount').textContent = waiting;
+      document.getElementById('paidCount').textContent = paid;
+      document.getElementById('totalAmount').textContent = formatMoney(totalAmount);
+    }
+
+    function updateGateSelect() {
+      const select = document.getElementById('transactionGate');
+      select.innerHTML = '<option value="">-- Chọn cổng --</option>';
+      paymentGates.filter(g => g.isActive).forEach(g => {
+        const bank = BANKS.find(b => b.bin == g.bankCode) || { code: '?', name: 'Unknown' };
+        const option = document.createElement('option');
+        option.value = g.gateID;
+        option.textContent = `${g.gateName} (${bank.code} - ${g.accountNumber})`;
+        select.appendChild(option);
+      });
+    }
+
+    // Transaction CRUD
+    function openCreateTransaction() {
+      document.getElementById('transactionModalTitle').textContent = 'Tạo giao dịch mới';
+      document.getElementById('editTransactionId').value = '';
+      document.getElementById('transactionGate').value = '';
+      document.getElementById('transactionAmount').value = '';
+      document.getElementById('transactionCurrency').value = 'VND';
+      document.getElementById('transactionCustomerId').value = '';
+      document.getElementById('transactionCustomerName').value = '';
+      document.getElementById('transactionNote').value = '';
+      document.getElementById('transactionModal').classList.add('active');
+    }
+
+    function editTransaction(id) {
+      const t = transactions.find(x => x.transactionID === id);
+      if (!t) return;
+
+      document.getElementById('transactionModalTitle').textContent = 'Sửa giao dịch';
+      document.getElementById('editTransactionId').value = id;
+      document.getElementById('transactionGate').value = t.gateID || '';
+      document.getElementById('transactionAmount').value = t.amount || '';
+      document.getElementById('transactionCurrency').value = t.currency || 'VND';
+      document.getElementById('transactionCustomerId').value = t.customerID || '';
+      document.getElementById('transactionCustomerName').value = t.customerName || '';
+      document.getElementById('transactionNote').value = t.note || '';
+      document.getElementById('transactionModal').classList.add('active');
+    }
+
+    function closeTransactionModal() {
+      document.getElementById('transactionModal').classList.remove('active');
+    }
+
+    function saveTransaction() {
+      const id = document.getElementById('editTransactionId').value;
+      const gateID = parseInt(document.getElementById('transactionGate').value);
+      const amount = parseFloat(document.getElementById('transactionAmount').value);
+      const currency = document.getElementById('transactionCurrency').value;
+      const customerID = document.getElementById('transactionCustomerId').value.trim();
+      const customerName = document.getElementById('transactionCustomerName').value.trim();
+      const note = document.getElementById('transactionNote').value.trim();
+
+      if (!gateID || !amount) {
+        showToast('⚠️ Vui lòng chọn cổng và nhập số tiền!', 'error');
+        return;
+      }
+
+      const gate = paymentGates.find(g => g.gateID === gateID);
+
+      if (id) {
+        ws.send(JSON.stringify({
+          type: 'update_transaction',
+          transactionID: parseInt(id),
+          gateID, amount, currency, customerID, customerName, note,
+          bankBin: gate?.bankBin
+        }));
+      } else {
+        ws.send(JSON.stringify({
+          type: 'create_transaction',
+          gateID, amount, currency, customerID, customerName, note,
+          bankBin: gate?.bankBin,
+          accountNumber: gate?.accountNumber,
+          accountName: gate?.accountName
+        }));
+      }
+    }
+
+    function deleteTransaction(id) {
+      if (!confirm('Bạn có chắc muốn xóa giao dịch này?')) return;
+      ws.send(JSON.stringify({ type: 'delete_transaction', transactionID: id }));
+    }
+
+    // Payment Gate CRUD
+    function openAddGate() {
+      document.getElementById('gateModalTitle').textContent = 'Thêm cổng thanh toán';
+      document.getElementById('editGateId').value = '';
+      document.getElementById('gateName').value = '';
+      document.getElementById('gateBank').value = '';
+      document.getElementById('gateAccountNumber').value = '';
+      document.getElementById('gateAccountName').value = '';
+      document.getElementById('gateStatus').value = '1';
+      document.getElementById('lookupStatus').style.display = 'none';
+      document.getElementById('gateModal').classList.add('active');
+    }
+
+    function editGate(id) {
+      const g = paymentGates.find(x => x.gateID === id);
+      if (!g) return;
+
+      document.getElementById('gateModalTitle').textContent = 'Sửa cổng thanh toán';
+      document.getElementById('editGateId').value = id;
+      document.getElementById('gateName').value = g.gateName || '';
+      document.getElementById('gateBank').value = g.bankBin || '';
+      document.getElementById('gateAccountNumber').value = g.accountNumber || '';
+      document.getElementById('gateAccountName').value = g.accountName || '';
+      document.getElementById('gateStatus').value = g.status ? '1' : '0';
+      document.getElementById('lookupStatus').style.display = 'none';
+      document.getElementById('gateModal').classList.add('active');
+    }
+
+    function closeGateModal() {
+      document.getElementById('gateModal').classList.remove('active');
+    }
+
+    function saveGate() {
+      const id = document.getElementById('editGateId').value;
+      const gateName = document.getElementById('gateName').value.trim();
+      const bankBin = parseInt(document.getElementById('gateBank').value);
+      const accountNumber = document.getElementById('gateAccountNumber').value.trim();
+      const accountName = document.getElementById('gateAccountName').value.trim();
+      const status = document.getElementById('gateStatus').value === '1';
+
+      if (!gateName || !bankBin || !accountNumber || !accountName) {
+        showToast('⚠️ Vui lòng điền đầy đủ thông tin!', 'error');
+        return;
+      }
+
+      if (id) {
+        ws.send(JSON.stringify({
+          type: 'update_payment_gate',
+          gateID: parseInt(id),
+          gateName, bankBin, accountNumber, accountName, status
+        }));
+      } else {
+        ws.send(JSON.stringify({
+          type: 'create_payment_gate',
+          gateName, bankBin, accountNumber, accountName, status
+        }));
+      }
+    }
+
+    function deleteGate(id) {
+      if (!confirm('Bạn có chắc muốn xóa cổng thanh toán này?')) return;
+      ws.send(JSON.stringify({ type: 'delete_payment_gate', gateID: id }));
+    }
+
+    // Account Lookup
+    async function lookupAccountInfo() {
+      const accountNumber = document.getElementById('gateAccountNumber').value.trim();
+      const bankBin = document.getElementById('gateBank').value;
+      const statusDiv = document.getElementById('lookupStatus');
+      const lookupBtn = document.getElementById('lookupBtn');
+
+      if (!accountNumber) {
+        showToast('⚠️ Vui lòng nhập số tài khoản!', 'error');
+        return;
+      }
+
+      if (!bankBin) {
+        showToast('⚠️ Vui lòng chọn ngân hàng trước!', 'error');
+        return;
+      }
+
+      // Show loading state
+      lookupBtn.disabled = true;
+      lookupBtn.innerHTML = '⏳ Đang tra cứu...';
+      statusDiv.style.display = 'block';
+      statusDiv.innerHTML = '<span style="color: #666;">Đang tra cứu thông tin tài khoản...</span>';
+
+      try {
+        const response = await fetch('/api/bank/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountNumber, bankBin: parseInt(bankBin) })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.accountName) {
+          document.getElementById('gateAccountName').value = data.accountName;
+          statusDiv.innerHTML = '<span style="color: #4CAF50;">✅ Đã tìm thấy: ' + escapeHtml(data.accountName) + '</span>';
+          showToast('✅ Đã tìm thấy thông tin tài khoản!', 'success');
+
+          // Auto-fill gate name if empty
+          const gateNameInput = document.getElementById('gateName');
+          if (!gateNameInput.value.trim()) {
+            const bank = BANKS.find(b => b.bin === parseInt(bankBin));
+            gateNameInput.value = (bank?.code || 'Bank') + ' - ' + data.accountName;
+          }
+        } else {
+          statusDiv.innerHTML = '<span style="color: #f44336;">❌ ' + (data.error || 'Không tìm thấy thông tin') + '</span>';
+          showToast('❌ ' + (data.error || 'Không tìm thấy thông tin tài khoản'), 'error');
+        }
+      } catch (error) {
+        console.error('Lookup error:', error);
+        statusDiv.innerHTML = '<span style="color: #f44336;">❌ Lỗi kết nối: ' + error.message + '</span>';
+        showToast('❌ Lỗi: ' + error.message, 'error');
+      } finally {
+        lookupBtn.disabled = false;
+        lookupBtn.innerHTML = '🔍 Tra cứu';
+      }
+    }
+
+    // Helpers
+    function formatMoney(amount) {
+      return new Intl.NumberFormat('vi-VN').format(amount || 0) + 'đ';
+    }
+
+    function formatDateTime(timestamp) {
+      if (!timestamp) return '-';
+      const d = new Date(timestamp);
+      return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    function showToast(msg, type = 'info') {
+      document.querySelectorAll('.toast').forEach(t => t.remove());
+      const toast = document.createElement('div');
+      toast.className = 'toast ' + type;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function setDefaultGate(gateID, currentIsDefault) {
+      if (!ws) {
+        showToast('❌ Chưa kết nối WebSocket!', 'error');
+        return;
+      }
+
+      // If already default, unset it (send null)
+      // Otherwise, set this gate as default
+      ws.send(JSON.stringify({
+        type: 'set_default_gate',
+        gateID: currentIsDefault ? null : gateID
+      }));
+    }
+
+    // =====================================================
+    // SEPAY FUNCTIONS
+    // =====================================================
+
+    // Check SEPAY status on load
+    document.addEventListener('DOMContentLoaded', () => {
+      const webhookUrl = `${window.location.protocol}//${window.location.host}/api/sepay/webhook`;
+      const webhookEl = document.getElementById('sepayWebhookUrl');
+      if (webhookEl) webhookEl.textContent = webhookUrl;
+
+      checkSepayStatus();
+    });
+
+    async function checkSepayStatus() {
+      try {
+        const res = await fetch('/api/sepay/status');
+        const data = await res.json();
+
+        const banner = document.getElementById('sepayStatusBanner');
+        if (!banner) return;
+
+        if (data.configured) {
+          banner.innerHTML = `
+            <div style="background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+              ✅ SEPAY đã được cấu hình | Account: ${data.accountId}
+            </div>
+          `;
+        } else {
+          banner.innerHTML = `
+            <div style="background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+              ❌ SEPAY chưa được cấu hình - Vui lòng nhập thông tin bên dưới
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Error checking SEPAY status:', error);
+      }
+    }
+
+    async function saveSepayCredentials() {
+      const accountId = document.getElementById('sepayAccountId').value.trim();
+      const token = document.getElementById('sepaySecretKey').value.trim();
+
+      if (!accountId || !token) {
+        showToast('⚠️ Vui lòng nhập đầy đủ Account ID và Secret Key!', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/sepay/credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId, token })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showToast('✅ Đã lưu cấu hình SEPAY!', 'success');
+          checkSepayStatus();
+        } else {
+          showToast('❌ Lỗi: ' + (data.error || 'Không thể lưu'), 'error');
+        }
+      } catch (error) {
+        showToast('❌ Lỗi kết nối: ' + error.message, 'error');
+      }
+    }
+
+    async function testSepayConnection() {
+      try {
+        showToast('🔍 Đang kiểm tra kết nối SEPAY...', 'info');
+
+        const res = await fetch('/api/sepay/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showToast('✅ Kết nối SEPAY thành công!', 'success');
+          console.log('SEPAY Account Info:', data.accountInfo);
+        } else {
+          showToast('❌ Kết nối thất bại: ' + data.error, 'error');
+        }
+      } catch (error) {
+        showToast('❌ Lỗi: ' + error.message, 'error');
+      }
+    }
+
+    function copySepayWebhook() {
+      const url = document.getElementById('sepayWebhookUrl').textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('✅ Đã copy Webhook URL!', 'success');
+      }).catch(() => {
+        showToast('❌ Không thể copy', 'error');
+      });
+    }
+
+    // Update handleMessage to listen for SEPAY payment notifications
+    // Assuming handleMessage is defined elsewhere or will be defined.
+    // If handleMessage is not defined, this will cause a runtime error.
+    // For the purpose of this edit, we are faithfully applying the change as requested.
+    const originalHandleMessage = typeof handleMessage !== 'undefined' ? handleMessage : () => { };
+    handleMessage = function (data) {
+      // Call original handler first
+      originalHandleMessage(data);
+
+      // Listen for SEPAY payment received event
+      if (data.type === 'sepay_payment_received') {
+        console.log('💰 SEPAY Payment Received:', data);
+
+        // Show notification
+        showToast(`💰 Thanh toán SEPAY: ${data.transaction?.transactionCode || 'N/A'} - ${data.sepayData?.amount || 0}đ`, 'success');
+
+        // Reload transactions to show updated status
+        loadTransactions();
+      }
+    };
+
+  </script>
+</body>
+
+</html>

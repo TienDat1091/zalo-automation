@@ -87,6 +87,8 @@
                     <button class="tab" onclick="switchTab('static')">Biến Tĩnh (Static)</button>
                 </div>
                 <button class="btn btn-outline" onclick="loadData()">🔄 Làm mới</button>
+                <button class="btn btn-danger" id="bulkDeleteBtn" style="display:none;"
+                    onclick="deleteSelectedVars()">🗑️ Xóa đã chọn (0)</button>
                 <button class="btn btn-primary" onclick="openAddVariableModal()">+ Thêm biến</button>
             </div>
         </div>
@@ -105,6 +107,8 @@
                         <table>
                             <thead>
                                 <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="selectAll"
+                                            onclick="toggleSelectAll()"></th>
                                     <th>Tên biến</th>
                                     <th>Giá trị</th>
                                     <th>Loại</th>
@@ -249,13 +253,16 @@
         function renderDynamicTable() {
             const tbody = document.getElementById('dynamicTable');
             if (dynamicVars.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><h3>Không có biến động</h3></div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><h3>Không có biến động</h3></div></td></tr>';
+                document.getElementById('selectAll').checked = false;
+                updateBulkDeleteBtn();
                 return;
             }
-            tbody.innerHTML = dynamicVars.map(v => {
+            tbody.innerHTML = dynamicVars.map((v, idx) => {
                 const time = v.updatedAt ? new Date(v.updatedAt).toLocaleDateString('vi-VN') : '-';
                 return `
           <tr>
+            <td><input type="checkbox" class="var-checkbox" data-index="${idx}" onclick="updateBulkDeleteBtn()"></td>
             <td><span class="var-name">{${escapeHtml(v.variableName)}}</span></td>
             <td><div class="var-value" title="${escapeHtml(v.variableValue)}">${escapeHtml(v.variableValue)}</div></td>
             <td><span class="var-type">${v.variableType}</span></td>
@@ -269,6 +276,55 @@
           </tr>
         `;
             }).join('');
+
+            // Reset select all state
+            document.getElementById('selectAll').checked = false;
+            updateBulkDeleteBtn();
+        }
+
+        function toggleSelectAll() {
+            const isChecked = document.getElementById('selectAll').checked;
+            document.querySelectorAll('.var-checkbox').forEach(cb => cb.checked = isChecked);
+            updateBulkDeleteBtn();
+        }
+
+        function updateBulkDeleteBtn() {
+            const checkedBoxes = document.querySelectorAll('.var-checkbox:checked');
+            const btn = document.getElementById('bulkDeleteBtn');
+            const count = checkedBoxes.length;
+
+            if (count > 0) {
+                btn.style.display = 'inline-block';
+                btn.textContent = `🗑️ Xóa đã chọn (${count})`;
+            } else {
+                btn.style.display = 'none';
+            }
+
+            // Sync selectAll checkbox
+            const allBoxes = document.querySelectorAll('.var-checkbox');
+            if (allBoxes.length > 0) {
+                document.getElementById('selectAll').checked = (count === allBoxes.length);
+            }
+        }
+
+        async function deleteSelectedVars() {
+            const selected = [];
+            document.querySelectorAll('.var-checkbox:checked').forEach(cb => {
+                const idx = parseInt(cb.getAttribute('data-index'));
+                const v = dynamicVars[idx];
+                if (v) {
+                    selected.push({ variableName: v.variableName, conversationID: v.conversationID });
+                }
+            });
+
+            if (selected.length === 0) return;
+
+            if (!confirm(`Bạn có chắc muốn xóa ${selected.length} biến đã chọn?`)) return;
+
+            ws.send(JSON.stringify({
+                type: 'delete_variables',
+                variables: selected
+            }));
         }
 
         function deleteVar(name, convID) {

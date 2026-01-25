@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEPAY Sandbox Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-right: 10px;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .status-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 6px;
+            border-left: 3px solid #667eea;
+            background: white;
+        }
+
+        .webhook-url {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 2px dashed #667eea;
+            margin-bottom: 15px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 SEPAY Sandbox Test</h1>
+            <p>Test & configure SEPAY payment gateway integration</p>
+        </div>
+
+        <!-- Configuration Card -->
+        <div class="card">
+            <h2>⚙️ SEPAY Configuration</h2>
+
+            <div id="configStatus"></div>
+
+            <div class="form-group">
+                <label>Account ID</label>
+                <input type="text" id="accountId" placeholder="Enter your SEPAY Account ID">
+            </div>
+
+            <div class="form-group">
+                <label>Token</label>
+                <input type="password" id="token" placeholder="Enter your SEPAY API Token">
+            </div>
+
+            <button class="btn btn-success" onclick="saveCredentials()">💾 Save Credentials</button>
+            <button class="btn" onclick="testConnection()">🔍 Test Connection</button>
+            <button class="btn" onclick="checkStatus()">📊 Check Status</button>
+        </div>
+
+        <!-- Webhook URL Card -->
+        <div class="card">
+            <h2>🔗 Webhook Configuration</h2>
+            <p style="margin-bottom: 15px;">Configure this URL in your SEPAY dashboard to receive real-time payment
+                notifications:</p>
+
+            <div class="webhook-url">
+                <strong>Webhook URL:</strong><br>
+                <span id="webhookUrl">Loading...</span>
+                <button class="copy-btn" onclick="copyWebhookUrl()">📋 Copy</button>
+            </div>
+
+            <p><strong>⚠️ Important:</strong></p>
+            <ul style="margin-left: 20px; margin-top: 10px; color: #666;">
+                <li>Enable webhook in SEPAY dashboard (my.sepay.vn)</li>
+                <li>Set trigger events: Money In</li>
+                <li>Ensure your server is publicly accessible</li>
+                <li>SEPAY will send POST requests with transaction data</li>
+            </ul>
+        </div>
+
+        <!-- Test Actions Card -->
+        <div class="card">
+            <h2>🧪 Test Actions</h2>
+
+            <div class="form-group">
+                <label>Test Transaction Code</label>
+                <input type="text" id="testCode" placeholder="e.g., TXN123456" value="TEST001">
+            </div>
+
+            <div class="form-group">
+                <label>Test Amount (VND)</label>
+                <input type="text" id="testAmount" placeholder="e.g., 50000" value="50000">
+            </div>
+
+            <div class="form-group">
+                <label>Test Webhook Payload (JSON)</label>
+                <textarea id="testPayload" rows="10" placeholder="Paste SEPAY webhook JSON here"></textarea>
+            </div>
+
+            <button class="btn" onclick="simulateWebhook()">🚀 Simulate Webhook</button>
+            <button class="btn btn-danger" onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+
+        <!-- Activity Log Card -->
+        <div class="card">
+            <h2>📋 Activity Log</h2>
+            <div class="log" id="activityLog">
+                <div class="log-entry">🟢 Log initialized - Ready to test SEPAY integration</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get current URL for webhook
+        window.addEventListener('DOMContentLoaded', () => {
+            const webhookUrl = `${window.location.protocol}//${window.location.host}/api/sepay/webhook`;
+            document.getElementById('webhookUrl').textContent = webhookUrl;
+            checkStatus();
+
+            // Load sample webhook payload
+            const samplePayload = {
+                "id": "transaction_" + Date.now(),
+                "amount_in": "50000",
+                "transaction_content": "TEST001",
+                "bank_brand_name": "Vietcombank",
+                "account_number": "1234567890",
+                "account_name": "NGUYEN VAN A",
+                "reference_number": "FT123456789",
+                "transaction_date": new Date().toISOString(),
+                "status": "completed"
+            };
+            document.getElementById('testPayload').value = JSON.stringify(samplePayload, null, 2);
+        });
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('activityLog');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+            entry.innerHTML = `${icon} ${new Date().toLocaleTimeString()} - ${message}`;
+            logEl.insertBefore(entry, logEl.firstChild);
+        }
+
+        async function checkStatus() {
+            try {
+                const res = await fetch('/api/sepay/status');
+                const data = await res.json();
+
+                const statusEl = document.getElementById('configStatus');
+                if (data.configured) {
+                    statusEl.innerHTML = `<div class="status status-success">✅ SEPAY Configured: ${data.accountId}</div>`;
+                    log('SEPAY credentials configured', 'success');
+                } else {
+                    statusEl.innerHTML = `<div class="status status-error">❌ SEPAY Not Configured - Please enter credentials</div>`;
+                    log('SEPAY not configured', 'error');
+                }
+            } catch (error) {
+                log('Error checking status: ' + error.message, 'error');
+            }
+        }
+
+        async function saveCredentials() {
+            const accountId = document.getElementById('accountId').value.trim();
+            const token = document.getElementById('token').value.trim();
+
+            if (!accountId || !token) {
+                alert('Please enter both Account ID and Token');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/sepay/credentials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ accountId, token })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    log('✅ Credentials saved successfully', 'success');
+                    checkStatus();
+                } else {
+                    log('❌ Failed to save credentials: ' + data.error, 'error');
+                }
+            } catch (error) {
+                log('Error saving credentials: ' + error.message, 'error');
+            }
+        }
+
+        async function testConnection() {
+            log('Testing SEPAY connection...');
+
+            try {
+                const res = await fetch('/api/sepay/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    log('✅ Connection successful! Account info loaded', 'success');
+                    console.log('Account Info:', data.accountInfo);
+                } else {
+                    log('❌ Connection failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                log('Error testing connection: ' + error.message, 'error');
+            }
+        }
+
+        async function simulateWebhook() {
+            const payload = document.getElementById('testPayload').value;
+
+            try {
+                const webhookData = JSON.parse(payload);
+                log('🚀 Simulating webhook with payload...');
+
+                // In a real scenario, SEPAY would send this
+                // For testing, we directly POST to our webhook endpoint
+                const res = await fetch('/api/sepay/webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-sepay-signature': 'test_signature_' + Date.now() // Mock signature
+                    },
+                    body: JSON.stringify(webhookData)
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    log('✅ Webhook processed successfully!', 'success');
+                } else {
+                    log('⚠️ Webhook response: ' + (data.message || data.error), 'info');
+                }
+            } catch (error) {
+                log('❌ Error simulating webhook: ' + error.message, 'error');
+            }
+        }
+
+        function copyWebhookUrl() {
+            const url = document.getElementById('webhookUrl').textContent;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('✅ Webhook URL copied to clipboard!');
+                log('Webhook URL copied', 'success');
+            });
+        }
+
+        function clearLog() {
+            document.getElementById('activityLog').innerHTML = '<div class="log-entry">🗑️ Log cleared</div>';
+        }
+    </script>
+</body>
+
+</html>

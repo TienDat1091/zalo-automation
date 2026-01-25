@@ -229,6 +229,8 @@ function ensureBuiltInTriggers(userUID) {
       setMode: 0
     });
   }
+
+
 }
 
 // ============================================
@@ -564,8 +566,8 @@ function migrateOldData(userUID) {
 function startWebSocketServer(apiState, httpServer) {
   // If httpServer is provided, attach to it. Otherwise create on port 8080 (fallback)
   const wss = httpServer
-    ? new WebSocket.Server({ server: httpServer })
-    : new WebSocket.Server({ port: 8080 });
+    ? new WebSocket.Server({ server: httpServer, maxPayload: 200 * 1024 * 1024 })
+    : new WebSocket.Server({ port: 8080, maxPayload: 200 * 1024 * 1024 });
 
   if (httpServer) {
     console.log('🔌 WebSocket server started (sharing HTTP server port)');
@@ -764,14 +766,28 @@ function startWebSocketServer(apiState, httpServer) {
             return;
           }
 
+          // Check if state needs to be restored
+          const autoReplyModule = require('../autoReply');
+
+          // Restore from DB if this is a fresh start (or simply sync)
+          // We can check if it matches DB to be safe, or just trust memory if established.
+          // Better: On get_status, we ensure memory matches DB if memory is 'default false' maybe?
+          // Actually, let's restore ONCE per session or just check DB here.
+
+          const savedPersonal = triggerDB.getBuiltInTriggerState(apiState.currentUser.uid, 'global_auto_reply_personal');
+          if (savedPersonal && savedPersonal.enabled !== undefined) {
+            // Sync memory to DB
+            autoReplyModule.autoReplyState.enabled = savedPersonal.enabled;
+          }
+
           // Load user triggers từ SQLite
           const userTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
 
           ws.send(JSON.stringify({
             type: 'auto_reply_status',
-            enabled: require('../autoReply').autoReplyState.enabled,
+            enabled: autoReplyModule.autoReplyState.enabled,
             scenarios: userTriggers,
-            stats: require('../autoReply').autoReplyState.stats || { received: 0, replied: 0, skipped: 0 }
+            stats: autoReplyModule.autoReplyState.stats || { received: 0, replied: 0, skipped: 0 }
           }));
         }
 
@@ -810,6 +826,9 @@ function startWebSocketServer(apiState, httpServer) {
             return;
           }
 
+          // Save state to DB
+          triggerDB.saveBuiltInTriggerState(apiState.currentUser.uid, 'global_auto_reply_personal', { enabled: msg.enabled });
+
           require('../autoReply').autoReplyState.enabled = msg.enabled;
 
           broadcast(apiState, {
@@ -824,6 +843,20 @@ function startWebSocketServer(apiState, httpServer) {
         // BOT AUTO REPLY (Independent from Personal)
         // ============================================
         else if (msg.type === 'get_bot_auto_reply_status') {
+          // Auto-load if not set (first time check)
+          if (apiState.currentUser && apiState.botAutoReplyEnabled === undefined) {
+            const savedState = triggerDB.getBuiltInTriggerState(apiState.currentUser.uid, 'global_auto_reply_bot');
+            if (savedState) {
+              apiState.botAutoReplyEnabled = savedState.enabled;
+              if (savedState.botToken) apiState.botToken = savedState.botToken;
+              // If enabled, start polling
+              if (savedState.enabled && savedState.botToken && !apiState.zaloBotPolling) {
+                console.log('🤖 Restoring Bot Auto Reply (Enabled)...');
+                startBotPolling(savedState.botToken, apiState);
+              }
+            }
+          }
+
           ws.send(JSON.stringify({
             type: 'bot_auto_reply_status',
             enabled: apiState.botAutoReplyEnabled || false
@@ -833,19 +866,26 @@ function startWebSocketServer(apiState, httpServer) {
         else if (msg.type === 'set_bot_auto_reply') {
           apiState.botAutoReplyEnabled = msg.enabled;
 
-          // Store bot token for auto reply
+          if (apiState.currentUser) {
+            triggerDB.saveBuiltInTriggerState(apiState.currentUser.uid, 'global_auto_reply_bot', {
+              enabled: msg.enabled,
+              botToken: msg.botToken || apiState.botToken
+            });
+          }
+
+          // Store bot token and start/stop polling
           if (msg.enabled && msg.botToken) {
             apiState.botToken = msg.botToken;
 
-            // Start polling if not already
+            // Start polling directly (not via message)
             if (!apiState.zaloBotPolling) {
               console.log('🤖 Bot Auto Reply enabled, starting polling...');
-              // Trigger polling start
-              ws.send(JSON.stringify({ type: 'zalo_bot_start_polling', token: msg.botToken }));
+              startBotPolling(msg.botToken, apiState);
             }
           } else if (!msg.enabled) {
             // Stop polling when disabled
             if (apiState.zaloBotPolling) {
+              console.log('🤖 Bot Auto Reply disabled, stopping polling...');
               apiState.zaloBotPolling = false;
             }
           }
@@ -894,26 +934,27 @@ function startWebSocketServer(apiState, httpServer) {
             // Trigger backup after create
             setTimeout(() => backup.backupNow(), 2000);
 
-            ws.send(JSON.stringify({
+            // Broadcast to ALL clients (for notifications)
+            broadcast(apiState, {
               type: 'trigger_created',
               trigger: newTrigger
-            }));
+            });
 
-            // Also send legacy format
+            // Legacy support (optional, can keep if needed for specific logic)
             ws.send(JSON.stringify({
               type: 'scenario_added',
               scenario: newTrigger
             }));
 
-            // Refresh triggers list
+            // Refresh triggers list for everyone
             setTimeout(() => {
               const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
-              ws.send(JSON.stringify({
+              broadcast(apiState, {
                 type: 'auto_reply_status',
                 enabled: require('../autoReply').autoReplyState.enabled,
                 scenarios: allTriggers,
                 stats: require('../autoReply').autoReplyState.stats
-              }));
+              });
             }, 100);
           } else {
             ws.send(JSON.stringify({
@@ -951,25 +992,26 @@ function startWebSocketServer(apiState, httpServer) {
             // Trigger backup after update
             setTimeout(() => backup.backupNow(), 2000);
 
-            ws.send(JSON.stringify({
+            // Broadcast to ALL clients
+            broadcast(apiState, {
               type: 'trigger_updated',
               trigger: updatedTrigger
-            }));
+            });
 
             ws.send(JSON.stringify({
               type: 'scenario_updated',
               scenario: updatedTrigger
             }));
 
-            // Refresh triggers list
+            // Refresh triggers list for everyone
             setTimeout(() => {
               const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
-              ws.send(JSON.stringify({
+              broadcast(apiState, {
                 type: 'auto_reply_status',
                 enabled: require('../autoReply').autoReplyState.enabled,
                 scenarios: allTriggers,
                 stats: require('../autoReply').autoReplyState.stats
-              }));
+              });
             }, 100);
           } else {
             ws.send(JSON.stringify({
@@ -1000,25 +1042,26 @@ function startWebSocketServer(apiState, httpServer) {
             // Trigger backup after delete
             setTimeout(() => backup.backupNow(), 2000);
 
-            ws.send(JSON.stringify({
+            // Broadcast delete notification
+            broadcast(apiState, {
               type: 'trigger_deleted',
               id: triggerID
-            }));
+            });
 
             ws.send(JSON.stringify({
               type: 'scenario_deleted',
               id: triggerID
             }));
 
-            // Refresh triggers list
+            // Refresh triggers list for everyone
             setTimeout(() => {
               const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
-              ws.send(JSON.stringify({
+              broadcast(apiState, {
                 type: 'auto_reply_status',
                 enabled: require('../autoReply').autoReplyState.enabled,
                 scenarios: allTriggers,
                 stats: require('../autoReply').autoReplyState.stats
-              }));
+              });
             }, 100);
           } else {
             ws.send(JSON.stringify({
@@ -1116,12 +1159,18 @@ function startWebSocketServer(apiState, httpServer) {
         // GET MESSAGES
         // ============================================
         else if (msg.type === 'get_messages') {
-          // ✅ Load from SQLite first, fallback to memory
+          // ✅ Load from SQLite first
           let messages = messageDB.getMessages(msg.uid, 100);
 
-          // If SQLite empty, try memory store (backward compatibility)
-          if (messages.length === 0) {
-            messages = apiState.messageStore.get(msg.uid) || [];
+          // If SQLite empty, try to fetch from Zalo
+          if (messages.length === 0 && apiState.api) {
+            console.log(`⏳ Local history empty for ${msg.uid}, requesting from Zalo...`);
+            // requestOldMessages emits 'old_messages' event which we should handle
+            // but for immediate response, we can also try to return what we have (empty)
+            // and let the client wait for the broadcast.
+            // Better: fetch synchronously if possible or wait for event.
+            // zca-js requestOldMessages is async but doesn't return messages directly (uses listener).
+            apiState.api.listener.requestOldMessages(ThreadType.User, null);
           }
 
           ws.send(JSON.stringify({
@@ -1129,7 +1178,7 @@ function startWebSocketServer(apiState, httpServer) {
             uid: msg.uid,
             messages: messages
           }));
-          console.log(`📤 Sent ${messages.length} messages for ${msg.uid} (from ${messages.length > 0 ? 'SQLite' : 'memory'})`);
+          console.log(`📤 Sent ${messages.length} messages for ${msg.uid} (from ${messages.length > 0 ? 'SQLite' : 'Zalo request triggered'})`);
         }
 
         // ============================================
@@ -1155,14 +1204,21 @@ function startWebSocketServer(apiState, httpServer) {
               const threadId = /^\d+$/.test(msg.uid) ? BigInt(msg.uid) : msg.uid;
 
               // 1️⃣ GỬI TIN NHẮN GỐC TRƯỚC
-              await apiState.api.sendMessage(
+              const response = await apiState.api.sendMessage(
                 { msg: msg.text },
                 threadId,
                 ThreadType.User
               );
 
+              // Extract real IDs from Zalo response
+              const realMsgId = response?.message?.msgId;
+              const realCliMsgId = response?.message?.cliMsgId;
+              // Zalo might not return globalMsgId in sendMessage response, but we have msgId
+
               const sentMsg = {
-                msgId: `sent_${Date.now()}`,
+                msgId: realMsgId || `sent_${Date.now()}`,
+                cliMsgId: realCliMsgId || null,
+                globalMsgId: realMsgId || null, // fallback
                 content: msg.text,
                 timestamp: Date.now(),
                 senderId: apiState.currentUser?.uid,
@@ -1224,13 +1280,42 @@ function startWebSocketServer(apiState, httpServer) {
         // ============================================
         // DELETE CONVERSATION
         // ============================================
+        // ============================================
+        // DELETE CONVERSATION (REAL API)
+        // ============================================
         else if (msg.type === 'delete_conversation') {
-          apiState.messageStore.delete(msg.uid);
-          console.log(`🗑️ Deleted conversation: ${msg.uid}`);
-          ws.send(JSON.stringify({
-            type: 'conversation_deleted',
-            uid: msg.uid
-          }));
+          (async () => {
+            const uid = msg.uid;
+            try {
+              if (apiState.api) {
+                // To delete chat, we need the "last message" object for Zalo to sync status
+                const lastMsg = messageDB.getLastMessage(uid);
+
+                // Construct payload with real IDs
+                const deletePayload = {
+                  ownerId: lastMsg?.senderId || apiState.currentUser?.uid,
+                  cliMsgId: lastMsg?.cliMsgId || lastMsg?.msgId || Date.now().toString(),
+                  globalMsgId: lastMsg?.globalMsgId || lastMsg?.msgId || Date.now().toString()
+                };
+
+                console.log(`🗑️ Deleting chat ${uid} with payload:`, JSON.stringify(deletePayload));
+                await apiState.api.deleteChat(deletePayload, uid);
+                console.log('✅ Server delete success');
+              }
+            } catch (err) {
+              console.error('❌ Delete chat API error:', err.message);
+            } finally {
+              // Always delete local even if API fails (unblocks user)
+              apiState.messageStore.delete(uid);
+              messageDB.deleteConversation(uid);
+
+              // Broadcast delete to update ALL clients
+              broadcast(apiState, {
+                type: 'conversation_deleted',
+                uid: uid
+              });
+            }
+          })();
         }
 
         // ============================================
@@ -1688,9 +1773,13 @@ function startWebSocketServer(apiState, httpServer) {
 
           if (newId) {
             const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
-            ws.send(JSON.stringify({ type: 'scheduled_task_created', success: true, tasks }));
-            // Broadcast to update other clients
+
+            // Broadcast specific event for notifications
+            broadcast(apiState, { type: 'scheduled_task_created', success: true, tasks });
+
+            // Broadcast list update
             broadcast(apiState, { type: 'scheduled_tasks_update', tasks });
+
             // Log Activity
             broadcast(apiState, {
               type: 'new_activity_log',
@@ -1712,8 +1801,13 @@ function startWebSocketServer(apiState, httpServer) {
 
           if (success) {
             const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
-            ws.send(JSON.stringify({ type: 'scheduled_task_updated', success: true, tasks }));
+
+            // Broadcast specific event for notifications
+            broadcast(apiState, { type: 'scheduled_task_updated', success: true, tasks });
+
+            // Broadcast list update
             broadcast(apiState, { type: 'scheduled_tasks_update', tasks });
+
             // Log Activity
             broadcast(apiState, {
               type: 'new_activity_log',
@@ -1735,8 +1829,13 @@ function startWebSocketServer(apiState, httpServer) {
 
           if (success) {
             const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
-            ws.send(JSON.stringify({ type: 'scheduled_task_deleted', success: true, tasks }));
+
+            // Broadcast specific event for notifications
+            broadcast(apiState, { type: 'scheduled_task_deleted', success: true, tasks });
+
+            // Broadcast list update
             broadcast(apiState, { type: 'scheduled_tasks_update', tasks });
+
             // Log Activity
             broadcast(apiState, {
               type: 'new_activity_log',
@@ -1940,6 +2039,39 @@ function startWebSocketServer(apiState, httpServer) {
           }
         }
 
+        else if (msg.type === 'set_default_gate') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+
+          // If gateID is null, just unset all defaults
+          if (msg.gateID === null) {
+            const success = triggerDB.unsetDefaultGate(userUID);
+            if (success) {
+              console.log(`⭐ Unset all default gates for user ${userUID}`);
+              ws.send(JSON.stringify({
+                type: 'default_gate_set',
+                gateID: null
+              }));
+            } else {
+              ws.send(JSON.stringify({ type: 'error', message: 'Failed to unset default gate' }));
+            }
+          } else {
+            const result = triggerDB.setDefaultGate(userUID, msg.gateID);
+            if (result) {
+              console.log(`⭐ Set default gate: ${msg.gateID} for user ${userUID}`);
+              ws.send(JSON.stringify({
+                type: 'default_gate_set',
+                gateID: msg.gateID
+              }));
+            } else {
+              ws.send(JSON.stringify({ type: 'error', message: 'Failed to set default gate' }));
+            }
+          }
+        }
+
         // ============================================
         // TRANSACTIONS HANDLERS
         // ============================================
@@ -1971,7 +2103,7 @@ function startWebSocketServer(apiState, httpServer) {
             note: msg.note
           });
           if (transaction) {
-            ws.send(JSON.stringify({ type: 'transaction_created', transaction }));
+            broadcast(apiState, { type: 'transaction_created', transaction });
           } else {
             ws.send(JSON.stringify({ type: 'payment_error', message: 'Không thể tạo giao dịch' }));
           }
@@ -2282,6 +2414,19 @@ function startWebSocketServer(apiState, httpServer) {
           const { variableName, conversationID } = msg;
           triggerDB.deleteVariable(userUID, conversationID, variableName);
           ws.send(JSON.stringify({ type: 'variable_deleted', variableName }));
+        }
+
+        else if (msg.type === 'delete_variables') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+          const { variables } = msg;
+          if (Array.isArray(variables)) {
+            triggerDB.deleteVariables(userUID, variables);
+            ws.send(JSON.stringify({ type: 'variables_cleared' })); // Reuse variables_cleared for bulk delete refresh
+          }
         }
 
         else if (msg.type === 'clear_all_variables') {
@@ -3760,57 +3905,19 @@ function startWebSocketServer(apiState, httpServer) {
 
         // ZALO BOT POLLING
         else if (msg.type === 'zalo_bot_start_polling') {
-          const zaloBot = require('./zaloBot');
           const token = msg.token;
-
-          if (apiState.zaloBotPolling) {
-            apiState.zaloBotPolling = false; // Stop existing
-            await new Promise(r => setTimeout(r, 1000));
+          if (!token) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Missing bot token' }));
+            return;
           }
-
-          apiState.zaloBotPolling = true;
-          ws.send(JSON.stringify({ type: 'zalo_bot_polling_status', active: true }));
-          console.log('🔄 Zalo Bot: Started Polling...');
-
-          // Start Loop
-          (async () => {
-            let offset = 0;
-            while (apiState.zaloBotPolling) {
-              try {
-                const res = await zaloBot.getUpdates(token, offset);
-                if (res && res.ok && res.result) {
-                  const updates = Array.isArray(res.result) ? res.result : [res.result];
-
-                  for (const update of updates) {
-                    // Broadcast each update as webhook event
-                    const eventMsg = JSON.stringify({
-                      type: 'zalo_webhook_event',
-                      data: update
-                    });
-                    apiState.clients.forEach(c => { if (c.readyState === 1) c.send(eventMsg); });
-
-                    // PROCESSS AUTO REPLY
-                    await processBotMessage(update, token, apiState);
-
-                    // Update offset if update_id exists
-                    if (update.update_id) offset = update.update_id + 1;
-                  }
-                }
-              } catch (e) {
-                console.error('Polling error:', e.message);
-                await new Promise(r => setTimeout(r, 5000)); // Backoff
-              }
-              // Wait a bit if no polling timeout is implicit, but getUpdates has timeout=30
-              // However, checking loop break
-              if (!apiState.zaloBotPolling) break;
-            }
-            console.log('⏹️ Zalo Bot: Stopped Polling');
-          })();
+          // Use shared function to start polling
+          startBotPolling(token, apiState);
         }
 
         else if (msg.type === 'zalo_bot_stop_polling') {
           apiState.zaloBotPolling = false;
-          ws.send(JSON.stringify({ type: 'zalo_bot_polling_status', active: false }));
+          broadcast(apiState, { type: 'zalo_bot_polling_status', active: false });
+          console.log('⏹️ Zalo Bot: Polling stopped by user');
         }
 
         else if (msg.type === 'get_zalo_contacts') {
@@ -3855,6 +3962,48 @@ function startWebSocketServer(apiState, httpServer) {
               type: 'error',
               message: 'Failed to delete contact'
             }));
+          }
+        }
+
+        // ========================================
+        // AUTOMATION ROUTINES HANDLERS
+        // ========================================
+        else if (msg.type === 'get_automation_routines') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) return;
+          const routines = triggerDB.getAutomationRoutines(userUID);
+          ws.send(JSON.stringify({ type: 'automation_routines_list', routines }));
+        }
+
+        else if (msg.type === 'create_automation_routine') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) return;
+          msg.routine.userUID = userUID;
+          const id = triggerDB.createAutomationRoutine(msg.routine);
+          if (id) {
+            const routines = triggerDB.getAutomationRoutines(userUID);
+            broadcast(apiState, { type: 'automation_routines_list', routines });
+            ws.send(JSON.stringify({ type: 'automation_routine_created', id }));
+          }
+        }
+
+        else if (msg.type === 'update_automation_routine') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) return;
+          const success = triggerDB.updateAutomationRoutine(msg.id, userUID, msg.updates);
+          if (success) {
+            const routines = triggerDB.getAutomationRoutines(userUID);
+            broadcast(apiState, { type: 'automation_routines_list', routines });
+          }
+        }
+
+        else if (msg.type === 'delete_automation_routine') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) return;
+          const success = triggerDB.deleteAutomationRoutine(msg.id, userUID);
+          if (success) {
+            const routines = triggerDB.getAutomationRoutines(userUID);
+            broadcast(apiState, { type: 'automation_routines_list', routines });
           }
         }
 
@@ -3903,6 +4052,57 @@ function startWebSocketServer(apiState, httpServer) {
 }
 
 
+// Helper to start Zalo Bot Polling (can be called from anywhere)
+async function startBotPolling(token, apiState) {
+  const zaloBot = require('./zaloBot');
+
+  if (apiState.zaloBotPolling) {
+    console.log('🔄 Zalo Bot: Polling already running, restarting...');
+    apiState.zaloBotPolling = false;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+
+  apiState.zaloBotPolling = true;
+  apiState.botToken = token; // Store token for auto-reply
+  console.log('🔄 Zalo Bot: Started Polling...');
+
+  // Broadcast status to all clients
+  broadcast(apiState, { type: 'zalo_bot_polling_status', active: true });
+
+  // Start Loop
+  (async () => {
+    let offset = 0;
+    while (apiState.zaloBotPolling) {
+      try {
+        const res = await zaloBot.getUpdates(token, offset);
+        if (res && res.ok && res.result) {
+          const updates = Array.isArray(res.result) ? res.result : [res.result];
+
+          for (const update of updates) {
+            // Broadcast each update as webhook event
+            broadcast(apiState, {
+              type: 'zalo_webhook_event',
+              data: update
+            });
+
+            // PROCESS AUTO REPLY
+            await processBotMessage(update, token, apiState);
+
+            // Update offset if update_id exists
+            if (update.update_id) offset = update.update_id + 1;
+          }
+        }
+      } catch (e) {
+        console.error('Polling error:', e.message);
+        await new Promise(r => setTimeout(r, 5000)); // Backoff
+      }
+      if (!apiState.zaloBotPolling) break;
+    }
+    console.log('⏹️ Zalo Bot: Stopped Polling');
+    broadcast(apiState, { type: 'zalo_bot_polling_status', active: false });
+  })();
+}
+
 // Helper to process Zalo Bot Messages (Webhook or Polling)
 async function processBotMessage(update, token, apiState) {
   try {
@@ -3943,7 +4143,7 @@ async function processBotMessage(update, token, apiState) {
 
     // Match trigger by keyword
     const matched = allTriggers.find(t => {
-      if (!t.isEnabled) return false;
+      if (!t.enabled) return false;
 
       // Get keywords from triggerKey (comma-separated)
       const keywords = (t.triggerKey || '').split(',').map(k => k.trim().toLowerCase()).filter(k => k);
@@ -4000,4 +4200,4 @@ async function processBotMessage(update, token, apiState) {
 }
 
 // Export triggerDB và print agent functions để các module khác có thể dùng
-module.exports = { startWebSocketServer, broadcast, triggerDB, sendToPrintAgent, hasPrintAgent, processBotMessage };
+module.exports = { startWebSocketServer, broadcast, triggerDB, sendToPrintAgent, hasPrintAgent, processBotMessage, startBotPolling };

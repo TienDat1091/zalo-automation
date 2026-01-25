@@ -456,12 +456,17 @@
     html += '<div class="block-subtitle">#' + block.blockID + '</div>';
     html += '</div>';
     html += '<div class="block-actions">';
+    html += '<button class="block-action-btn note" onclick="editBlock(' + block.blockID + ')" title="Ghi chú">📝</button>';
     html += '<button class="block-action-btn toggle" onclick="toggleBlockEnabled(' + block.blockID + ')" title="' + (isEnabled ? 'Vô hiệu hóa' : 'Kích hoạt') + '">' + (isEnabled ? '✅' : '❌') + '</button>';
     html += '<button class="block-action-btn" onclick="editBlock(' + block.blockID + ')" title="Chỉnh sửa">✏️</button>';
     html += '<button class="block-action-btn delete" onclick="deleteBlock(' + block.blockID + ')" title="Xóa">🗑️</button>';
     html += '</div></div>';
 
     // Content / Preview
+    if (data.note) {
+      html += '<div class="block-note">' + FlowBuilder.escapeHtml(data.note) + '</div>';
+    }
+
     html += '<div class="block-content">';
     if (preview) {
       html += '<div class="block-preview">' + FlowBuilder.escapeHtml(preview) + '</div>';
@@ -875,6 +880,51 @@
   window.goBack = function () {
     window.location.href = '/trigger-manager.html';
   };
+
+  // ========================================
+  // UTILITY FUNCTIONS FOR BLOCKS
+  // ========================================
+
+  // Load payment gates (for refresh button in payment-hub)
+  FlowBuilder.loadPaymentGates = function () {
+    return new Promise(function (resolve, reject) {
+      if (!window.ws || window.ws.readyState !== WebSocket.OPEN) {
+        reject(new Error('WebSocket not connected'));
+        return;
+      }
+
+      // Send request
+      window.ws.send(JSON.stringify({ type: 'get_payment_gates' }));
+
+      // Wait for response (simple timeout-based approach)
+      var checkInterval = setInterval(function () {
+        if (window.paymentGates && window.paymentGates.length >= 0) {
+          clearInterval(checkInterval);
+          resolve(window.paymentGates);
+        }
+      }, 100);
+
+      // Timeout after 5 seconds
+      setTimeout(function () {
+        clearInterval(checkInterval);
+        resolve(window.paymentGates || []);
+      }, 5000);
+    });
+  };
+
+  // Expose showBlockProperties for refresh functionality
+  FlowBuilder.showBlockProperties = function (block) {
+    if (block && block.blockID) {
+      openPropertiesPanel(block.blockID);
+    }
+  };
+
+  // Expose selectedBlock for refresh access
+  Object.defineProperty(FlowBuilder, 'selectedBlock', {
+    get: function () {
+      return state.blocks.find(function (b) { return b.blockID === state.selectedBlockId; });
+    }
+  });
 
   // ========================================
 

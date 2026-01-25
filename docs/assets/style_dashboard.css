@@ -12,10 +12,12 @@ body {
 }
 
 .container {
-  height: 100vh;
+  height: calc(100vh - 64px);
+  /* Subtract Unified Header height */
   display: grid;
   grid-template-columns: 320px 1fr;
   background: white;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
@@ -34,10 +36,12 @@ body {
   border-right: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
 }
 
 .sidebar-header {
+  display: none !important;
+  /* Hide legacy header */
   background: linear-gradient(135deg, #0068FF 0%, #0052CC 100%);
   color: white;
   padding: 20px;
@@ -378,7 +382,9 @@ body {
   display: flex;
   flex-direction: column;
   background: white;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-header {
@@ -424,6 +430,7 @@ body {
 .messages-container {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
   background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
   display: flex;
@@ -687,12 +694,13 @@ body {
 
 /* Mobile Toggle Button */
 .mobile-toggle {
-  display: none;
+  display: none !important;
   /* Hidden on desktop */
   position: fixed;
   top: 15px;
   left: 15px;
-  z-index: 1001;
+  z-index: 900;
+  /* Lower than unified header (9999) */
   background: linear-gradient(135deg, #0068FF 0%, #0052CC 100%);
   color: white;
   border: none;
@@ -703,7 +711,6 @@ body {
   box-shadow: 0 4px 15px rgba(0, 104, 255, 0.4);
   transition: all 0.3s ease;
   font-size: 24px;
-  display: flex;
   align-items: center;
   justify-content: center;
 }
@@ -761,7 +768,9 @@ body {
 
   /* Show mobile toggle button */
   .mobile-toggle {
-    display: flex;
+    display: flex !important;
+    z-index: 10002 !important;
+    /* Higher than unified header on mobile */
   }
 
   /* Sidebar becomes slide-in panel */

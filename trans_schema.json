@@ -1,0 +1,114 @@
+[
+  {
+    "cid": 0,
+    "name": "transactionID",
+    "type": "INTEGER",
+    "notnull": 0,
+    "dflt_value": null,
+    "pk": 1
+  },
+  {
+    "cid": 1,
+    "name": "userUID",
+    "type": "TEXT",
+    "notnull": 1,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 2,
+    "name": "gateID",
+    "type": "INTEGER",
+    "notnull": 1,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 3,
+    "name": "amount",
+    "type": "REAL",
+    "notnull": 1,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 4,
+    "name": "currency",
+    "type": "TEXT",
+    "notnull": 0,
+    "dflt_value": "'VND'",
+    "pk": 0
+  },
+  {
+    "cid": 5,
+    "name": "status",
+    "type": "TEXT",
+    "notnull": 0,
+    "dflt_value": "'pending'",
+    "pk": 0
+  },
+  {
+    "cid": 6,
+    "name": "transactionCode",
+    "type": "TEXT",
+    "notnull": 0,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 7,
+    "name": "description",
+    "type": "TEXT",
+    "notnull": 0,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 8,
+    "name": "senderName",
+    "type": "TEXT",
+    "notnull": 0,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 9,
+    "name": "senderAccount",
+    "type": "TEXT",
+    "notnull": 0,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 10,
+    "name": "receivedAt",
+    "type": "INTEGER",
+    "notnull": 0,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 11,
+    "name": "processedAt",
+    "type": "INTEGER",
+    "notnull": 0,
+    "dflt_value": null,
+    "pk": 0
+  },
+  {
+    "cid": 12,
+    "name": "createdAt",
+    "type": "INTEGER",
+    "notnull": 0,
+    "dflt_value": "strftime('%s','now') * 1000",
+    "pk": 0
+  },
+  {
+    "cid": 13,
+    "name": "updatedAt",
+    "type": "INTEGER",
+    "notnull": 0,
+    "dflt_value": "strftime('%s','now') * 1000",
+    "pk": 0
+  }
+]

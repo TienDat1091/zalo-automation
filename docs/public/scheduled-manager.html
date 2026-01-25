@@ -39,6 +39,11 @@
             background: #cce5ff;
             color: #004085;
         }
+
+        .type-badge.forward {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
     </style>
 </head>
 
@@ -132,21 +137,18 @@
 
     <!-- Modal: Create/Edit Task -->
     <div class="modal-overlay" id="taskModal">
-        <div class="modal">
-            <div class="modal-header">
+        <div class="modal-content" style="display:flex; flex-direction:column; max-height:85vh; overflow:hidden;">
+            <div class="modal-header" style="flex-shrink:0;">
                 <h3 id="taskModalTitle">Tạo lịch gửi mới</h3>
                 <button class="modal-close" onclick="closeTaskModal()">×</button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="overflow-y:auto; flex:1;">
                 <input type="hidden" id="editingTaskId">
-                <div class="form-group">
+                <div class="form-group" id="singleTargetGroup">
                     <label>Người nhận (Target ID) <span class="required">*</span></label>
-                    <div style="display: flex; gap: 8px;">
-                        <select class="form-control" id="taskTargetSelect" onchange="onTargetSelectChange()">
-                            <option value="">-- Chọn người nhận --</option>
-                        </select>
-                        <input type="text" id="taskTargetId" style="display:none;">
-                    </div>
+                    <select class="form-control" id="taskTargetSelect" onchange="onSingleTargetChange()">
+                        <option value="">-- Chọn người nhận --</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -154,6 +156,7 @@
                     <select class="form-control" id="taskType" onchange="toggleTaskType()">
                         <option value="text">Văn bản (Text)</option>
                         <option value="flow">Kịch bản (Flow)</option>
+                        <option value="forward">Chuyển tiếp (Bulk Forward)</option>
                     </select>
                 </div>
 
@@ -161,7 +164,31 @@
                     <label>Nội dung tin nhắn <span class="required">*</span></label>
                     <textarea class="form-control" id="taskContent" rows="3"
                         placeholder="Nhập nội dung tin nhắn..."></textarea>
+
+                    <div id="targetSelectionArea"
+                        style="display:none; margin-top:15px; border-top:1px dashed #eee; padding-top:10px;">
+                        <label>Chọn người nhận <span class="required">*</span></label>
+
+                        <div class="multi-select-controls"
+                            style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="selectAllTargets()">☑️ Chọn
+                                tất cả</button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="deselectAllTargets()">⬜ Bỏ
+                                chọn</button>
+                            <span id="selectedCount" style="font-size:12px; color:#666; align-self:center;">Đã chọn:
+                                0</span>
+                        </div>
+
+                        <div id="multiSelectContainer"
+                            style="max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: #f8fafc;">
+                            <div class="spinner"></div> Đang tải danh sách...
+                        </div>
+
+                        <!-- Hidden input to store final result -->
+                        <input type="hidden" id="taskTargetId">
+                    </div>
                 </div>
+
 
                 <div id="flowInputGroup" style="display:none;">
                     <label style="display:block; margin-bottom:5px; font-weight:500;">Chọn Kịch bản (Flow)</label>
@@ -176,7 +203,7 @@
                     <input type="datetime-local" class="form-control" id="taskTime">
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-shrink:0;">
                 <button class="btn btn-outline" onclick="closeTaskModal()">Hủy</button>
                 <button class="btn btn-primary" onclick="saveTask()">💾 Lưu lịch</button>
             </div>
@@ -307,12 +334,64 @@
             if (currentVal) select.value = currentVal;
         }
 
-        function onTargetSelectChange() {
+        // SINGLE TARGET CHANGE
+        function onSingleTargetChange() {
             const select = document.getElementById('taskTargetSelect');
-            const selectedOption = select.options[select.selectedIndex];
-            if (selectedOption) {
+            if (select.value) {
                 document.getElementById('taskTargetId').value = select.value;
             }
+        }
+
+        // LOAD MULTI SELECT
+        async function loadMultiSelectTargets() {
+            const container = document.getElementById('multiSelectContainer');
+            if (window.cachedFriends) {
+                renderMultiSelect(window.cachedFriends);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/friends'); // Assuming this endpoint exists or we use window.friends
+                const friends = await response.json();
+                window.cachedFriends = friends;
+                renderMultiSelect(friends);
+            } catch (e) {
+                container.innerHTML = '<div style="color:red">Lỗi tải danh sách bạn bè</div>';
+            }
+        }
+
+        function renderMultiSelect(friends) {
+            const container = document.getElementById('multiSelectContainer');
+            container.innerHTML = friends.map(f => `
+                <div class="friend-check-item" style="display:flex; align-items:center; padding:4px 0; border-bottom:1px solid #eee;">
+                    <input type="checkbox" class="target-checkbox" value="${f.userId}" id="chk_${f.userId}" onchange="updateSelectedCount()">
+                    <label for="chk_${f.userId}" style="flex:1; margin-left:8px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <img src="${f.avatar || 'https://via.placeholder.com/30'}" style="width:24px; height:24px; border-radius:50%;">
+                        <span>${escapeHtml(f.displayName)}</span>
+                        <small style="color:#999; margin-left:auto;">${f.userId}</small>
+                    </label>
+                </div>
+            `).join('');
+            updateSelectedCount();
+        }
+
+        function selectAllTargets() {
+            document.querySelectorAll('.target-checkbox').forEach(cb => cb.checked = true);
+            updateSelectedCount();
+        }
+
+        function deselectAllTargets() {
+            document.querySelectorAll('.target-checkbox').forEach(cb => cb.checked = false);
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.target-checkbox:checked').length;
+            document.getElementById('selectedCount').textContent = `Đã chọn: ${count}`;
+
+            // Update hidden input
+            const ids = Array.from(document.querySelectorAll('.target-checkbox:checked')).map(cb => cb.value);
+            document.getElementById('taskTargetId').value = ids.join(', ');
         }
 
         function loadTasks() {
@@ -338,7 +417,7 @@
               <strong>${escapeHtml(t.targetName || 'N/A')}</strong><br>
               <small style="opacity: 0.7">${t.targetId}</small>
             </td>
-            <td><span class="type-badge ${t.type}">${t.type === 'flow' ? 'Flow' : 'Text'}</span></td>
+            <td><span class="type-badge ${t.type}">${t.type === 'flow' ? 'Flow' : (t.type === 'forward' ? 'Forward' : 'Text')}</span></td>
             <td>
                <div style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.content)}">
                  ${escapeHtml(t.content)}
@@ -439,6 +518,7 @@
 
             document.getElementById('taskTargetSelect').value = '';
             document.getElementById('taskTargetId').value = '';
+            document.getElementById('taskTargetId').style.display = 'none';
             document.getElementById('taskContent').value = '';
             document.getElementById('taskTime').value = '';
             document.getElementById('taskType').value = 'text';
@@ -447,15 +527,28 @@
             document.getElementById('taskModal').classList.add('active');
         }
 
-        function editTask(id) {
+        async function editTask(id) {
             const task = tasks.find(t => t.id === id);
             if (!task) return;
 
             document.getElementById('taskModalTitle').textContent = 'Chỉnh sửa lịch gửi';
             document.getElementById('editingTaskId').value = task.id;
 
-            document.getElementById('taskTargetSelect').value = task.targetId;
-            document.getElementById('taskTargetId').value = task.targetId;
+            if (task.type === 'forward') {
+                // Pre-select checkboxes
+                const ids = task.targetId.split(',').map(s => s.trim());
+                // Need to wait for list load?
+                await loadMultiSelectTargets();
+                setTimeout(() => {
+                    document.querySelectorAll('.target-checkbox').forEach(cb => {
+                        cb.checked = ids.includes(cb.value);
+                    });
+                    updateSelectedCount();
+                }, 500);
+            } else {
+                document.getElementById('taskTargetSelect').value = task.targetId;
+                document.getElementById('taskTargetId').value = task.targetId;
+            }
 
             document.getElementById('taskType').value = task.type;
             toggleTaskType();
@@ -480,12 +573,30 @@
 
         function toggleTaskType() {
             const type = document.getElementById('taskType').value;
+            const contentLabel = document.querySelector('#groupContent label');
+            const targetInput = document.getElementById('taskTargetId');
+
+            const singleGroup = document.getElementById('singleTargetGroup');
+            const multiArea = document.getElementById('targetSelectionArea');
+
+            // Reset
+            singleGroup.style.display = 'none';
+            multiArea.style.display = 'none';
+            document.getElementById('flowInputGroup').style.display = 'none';
+            document.getElementById('groupContent').style.display = 'block';
+
             if (type === 'text') {
-                document.getElementById('groupContent').style.display = 'block';
-                document.getElementById('flowInputGroup').style.display = 'none';
-            } else {
+                singleGroup.style.display = 'block';
+                contentLabel.innerHTML = 'Nội dung tin nhắn <span class="required">*</span>';
+                // Load options logic is already handled by loadFriends (which populates taskTargetSelect)
+            } else if (type === 'flow') {
                 document.getElementById('groupContent').style.display = 'none';
                 document.getElementById('flowInputGroup').style.display = 'block';
+                singleGroup.style.display = 'block';
+            } else if (type === 'forward') {
+                multiArea.style.display = 'block';
+                contentLabel.innerHTML = 'Nội dung cần chuyển tiếp <span class="required">*</span>';
+                loadMultiSelectTargets();
             }
         }
 
@@ -494,19 +605,26 @@
 
             const targetId = document.getElementById('taskTargetId').value.trim();
             const select = document.getElementById('taskTargetSelect');
-            const targetName = select.options[select.selectedIndex]?.dataset.name || targetId;
+            let targetName = select.options[select.selectedIndex]?.dataset.name || targetId;
             const type = document.getElementById('taskType').value;
             const timeStr = document.getElementById('taskTime').value;
 
             let content = '';
-            if (type === 'text') {
-                content = document.getElementById('taskContent').value.trim();
-            } else {
+            if (type === 'flow') {
                 content = document.getElementById('taskFlowSelect').value;
                 if (!content) {
                     showToast('❌ Vui lòng chọn kịch bản workflow!', 'error');
                     return;
                 }
+            } else {
+                // Text OR Forward
+                content = document.getElementById('taskContent').value.trim();
+            }
+
+            // Fix targetName for forward
+            if (type === 'forward') {
+                const count = targetId.split(',').length;
+                targetName = `${count} người nhận`;
             }
 
             if (!targetId || !content || !timeStr) {

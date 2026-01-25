@@ -25,6 +25,8 @@ function init() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         conversationId TEXT NOT NULL,
         msgId TEXT UNIQUE,
+        cliMsgId TEXT,
+        globalMsgId TEXT,
         senderId TEXT NOT NULL,
         receiverId TEXT,
         content TEXT,
@@ -44,6 +46,8 @@ function init() {
       CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversationId);
       CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
       CREATE INDEX IF NOT EXISTS idx_messages_msgId ON messages(msgId);
+      CREATE INDEX IF NOT EXISTS idx_messages_cliMsgId ON messages(cliMsgId);
+      CREATE INDEX IF NOT EXISTS idx_messages_globalMsgId ON messages(globalMsgId);
     `);
 
         // FILE ACTIVITY LOGS (NEW)
@@ -92,12 +96,14 @@ function saveMessage(conversationId, message) {
     try {
         const stmt = db.prepare(`
       INSERT OR REPLACE INTO messages 
-      (conversationId, msgId, senderId, receiverId, content, timestamp, isSelf, isAutoReply, attachmentType, attachmentPath, attachmentName, attachmentSize)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (conversationId, msgId, cliMsgId, globalMsgId, senderId, receiverId, content, timestamp, isSelf, isAutoReply, attachmentType, attachmentPath, attachmentName, attachmentSize)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
         const result = stmt.run(
             conversationId,
             message.msgId || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            message.cliMsgId || null,
+            message.globalMsgId || null,
             message.senderId || '',
             message.receiverId || '',
             message.content || message.msg || '',
@@ -193,7 +199,16 @@ function getLastMessage(conversationId) {
     if (!db) return null;
     try {
         const row = db.prepare(`SELECT * FROM messages WHERE conversationId = ? ORDER BY timestamp DESC LIMIT 1`).get(conversationId);
-        return row ? { content: row.content, timestamp: row.timestamp, isSelf: !!row.isSelf } : null;
+        return row ? {
+            msgId: row.msgId,
+            cliMsgId: row.cliMsgId,
+            globalMsgId: row.globalMsgId,
+            senderId: row.senderId,
+            receiverId: row.receiverId,
+            content: row.content,
+            timestamp: row.timestamp,
+            isSelf: !!row.isSelf
+        } : null;
     } catch (err) { return null; }
 }
 

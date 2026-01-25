@@ -168,6 +168,20 @@ async function lookupAccount(accountNumber, bankBin) {
 }
 
 /**
+ * Set VietQR API credentials
+ */
+let vietqrConfig = {
+  apiKey: '',
+  clientId: ''
+};
+
+function setVietQRKey(apiKey, clientId) {
+  vietqrConfig.apiKey = apiKey;
+  vietqrConfig.clientId = clientId;
+  console.log('✅ VietQR API credentials updated');
+}
+
+/**
  * Use VietQR API as fallback for account lookup (free, no auth required)
  * This is a public API that works for most Vietnamese banks
  */
@@ -186,8 +200,8 @@ async function lookupAccountVietQR(accountNumber, bankBin) {
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData),
-        'x-client-id': 'your-client-id', // Optional
-        'x-api-key': 'your-api-key' // Optional
+        'x-client-id': vietqrConfig.clientId || 'your-client-id',
+        'x-api-key': vietqrConfig.apiKey || 'your-api-key'
       }
     };
 
@@ -233,6 +247,7 @@ async function lookupAccountVietQR(accountNumber, bankBin) {
 
 module.exports = {
   setCredentials,
+  setVietQRKey,
   getCredentialsStatus,
   getAccessToken,
   lookupAccount,

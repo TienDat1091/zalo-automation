@@ -1,0 +1,536 @@
+/* Unified Header Styles */
+.unified-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%);
+    color: white;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 9999;
+}
+
+/* Spacer to push content down */
+.header-spacer {
+    height: 64px;
+    background: #fff;
+    /* Sửa lỗi vệt xanh trên Dashboard */
+}
+
+/* Left Brand */
+.uh-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    text-decoration: none;
+    color: white;
+}
+
+.uh-brand .icon {
+    font-size: 24px;
+}
+
+/* Center Actions Area */
+.uh-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+/* Header Toggles (Moved from Trigger Manager) */
+/* Header Toggles - Unified Container */
+.uh-toggles {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 30px;
+    padding: 4px 8px;
+}
+
+.uh-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    position: relative;
+}
+
+/* Divider between toggle groups */
+.uh-toggle-group:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.uh-toggle-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.uh-toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.uh-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+}
+
+.uh-toggle-switch input {
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    cursor: pointer;
+}
+
+.uh-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #e0e0e0;
+    transition: .2s;
+    border-radius: 10px;
+}
+
+.uh-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .2s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input:checked+.uh-toggle-slider {
+    background-color: #4CAF50;
+}
+
+input:checked+.uh-toggle-slider:before {
+    transform: translateX(16px);
+}
+
+.uh-toggle-status {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.uh-toggle-status.on {
+    color: #4CAF50;
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.uh-toggle-status.off {
+    color: #ff5252;
+    background: rgba(255, 82, 82, 0.1);
+}
+
+/* Right Actions */
+.uh-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Navigation Links */
+.uh-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.uh-nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.uh-nav-link.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+/* Icon Buttons */
+.uh-icon-btn {
+    position: relative;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.uh-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.uh-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: #f44336;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    border: 2px solid #0d2137;
+}
+
+/* User Profile */
+.uh-user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 30px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.uh-user-profile:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.uh-dropdown-arrow {
+    font-size: 10px;
+    opacity: 0.5;
+    margin-left: 4px;
+    transition: transform 0.2s;
+}
+
+.uh-user-container {
+    position: relative;
+}
+
+.uh-user-profile[aria-expanded="true"] .uh-dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.uh-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #e0e0e0;
+    border: 2px solid white;
+}
+
+.uh-user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.uh-user-name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.uh-user-uid {
+    font-size: 11px;
+    opacity: 0.7;
+    line-height: 1.2;
+}
+
+/* User Status Dot */
+.uh-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ccc;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    border: 2px solid #0d2137;
+}
+
+.uh-status-dot.online {
+    background: #4caf50;
+}
+
+/* Dropdown Menu - Generic */
+.uh-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 250px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    color: #333;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 10000;
+    animation: uhSlideDown 0.2s ease-out;
+}
+
+#uh-notif-dropdown {
+    width: 320px;
+}
+
+.uh-dropdown-menu.show {
+    display: flex;
+}
+
+/* Menu Items */
+.uh-menu-item {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #444;
+}
+
+.uh-menu-item:hover {
+    background: #f5f7fa;
+    color: #1e3a5f;
+}
+
+.uh-menu-item .icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+.uh-menu-divider {
+    height: 1px;
+    background: #eee;
+    margin: 4px 0;
+}
+
+.uh-menu-item.logout {
+    color: #ff5252;
+}
+
+.uh-menu-item.logout:hover {
+    background: #fff5f5;
+}
+
+.uh-dropdown-menu.show {
+    display: flex;
+}
+
+.uh-dropdown-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.uh-dropdown-body {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.uh-notification-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 13px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.uh-notification-item:hover {
+    background: #f9f9f9;
+}
+
+.uh-notification-icon {
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.uh-notification-content {
+    flex: 1;
+}
+
+.uh-notification-time {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+}
+
+@keyframes uhSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Unified Confirmation Modal */
+.uh-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+}
+
+.uh-confirm-overlay.show {
+    display: flex;
+    opacity: 1;
+}
+
+.uh-confirm-modal {
+    background: white;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: uhModalPopup 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes uhModalPopup {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.uh-confirm-header {
+    padding: 20px 24px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e3a5f;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.uh-confirm-body {
+    padding: 24px;
+    font-size: 15px;
+    color: #444;
+    line-height: 1.5;
+}
+
+.uh-confirm-footer {
+    padding: 16px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: #f9f9f9;
+}
+
+.uh-confirm-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.uh-confirm-btn.cancel {
+    background: #eee;
+    color: #666;
+}
+
+.uh-confirm-btn.cancel:hover {
+    background: #e0e0e0;
+}
+
+.uh-confirm-btn.ok {
+    background: #ff5252;
+    color: white;
+}
+
+.uh-confirm-btn.ok:hover {
+    background: #ff3838;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+
+    .uh-user-name,
+    .uh-user-uid,
+    .uh-nav-text {
+        display: none;
+    }
+
+    .uh-nav-link {
+        padding: 8px;
+    }
+
+    .uh-user-profile {
+        padding: 4px;
+        background: transparent;
+        border: none;
+    }
+}

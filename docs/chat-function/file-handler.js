@@ -8,10 +8,10 @@ function handleFileSelect(event) {
     console.log(`📎 File selected: ${file.name} (${file.type})`);
 
     const isImage = file.type.startsWith('image/');
-    const maxSize = isImage ? 10 * 1024 * 1024 : 5 * 1024 * 1024; // 10MB for images, 5MB for files
+    const maxSize = 100 * 1024 * 1024; // 100MB for both images and files
 
     if (file.size > maxSize) {
-        alert(`❌ File quá lớn! Giới hạn: ${isImage ? '10MB' : '5MB'}`);
+        alert(`❌ File quá lớn! Giới hạn: 100MB`);
         event.target.value = '';
         return;
     }

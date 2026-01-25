@@ -13,7 +13,8 @@ const autoReplyState = {
   cooldowns: new Map(),
   botActiveStates: new Map(),
   pendingInputs: new Map(),
-  aiConversationModes: new Map() // senderId -> { active, configId, systemPrompt, timeout, lastMessageTime, conversationHistory }
+  aiConversationModes: new Map(), // senderId -> { active, configId, systemPrompt, timeout, lastMessageTime, conversationHistory }
+  pendingPayments: new Map() // transactionCode -> { resolve, reject, timeout }
 };
 
 const flowProcessLog = [];
@@ -82,7 +83,7 @@ function buildStaticContext(apiState, senderId, message = null) {
     minute: String(now.getMinutes()),
 
     // Message (if available)
-    message: message?.data?.content || message || ''
+    message: typeof message === 'object' ? (message?.data?.content?.title || message?.data?.content?.filename || '[File/Ảnh]') : (message?.data?.content || message || '')
   };
 }
 
@@ -103,7 +104,8 @@ async function processAutoReply(apiState, message) {
       fs.appendFileSync(dFile, logLine);
     } catch (e) { }
 
-    console.log(`📥 processAutoReply RECV: Type=${message.type}, IsSelf=${isSelf} (API says: ${message.isSelf}), UID=${message.uidFrom}, CurrentUID=${currentUid}, Content="${message.data.content}"`);
+    const logMsgContent = typeof message.data.content === 'object' ? '[Object Content]' : `"${message.data.content}"`;
+    console.log(`📥 processAutoReply RECV: Type=${message.type}, IsSelf=${isSelf} (API says: ${message.isSelf}), UID=${message.uidFrom}, CurrentUID=${currentUid}, Content=${logMsgContent}`);
 
     const senderId = message.uidFrom || message.threadId;
 
@@ -129,6 +131,131 @@ async function processAutoReply(apiState, message) {
 
     const userUID = apiState.currentUser?.uid;
     if (!userUID) return;
+
+    // ========== CHECK AI CONVERSATION MODE COMMANDS & ACTIVE SESSION ==========
+    if (typeof content === 'string') {
+      // Get built-in trigger settings
+      const aiConvSettings = triggerDB.getBuiltInTriggerState(userUID, 'builtin_ai_conversation');
+
+      if (aiConvSettings && aiConvSettings.enabled) {
+        const commandOn = (aiConvSettings.commandOn || '/ai').toLowerCase();
+        const commandOff = (aiConvSettings.commandOff || '/ai-off').toLowerCase();
+        const trimmedContent = content.trim().toLowerCase();
+
+        // Check for command to enable AI mode (Allow /ai-on if /ai is set, for user convenience)
+        if (trimmedContent === commandOn || (commandOn === '/ai' && trimmedContent === '/ai-on')) {
+          console.log(`🤖 Enabling AI Conversation Mode for ${senderId} via command: ${content.trim()}`);
+
+          // Get AI config
+          const aiConfig = triggerDB.getAIConfigById(aiConvSettings.configId);
+          if (!aiConfig) {
+            console.error(`❌ AI Config not found: ${aiConvSettings.configId}`);
+            return;
+          }
+
+          // Enable AI mode
+          autoReplyState.aiConversationModes.set(senderId, {
+            active: true,
+            apiKey: aiConfig.apiKey,
+            model: aiConfig.model,
+            systemPrompt: aiConvSettings.systemPrompt || '',
+            temperature: aiConfig.temperature || 0.7,
+            timeoutMinutes: aiConvSettings.timeoutMinutes || 30,
+            timeoutMessage: aiConvSettings.timeoutMessage || '',
+            saveHistory: aiConvSettings.saveHistory !== false,
+            conversationHistory: [],
+            lastMessageTime: Date.now()
+          });
+
+          await sendMessage(apiState, senderId, '🤖 Chế độ AI đã được bật! Tôi sẽ trả lời tất cả tin nhắn của bạn.', userUID);
+          return;
+        }
+
+        // Check for command to disable AI mode
+        if (trimmedContent === commandOff) {
+          console.log(`🤖 Disabling AI Conversation Mode for ${senderId} via command: ${content.trim()}`);
+
+          if (autoReplyState.aiConversationModes.has(senderId)) {
+            autoReplyState.aiConversationModes.delete(senderId);
+            await sendMessage(apiState, senderId, '👋 Chế độ AI đã được tắt!', userUID);
+          } else {
+            await sendMessage(apiState, senderId, 'ℹ️ Chế độ AI chưa được bật.', userUID);
+          }
+          return;
+        }
+      }
+
+      // Check if AI mode is active for this sender
+      const aiMode = autoReplyState.aiConversationModes.get(senderId);
+
+      if (aiMode && aiMode.active) {
+        // Check timeout
+        const timeSinceLastMessage = Date.now() - aiMode.lastMessageTime;
+        const timeoutMs = aiMode.timeoutMinutes * 60 * 1000;
+
+        if (timeSinceLastMessage > timeoutMs) {
+          // Timeout - disable AI mode and send timeout message
+          console.log(`⏱️ AI Mode timeout for ${senderId} (${aiMode.timeoutMinutes}m)`);
+          autoReplyState.aiConversationModes.delete(senderId);
+
+          if (aiMode.timeoutMessage) {
+            await sendMessage(apiState, senderId, aiMode.timeoutMessage, userUID);
+          }
+          // Continue to normal trigger matching
+        } else {
+          // AI mode still active - auto reply with AI
+          console.log(`🤖 AI Conversation Mode active for ${senderId}`);
+
+          try {
+            // Update last message time
+            aiMode.lastMessageTime = Date.now();
+
+            // Build conversation history
+            let conversationHistory = aiMode.saveHistory && aiMode.conversationHistory ? aiMode.conversationHistory : [];
+
+            // Add user message to history
+            conversationHistory.push({ role: 'user', content: content });
+
+            // Keep only last 20 messages to avoid context overflow
+            if (conversationHistory.length > 20) {
+              conversationHistory = conversationHistory.slice(-20);
+            }
+
+            // Build prompt with history
+            let fullPrompt = '';
+            conversationHistory.forEach(msg => {
+              fullPrompt += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+            });
+            fullPrompt += 'Assistant:';
+
+            // Call local callGeminiAPI
+            const response = await callGeminiAPI(
+              aiMode.apiKey,
+              aiMode.model,
+              fullPrompt,
+              aiMode.systemPrompt,
+              aiMode.temperature
+            );
+
+            if (response && response.text) {
+              // Add AI response to history
+              conversationHistory.push({ role: 'assistant', content: response.text });
+              aiMode.conversationHistory = conversationHistory;
+
+              // Send response
+              await sendMessage(apiState, senderId, response.text, userUID);
+              autoReplyState.stats.replied++;
+              console.log(`✅ AI replied in conversation mode`);
+            }
+
+            return; // Stop processing critical system commands / active sessions
+          } catch (error) {
+            console.error(`❌ AI Conversation Mode error: ${error.message}`);
+            // On error, fall through to normal trigger matching
+          }
+        }
+      }
+    }
 
     // ✅ CHECK PER-USER SETTING (New Feature)
     // If 'auto_reply_enabled' is explicitly 'false', skip auto-reply
@@ -403,132 +530,6 @@ async function processAutoReply(apiState, message) {
       }
     }
 
-    // ========== CHECK AI CONVERSATION MODE COMMANDS ==========
-    if (typeof content === 'string') {
-      // Get built-in trigger settings
-      const aiConvSettings = triggerDB.getBuiltInTriggerState(userUID, 'builtin_ai_conversation');
-
-      if (aiConvSettings && aiConvSettings.enabled) {
-        const commandOn = aiConvSettings.commandOn || '/ai';
-        const commandOff = aiConvSettings.commandOff || '/ai-off';
-
-        // Check for command to enable AI mode
-        if (content.trim() === commandOn) {
-          console.log(`🤖 Enabling AI Conversation Mode for ${senderId} via command: ${commandOn}`);
-
-          // Get AI config
-          const aiConfig = triggerDB.getAIConfigById(aiConvSettings.configId);
-          if (!aiConfig) {
-            console.error(`❌ AI Config not found: ${aiConvSettings.configId}`);
-            return;
-          }
-
-          // Enable AI mode
-          autoReplyState.aiConversationModes.set(senderId, {
-            active: true,
-            apiKey: aiConfig.apiKey,
-            model: aiConfig.model,
-            systemPrompt: aiConvSettings.systemPrompt || '',
-            temperature: aiConfig.temperature || 0.7,
-            timeoutMinutes: aiConvSettings.timeoutMinutes || 30,
-            timeoutMessage: aiConvSettings.timeoutMessage || '',
-            saveHistory: aiConvSettings.saveHistory !== false,
-            conversationHistory: [],
-            lastMessageTime: Date.now()
-          });
-
-          await sendMessage(apiState, senderId, '🤖 Chế độ AI đã được bật! Tôi sẽ trả lời tất cả tin nhắn của bạn.', userUID);
-          return;
-        }
-
-        // Check for command to disable AI mode
-        if (content.trim() === commandOff) {
-          console.log(`🤖 Disabling AI Conversation Mode for ${senderId} via command: ${commandOff}`);
-
-          if (autoReplyState.aiConversationModes.has(senderId)) {
-            autoReplyState.aiConversationModes.delete(senderId);
-            await sendMessage(apiState, senderId, '👋 Chế độ AI đã được tắt!', userUID);
-          } else {
-            await sendMessage(apiState, senderId, 'ℹ️ Chế độ AI chưa được bật.', userUID);
-          }
-          return;
-        }
-      }
-
-      // Check if AI mode is active for this sender
-      const aiMode = autoReplyState.aiConversationModes.get(senderId);
-
-      if (aiMode && aiMode.active) {
-        // Check timeout
-        const timeSinceLastMessage = Date.now() - aiMode.lastMessageTime;
-        const timeoutMs = aiMode.timeoutMinutes * 60 * 1000;
-
-        if (timeSinceLastMessage > timeoutMs) {
-          // Timeout - disable AI mode and send timeout message
-          console.log(`⏱️ AI Mode timeout for ${senderId} (${aiMode.timeoutMinutes}m)`);
-          autoReplyState.aiConversationModes.delete(senderId);
-
-          if (aiMode.timeoutMessage) {
-            await sendMessage(apiState, senderId, aiMode.timeoutMessage, userUID);
-          }
-          // Continue to normal trigger matching
-        } else {
-          // AI mode still active - auto reply with AI
-          console.log(`🤖 AI Conversation Mode active for ${senderId}`);
-
-          try {
-            // Update last message time
-            aiMode.lastMessageTime = Date.now();
-
-            // Build conversation history
-            let conversationHistory = [];
-            if (aiMode.saveHistory && aiMode.conversationHistory) {
-              conversationHistory = aiMode.conversationHistory;
-            }
-
-            // Add user message to history
-            conversationHistory.push({ role: 'user', content: content });
-
-            // Keep only last 20 messages to avoid context overflow
-            if (conversationHistory.length > 20) {
-              conversationHistory = conversationHistory.slice(-20);
-            }
-
-            // Build prompt with history
-            let fullPrompt = '';
-            conversationHistory.forEach(msg => {
-              fullPrompt += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
-            });
-            fullPrompt += 'Assistant:';
-
-            // Call Gemini API
-            const response = await callGeminiAPI(
-              aiMode.apiKey,
-              aiMode.model,
-              fullPrompt,
-              aiMode.systemPrompt,
-              aiMode.temperature
-            );
-
-            if (response && response.text) {
-              // Add AI response to history
-              conversationHistory.push({ role: 'assistant', content: response.text });
-              aiMode.conversationHistory = conversationHistory;
-
-              // Send response
-              await sendMessage(apiState, senderId, response.text, userUID);
-              autoReplyState.stats.replied++;
-              console.log(`✅ AI replied in conversation mode`);
-            }
-
-            return; // Stop processing, don't check triggers
-          } catch (error) {
-            console.error(`❌ AI Conversation Mode error: ${error.message}`);
-            // On error, continue to normal trigger matching
-          }
-        }
-      }
-    }
 
     // ========== FIND MATCHING TRIGGER ==========
     const matchedTrigger = triggerDB.findMatchingTrigger(userUID, content, senderId, isFriend);
@@ -793,8 +794,15 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
               console.log(`    📤 All file methods failed, sending URL as fallback...`);
               const msg = caption ? `${caption}\n🖼️ ${imageUrl}` : `🖼️ ${imageUrl}`;
               await sendMessage(apiState, senderId, msg, userUID);
+              await sendMessage(apiState, senderId, msg, userUID);
               console.log(`    ✅ Image URL sent as fallback`);
             }
+
+            // ✅ MARK UNREAD FOR IMAGE BLOCKS
+            if (shouldMarkUnread(userUID)) {
+              try { await apiState.api.addUnreadMark(senderId, ThreadType.User); } catch (e) { }
+            }
+
           }
           else if (imageUrl) {
             // Gửi URL ảnh
@@ -1711,6 +1719,278 @@ async function executeBlock(apiState, senderId, block, context, userUID, flow, p
         break;
       }
 
+      case 'payment-hub': {
+        try {
+          console.log(`    💳 Payment Hub block executing...`);
+
+          // 1. Get payment gate
+          let gate;
+          if (data.useDefaultGate) {
+            gate = triggerDB.getDefaultGate(userUID);
+            console.log(`    ⭐ Using default gate: ${gate?.gateName || 'NOT FOUND'}`);
+          } else if (data.gateID) {
+            gate = triggerDB.getPaymentGateById(data.gateID);
+            console.log(`    🏦 Using specified gate: ${gate?.gateName || 'NOT FOUND'}`);
+          }
+
+          if (!gate) {
+            console.log(`    ❌ No payment gate available`);
+            // Send failure message
+            if (data.failureType === 'text' && data.failureText) {
+              const failMsg = substituteVariables(data.failureText, context);
+              await sendMessage(apiState, senderId, failMsg, userUID);
+            } else if (data.failureType === 'flow' && data.failureFlow) {
+              const failTrigger = triggerDB.getTriggerById(data.failureFlow);
+              if (failTrigger && failTrigger.setMode === 1) {
+                await executeFlow(apiState, senderId, failTrigger, context.message, userUID);
+              }
+            }
+
+            if (data.stopOnFailure) {
+              return 'STOP';
+            }
+            break;
+          }
+
+          // 2. Get amount from variable
+          const amountVariable = data.amountVariable || 'amount';
+          let amountValue = context[amountVariable];
+
+          if (amountValue === undefined || amountValue === null || amountValue === '') {
+            // Try to get from DB
+            const varData = triggerDB.getVariable(userUID, senderId, amountVariable);
+            amountValue = varData?.variableValue;
+          }
+
+          const amount = parseFloat(amountValue);
+          console.log(`    💰 Amount from {${amountVariable}}: ${amountValue} → ${amount}`);
+
+          // 3. Validate amount
+          if (isNaN(amount) || amount <= 0) {
+            console.log(`    ❌ Invalid amount: ${amountValue}`);
+            // Send failure message
+            if (data.failureType === 'text' && data.failureText) {
+              const failMsg = substituteVariables(data.failureText.replace('{amount}', String(amountValue)), context);
+              await sendMessage(apiState, senderId, failMsg, userUID);
+            }
+
+            if (data.stopOnFailure) {
+              return 'STOP';
+            }
+            break;
+          }
+
+          // 4. Get customer info
+          const customerID = context.sender_id || senderId;
+          const customerName = context.zalo_name || context.sender_name || 'Khách hàng';
+          console.log(`    👤 Customer: ${customerName} (ID: ${customerID})`);
+
+          // 5. Get note/description
+          let note = '';
+          if (data.noteSource === 'text') {
+            note = substituteVariables(data.noteText || '', context);
+          } else if (data.noteSource === 'variable' && data.noteVariable) {
+            note = context[data.noteVariable] || '';
+            if (!note) {
+              const noteVar = triggerDB.getVariable(userUID, senderId, data.noteVariable);
+              note = noteVar?.variableValue || '';
+            }
+          }
+          console.log(`    📝 Note: ${note}`);
+
+          // 6. Create transaction
+          const transaction = triggerDB.createTransaction(userUID, {
+            gateID: gate.gateID,
+            amount: amount,
+            currency: 'VND',
+            description: note,
+            senderName: customerName,
+            senderAccount: customerID
+          });
+
+          if (!transaction) {
+            console.log(`    ❌ Failed to create transaction`);
+            if (data.failureType === 'text' && data.failureText) {
+              await sendMessage(apiState, senderId, data.failureText, userUID);
+            }
+            if (data.stopOnFailure) {
+              return 'STOP';
+            }
+            break;
+          }
+
+          console.log(`    ✅ Transaction created: ${transaction.transactionCode}`);
+
+          // Broadcast to WebSocket clients
+          if (apiState && apiState.clients) {
+            const json = JSON.stringify({ type: 'transaction_created', transaction });
+            apiState.clients.forEach(ws => {
+              if (ws.readyState === 1) ws.send(json);
+            });
+          }
+
+          // 7. Save transaction code to variable
+          if (data.saveTransactionTo) {
+            triggerDB.setVariable(userUID, senderId, data.saveTransactionTo, transaction.transactionCode, 'string', block.blockID, flow.flowID);
+            context[data.saveTransactionTo] = transaction.transactionCode;
+            console.log(`    💾 Saved to {${data.saveTransactionTo}} = ${transaction.transactionCode}`);
+          }
+
+          // 8. Send payment info to customer
+          const BANKS = [
+            { code: 'VCB', name: 'Vietcombank', bin: 970436 },
+            { code: 'TCB', name: 'Techcombank', bin: 970407 },
+            { code: 'MB', name: 'MB Bank', bin: 970422 },
+            { code: 'VPB', name: 'VPBank', bin: 970432 },
+            { code: 'ACB', name: 'ACB', bin: 970416 },
+            { code: 'TPB', name: 'TPBank', bin: 970423 },
+            { code: 'STB', name: 'Sacombank', bin: 970403 },
+            { code: 'HDB', name: 'HDBank', bin: 970437 },
+            { code: 'VIB', name: 'VIB', bin: 970441 },
+            { code: 'SHB', name: 'SHB', bin: 970443 },
+            { code: 'EIB', name: 'Eximbank', bin: 970431 },
+            { code: 'MSB', name: 'MSB', bin: 970426 },
+            { code: 'BIDV', name: 'BIDV', bin: 970418 },
+            { code: 'VTB', name: 'Vietinbank', bin: 970415 },
+            { code: 'MOMO', name: 'MoMo', bin: 971012 }
+          ];
+
+          const bankInfo = BANKS.find(b => b.bin == gate.bankCode);
+          const paymentMessage = `💳 THÔNG TIN THANH TOÁN
+
+🏦 Ngân hàng: ${bankInfo?.name || 'N/A'}
+💰 Số tiền: ${amount.toLocaleString('vi-VN')} VNĐ
+📱 Số tài khoản: ${gate.accountNumber}
+👤 Chủ TK: ${gate.accountName}
+📝 Nội dung CK: SEVQR-${transaction.transactionCode}
+
+⏳ Vui lòng thanh toán trong ${data.timeoutMinutes || 10} phút`;
+
+          await sendMessage(apiState, senderId, paymentMessage, userUID);
+          console.log(`    📤 Payment info sent`);
+
+          // 8b. Send QR Code Image (Re-enabled with SEVQR prefix)
+          try {
+            const qrTemplate = 'print'; // compact, compact2, qr_only, print
+            // Fix: Ensure bankCode is integer (remove decimal) and use hyphen for content
+            const bankBin = parseInt(gate.bankCode) || gate.bankCode;
+            const qrUrl = `https://img.vietqr.io/image/${bankBin}-${gate.accountNumber}-${qrTemplate}.png?amount=${amount}&addInfo=SEVQR-${transaction.transactionCode}&accountName=${encodeURIComponent(gate.accountName)}`;
+            console.log(`    📷 Sending QR Code: ${qrUrl}`);
+
+            if (apiState.api && apiState.api.sendMessage) {
+              const { ThreadType } = require('zca-js');
+              const fs = require('fs');
+              const path = require('path');
+              const fetch = require('node-fetch');
+
+              // Download to temp file
+              console.log(`    ⬇️ Downloading QR: ${qrUrl}`);
+              const res = await fetch(qrUrl);
+              const buffer = await res.buffer();
+              const tempPath = path.join(__dirname, `temp_qr_${transaction.transactionCode}.png`);
+              fs.writeFileSync(tempPath, buffer);
+              console.log(`    💾 Saved QR to temp file: ${tempPath}`);
+
+              // Send image using sendMessage with attachments (correct ZCA-JS pattern)
+              const resolvedPath = path.resolve(tempPath);
+              console.log(`    📤 Sending QR via attachments: ${resolvedPath}`);
+
+              await apiState.api.sendMessage(
+                {
+                  msg: "",
+                  attachments: [resolvedPath]
+                },
+                senderId,
+                ThreadType.User
+              );
+              console.log(`    ✅ QR Code sent (File attachment)`);
+
+              // Clean up
+              setTimeout(() => { try { fs.unlinkSync(tempPath); } catch (e) { } }, 5000);
+            } else {
+              await sendMessage(apiState, senderId, `🔗 Link QR Code: ${qrUrl}`, userUID);
+            }
+          } catch (qrErr) {
+            console.error(`    ❌ Failed to send QR Code: ${qrErr.message}`);
+          }
+
+          // 9. Wait for payment confirmation (BLOCKING)
+          const timeoutMs = (data.timeoutMinutes || 10) * 60 * 1000;
+          console.log(`    ⏱️ Timeout set: ${data.timeoutMinutes || 10} minutes`);
+          console.log(`    🔒 Waiting for payment confirmation...`);
+
+          // Create Promise to wait for payment
+          const paymentPromise = new Promise((resolve, reject) => {
+            // Store resolver in global state
+            autoReplyState.pendingPayments.set(transaction.transactionCode, {
+              resolve,
+              reject,
+              senderId,
+              userUID,
+              data,
+              context,
+              apiState
+            });
+
+            // Set timeout
+            const timeoutId = setTimeout(async () => {
+              try {
+                const updatedTxn = triggerDB.getTransactionByCode(transaction.transactionCode);
+
+                if (updatedTxn && updatedTxn.status === 'WAITING') {
+                  // Timeout! Mark as EXPIRED
+                  triggerDB.updateTransaction(updatedTxn.transactionID, { status: 'EXPIRED' });
+                  console.log(`    ⏱️ Transaction ${transaction.transactionCode} EXPIRED (timeout)`);
+
+                  // Send failure message
+                  if (data.failureType === 'text' && data.failureText) {
+                    const failContext = {
+                      ...context,
+                      transaction_code: transaction.transactionCode,
+                      amount: amount,
+                      customer_name: customerName
+                    };
+                    const failMsg = substituteVariables(data.failureText, failContext);
+                    await sendMessage(apiState, senderId, failMsg, userUID);
+                  } else if (data.failureType === 'variable' && data.failureVariable) {
+                    const failMsgVar = triggerDB.getVariable(userUID, senderId, data.failureVariable);
+                    if (failMsgVar) {
+                      await sendMessage(apiState, senderId, failMsgVar.variableValue, userUID);
+                    }
+                  } else if (data.failureType === 'flow' && data.failureFlow) {
+                    const failTrigger = triggerDB.getTriggerById(data.failureFlow);
+                    if (failTrigger && failTrigger.setMode === 1) {
+                      await executeFlow(apiState, senderId, failTrigger, context.message, userUID);
+                    }
+                  }
+                }
+
+                // Remove from pending
+                autoReplyState.pendingPayments.delete(transaction.transactionCode);
+
+                // Resolve with FAILED status
+                resolve('FAILED');
+              } catch (err) {
+                console.error(`    ❌ Timeout handler error: ${err.message}`);
+                autoReplyState.pendingPayments.delete(transaction.transactionCode);
+                reject(err);
+              }
+            }, timeoutMs);
+
+            // Store timeout ID for cleanup
+            autoReplyState.pendingPayments.get(transaction.transactionCode).timeoutId = timeoutId;
+          });
+
+          // Wait for payment (BLOCKS here until resolved)
+          const paymentResult = await paymentPromise;
+          console.log(`    ✅ Payment Hub block completed with status: ${paymentResult}`);
+
+        } catch (err) {
+          console.error(`    ❌ Payment Hub error: ${err.message}`);
+        }
+        break;
+      }
+
       default:
         console.log(`    ⚠️ Unknown block type: ${block.blockType}`);
     }
@@ -1976,7 +2256,12 @@ function evaluateCondition(data, context) {
 
 function substituteVariables(text, context) {
   if (!text) return '';
-  return text.replace(/\{(\w+)\}/g, (m, k) => context[k] !== undefined ? context[k] : m);
+  return text.replace(/\{(\w+)\}/g, (m, k) => {
+    const val = context[k];
+    if (val === undefined) return m;
+    if (typeof val === 'object') return JSON.stringify(val);
+    return String(val);
+  });
 }
 
 function getSenderName(apiState, senderId) {
@@ -1994,6 +2279,25 @@ async function sendMessage(apiState, senderId, content, userUID) {
   apiState.messageStore.get(senderId).push(msg);
 
   apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_message', uid: senderId, message: msg })); } catch (e) { } });
+
+  // ✅ AUTO MARK UNREAD IF ENABLED
+  try {
+    if (shouldMarkUnread(userUID)) {
+      console.log(`🔖 Marking thread ${senderId} as unread...`);
+      await apiState.api.addUnreadMark(senderId, ThreadType.User);
+    }
+  } catch (e) {
+    console.error('❌ Failed to mark unread:', e.message);
+  }
+}
+
+// Check if Auto Mark Unread trigger is enabled
+function shouldMarkUnread(userUID) {
+  try {
+    const raw = triggerDB.getTriggersByUser(userUID);
+    const t = raw.find(r => r.triggerKey === '__builtin_auto_unread__');
+    return t && t.enabled === true;
+  } catch (e) { return false; }
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -2380,4 +2684,4 @@ async function callGeminiAPI(apiKey, model, prompt, systemPrompt = '', temperatu
   }
 }
 
-module.exports = { autoReplyState, processAutoReply, handleAutoReplyMessage, STATIC_VARIABLES };
+module.exports = { autoReplyState, processAutoReply, handleAutoReplyMessage, STATIC_VARIABLES, sendMessage };

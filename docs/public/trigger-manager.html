@@ -6,67 +6,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zalo Trigger Manager</title>
   <link rel="stylesheet" href="assets/style_trigger_manager.css" />
+  <link rel="stylesheet" href="/assets/unified-header.css?v=4">
   <style>
-    .notification-badge {
-      position: absolute;
-      top: -5px;
-      right: -5px;
-      background: #f44336;
-      color: white;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 10px;
-    }
-
-    .notification-btn {
-      position: relative;
-    }
-
-    .user-info-panel {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-left: 20px;
-      padding: 8px 12px;
-      background: #f5f7fa;
-      border-radius: 8px;
-      border: 1px solid #e0e0e0;
-    }
-
-    .user-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .user-details {
+    body {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-    }
-
-    .user-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: #333;
-      max-width: 150px;
+      height: 100vh;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
-    .user-uid {
-      font-size: 10px;
-      color: #999;
-      font-family: monospace;
+    /* Main Layout adjustment for Unified Header */
+    .main-container {
+      height: calc(100vh - 64px) !important;
+      flex: 1;
+      display: flex;
+      overflow: hidden;
     }
 
     .user-status {
@@ -723,53 +677,35 @@
     .var-tab:hover {
       background: #f5f7fa;
     }
+
+    /* RIGHT SIDEBAR */
+    .sidebar-right {
+      width: 300px;
+      background: #fff;
+      border-left: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* INFO GRID */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 12px 0;
+    }
+
+    .info-grid .info-item {
+      border-bottom: none;
+      padding: 4px 0;
+    }
   </style>
 </head>
 
 <body>
-  <div class="header">
-    <div class="header-left">
-      <div class="header-title"><span class="icon">🤖</span><span>Bot-Auto</span></div>
-      <div class="user-info-panel" id="userInfoPanel" style="display:none;">
-        <div class="user-avatar" id="userAvatar">👤</div>
-        <div class="user-details">
-          <div class="user-name" id="userName">Loading...</div>
-          <div class="user-uid" id="userUID">UID: -</div>
-        </div>
-        <div class="user-status" id="userStatus"><span class="status-dot"></span><span class="status-text">Online</span>
-        </div>
-      </div>
-    </div>
-    <div class="header-right">
-      <!-- Personal Auto Reply Toggle -->
-      <div class="auto-reply-toggle-container" id="autoReplyToggleContainer">
-        <span class="toggle-label"><span>👤</span><span>Cá nhân</span></span>
-        <label class="toggle-switch"><input type="checkbox" id="autoReplyToggle" onchange="toggleAutoReply()"
-            disabled><span class="toggle-slider"></span></label>
-        <span class="toggle-status loading" id="autoReplyStatus">...</span>
-      </div>
-      <!-- Bot Auto Reply Toggle -->
-      <div class="auto-reply-toggle-container" id="botAutoReplyContainer">
-        <span class="toggle-label"><span>🤖</span><span>Bot OA</span></span>
-        <label class="toggle-switch"><input type="checkbox" id="botAutoReplyToggle" onchange="toggleBotAutoReply()">
-          <span class="toggle-slider"></span></label>
-        <span class="toggle-status off" id="botAutoReplyStatus">OFF</span>
-      </div>
-      <button class="header-btn notification-btn" onclick="openActivityWindow()">
-        <span>📋</span><span>Lịch sử</span>
-        <span class="notification-badge" id="activityBadge" style="display:none;">0</span>
-      </button>
-      <a href="unified-manager.html" target="_blank" rel="noopener noreferrer" class="header-btn">
-        <span>📊</span>
-        <span>Data Manager</span>
-      </a>
-      <a href="dashboard.html" target="_blank" rel="noopener noreferrer" class="header-btn">
-        <span>🏠</span>
-        <span>Dashboard</span>
-      </a>
-      <!-- <button class="header-btn primary" onclick="showNewTriggerModal()"><span>➕</span><span>Tạo Trigger</span></button> -->
-    </div>
-  </div>
+  <!-- Toggles will be injected into Unified Header -->
 
   <div class="main-container">
     <div class="sidebar">
@@ -803,6 +739,16 @@
           <h3>Chọn trigger để xem chi tiết</h3><button class="btn btn-primary" onclick="showNewTriggerModal()">➕ Tạo
             mới</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ✅ RIGHT SIDEBAR (Default Triggers) -->
+    <div class="sidebar-right">
+      <div class="sidebar-header">
+        <h3>Trigger Mặc định</h3>
+      </div>
+      <div class="trigger-list" id="defaultTriggerList" style="flex:1; overflow-y:auto; padding:0;">
+        <!-- Built-in triggers rendered here -->
       </div>
     </div>
   </div>
@@ -912,64 +858,67 @@
   </div>
 
 
-  <div class="modal"
-    style="max-width: 900px; width: 90%; max-height: 85vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 12px;">
-    <div class="modal-header"
-      style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px 20px; flex-shrink: 0;">
-      <h3 style="color: #fff; margin: 0; font-weight: 600;">📊 Quản lý Biến (Variables)</h3>
-      <button class="modal-close" onclick="closeVariablesModal()" style="color: #fff;">✕</button>
-    </div>
-
-    <div
-      style="background: #f5f7fa; padding: 0 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 0; flex-shrink: 0;">
-      <button id="tabStatic" class="var-tab" onclick="switchVarTab('static')"
-        style="padding: 12px 20px; border: none; background: #fff; cursor: pointer; font-weight: 600; color: #667eea; border-bottom: 3px solid #667eea;">🔒
-        Biến Tĩnh (Static)</button>
-      <button id="tabDynamic" class="var-tab" onclick="switchVarTab('dynamic')"
-        style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-weight: 500; color: #666; border-bottom: none;">✏️
-        Biến Động (Dynamic)</button>
-    </div>
-
-    <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
-      <!-- Static Vars -->
-      <div id="staticVarsTab">
-        <div
-          style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #43a047;">
-          <div style="font-weight: 600; color: #2e7d32; font-size: 13px;">💡 Biến tĩnh là gì?</div>
-          <div style="font-size: 12px; color: #33691e; margin-top: 2px;">Tự động lấy giá trị từ Zalo API. Click để
-            copy.</div>
-        </div>
-        <div id="staticVarsContent" style="display: grid; gap: 10px;">
-          <div style="text-align: center; color: #999;">Đang tải...</div>
-        </div>
+  <!-- VARIABLES MODAL -->
+  <div class="modal-overlay" id="variablesModal" style="display:none; z-index:10001;">
+    <div class="modal"
+      style="max-width: 900px; width: 90%; max-height: 85vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 12px;">
+      <div class="modal-header"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px 20px; flex-shrink: 0;">
+        <h3 style="color: #fff; margin: 0; font-weight: 600;">📊 Quản lý Biến (Variables)</h3>
+        <button class="modal-close" onclick="closeVariablesModal()" style="color: #fff;">✕</button>
       </div>
 
-      <!-- Dynamic Vars -->
-      <div id="dynamicVarsTab" style="display: none;">
-        <div
-          style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #1976d2;">
-          <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #0d47a1;">➕ Thêm biến mới</h4>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <input type="text" id="newVarName" placeholder="Tên biến (VD: email)" class="form-input"
-              style="flex: 1; min-width: 120px;">
-            <input type="text" id="newVarValue" placeholder="Giá trị" class="form-input"
-              style="flex: 2; min-width: 120px;">
-            <select id="newVarType" class="form-input" style="width: auto;">
-              <option value="text">text</option>
-              <option value="number">number</option>
-            </select>
-            <button class="btn btn-primary" onclick="addManualVariable()">Thêm</button>
+      <div
+        style="background: #f5f7fa; padding: 0 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 0; flex-shrink: 0;">
+        <button id="tabStatic" class="var-tab" onclick="switchVarTab('static')"
+          style="padding: 12px 20px; border: none; background: #fff; cursor: pointer; font-weight: 600; color: #667eea; border-bottom: 3px solid #667eea;">🔒
+          Biến Tĩnh (Static)</button>
+        <button id="tabDynamic" class="var-tab" onclick="switchVarTab('dynamic')"
+          style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-weight: 500; color: #666; border-bottom: none;">✏️
+          Biến Động (Dynamic)</button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+        <!-- Static Vars -->
+        <div id="staticVarsTab">
+          <div
+            style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #43a047;">
+            <div style="font-weight: 600; color: #2e7d32; font-size: 13px;">💡 Biến tĩnh là gì?</div>
+            <div style="font-size: 12px; color: #33691e; margin-top: 2px;">Tự động lấy giá trị từ Zalo API. Click để
+              copy.</div>
+          </div>
+          <div id="staticVarsContent" style="display: grid; gap: 10px;">
+            <div style="text-align: center; color: #999;">Đang tải...</div>
           </div>
         </div>
-        <div id="variablesContent">
-          <div style="text-align: center; color: #999;">Đang tải...</div>
+
+        <!-- Dynamic Vars -->
+        <div id="dynamicVarsTab" style="display: none;">
+          <div
+            style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #1976d2;">
+            <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #0d47a1;">➕ Thêm biến mới</h4>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <input type="text" id="newVarName" placeholder="Tên biến (VD: email)" class="form-input"
+                style="flex: 1; min-width: 120px;">
+              <input type="text" id="newVarValue" placeholder="Giá trị" class="form-input"
+                style="flex: 2; min-width: 120px;">
+              <select id="newVarType" class="form-input" style="width: auto;">
+                <option value="text">text</option>
+                <option value="number">number</option>
+              </select>
+              <button class="btn btn-primary" onclick="addManualVariable()">Thêm</button>
+            </div>
+          </div>
+          <div id="variablesContent">
+            <div style="text-align: center; color: #999;">Đang tải...</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="modal-footer" style="padding: 12px 20px; background: #f9f9f9; flex-shrink: 0;">
-      <button class="btn" onclick="refreshVariables()">🔄 Làm mới</button>
-      <button class="btn btn-secondary" onclick="closeVariablesModal()">Đóng</button>
+      <div class="modal-footer" style="padding: 12px 20px; background: #f9f9f9; flex-shrink: 0;">
+        <button class="btn" onclick="refreshVariables()">🔄 Làm mới</button>
+        <button class="btn btn-secondary" onclick="closeVariablesModal()">Đóng</button>
+      </div>
     </div>
   </div>
 
@@ -1091,6 +1040,102 @@
     </div>
   </div>
 
+  <!-- AUTO UNREAD SETUP MODAL -->
+  <div class="modal-backdrop" id="autoUnreadModal" style="display:none;">
+    <div class="modal-box" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:24px;">🔖</span>
+          Cài đặt Đánh dấu chưa đọc
+        </h2>
+      </div>
+      <div class="modal-body">
+        <div
+          style="background:#fff4e5; border-left:4px solid #ff9800; padding:12px; margin-bottom:16px; border-radius:4px;">
+          <div style="font-weight:600; color:#e65100; margin-bottom:4px;">📌 Chức năng</div>
+          <div style="font-size:13px; color:#555;">Tự động đánh dấu hội thoại là <strong>Chưa đọc</strong> ngay sau khi
+            Bot vừa gửi tin nhắn xong. Điều này giúp bạn không bỏ lỡ tin nhắn khách hàng.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <input type="checkbox" id="autoUnreadEnabled" style="margin-right:6px;">
+            Kích hoạt tính năng này
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideAutoUnreadModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveAutoUnreadSetup()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTO DELETE SETUP MODAL -->
+  <div class="modal-backdrop" id="autoDeleteModal" style="display:none;">
+    <div class="modal-box" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:24px;">🗑️</span>
+          Cài đặt Tự động xóa tin nhắn
+        </h2>
+      </div>
+      <div class="modal-body">
+        <div
+          style="background:#f0f9ff; border-left:4px solid #0068ff; padding:12px; margin-bottom:16px; border-radius:4px;">
+          <div style="font-weight:600; color:#0052cc; margin-bottom:4px;">📌 Chức năng</div>
+          <div style="font-size:13px; color:#555;">Tự động bật tính năng <strong>Tin nhắn tự xóa</strong> ngay sau khi
+            kết bạn thành công.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">⏰ Thời gian tự xóa</label>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+            <label
+              style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;"
+              class="ttl-option">
+              <input type="radio" name="autoDeleteTTL" value="0" style="width: 18px; height: 18px;">
+              <span style="font-size: 24px;">❌</span>
+              <span style="font-weight: 500;">Không tự xóa</span>
+            </label>
+            <label
+              style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;"
+              class="ttl-option">
+              <input type="radio" name="autoDeleteTTL" value="86400000" style="width: 18px; height: 18px;">
+              <span style="font-size: 24px;">🗓️</span>
+              <span style="font-weight: 500;">Sau 1 ngày</span>
+            </label>
+            <label
+              style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;"
+              class="ttl-option">
+              <input type="radio" name="autoDeleteTTL" value="604800000" style="width: 18px; height: 18px;">
+              <span style="font-size: 24px;">📅</span>
+              <span style="font-weight: 500;">Sau 7 ngày</span>
+            </label>
+            <label
+              style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;"
+              class="ttl-option">
+              <input type="radio" name="autoDeleteTTL" value="1209600000" style="width: 18px; height: 18px;">
+              <span style="font-size: 24px;">📅</span>
+              <span style="font-weight: 500;">Sau 14 ngày</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 20px;">
+          <label class="form-label">
+            <input type="checkbox" id="autoDeleteEnabled" style="margin-right:6px;">
+            Kích hoạt tính năng này
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideAutoDeleteModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveAutoDeleteSetup()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ACTIVITY WINDOW -->
   <div class="activity-backdrop" id="activityBackdrop" onclick="closeActivityWindow()"></div>
   <div class="activity-window" id="activityWindow">
@@ -1190,6 +1235,24 @@
         timeoutMessage: 'Hết thời gian trò chuyện.',
         saveHistory: true,
         triggerID: null
+      },
+      autoUnread: {
+        id: 'builtin_auto_unread',
+        name: 'Tự động đánh dấu chưa đọc',
+        description: 'Đánh dấu tin nhắn là chưa đọc sau khi Bot phản hồi',
+        icon: '🔖',
+        enabled: false,
+        response: 'Đã phản hồi và đánh dấu chưa đọc.',
+        triggerID: null
+      },
+      autoDelete: {
+        id: 'builtin_auto_delete_messages',
+        name: 'Kích hoạt tự động xóa tin nhắn',
+        description: 'Tự động bật tin nhắn tự xóa (1 ngày) sau khi kết bạn',
+        icon: '🗑️',
+        enabled: false,
+        response: '',
+        triggerID: null
       }
     };
 
@@ -1242,6 +1305,7 @@
           const autoReplyGroupTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_reply_group__');
           const autoFriendTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_friend__');
           const autoFileTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_file__');
+          const autoUnreadTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_unread__');
 
           // Update built-in triggers state from database
           if (autoReplyUserTrigger) {
@@ -1265,10 +1329,23 @@
           }
 
           if (autoFileTrigger) {
+            builtInTriggers.autoFile.triggerID = autoFileTrigger.id;
             builtInTriggers.autoFile.enabled = autoFileTrigger.enabled;
             builtInTriggers.autoFile.response = autoFileTrigger.response;
-            builtInTriggers.autoFile.triggerID = autoFileTrigger.id;
             builtInTriggers.autoFile.cooldown = autoFileTrigger.cooldown || 2000;
+          }
+
+          if (autoUnreadTrigger) {
+            builtInTriggers.autoUnread.enabled = autoUnreadTrigger.enabled;
+            builtInTriggers.autoUnread.response = autoUnreadTrigger.response;
+            builtInTriggers.autoUnread.triggerID = autoUnreadTrigger.id;
+          }
+
+          const autoDeleteTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_delete_messages__');
+          if (autoDeleteTrigger) {
+            builtInTriggers.autoDelete.enabled = autoDeleteTrigger.enabled;
+            builtInTriggers.autoDelete.response = autoDeleteTrigger.response;
+            builtInTriggers.autoDelete.triggerID = autoDeleteTrigger.id;
           }
 
           const selfTrigger = allTriggers.find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*' || t.triggerKey === 'builtin_self_trigger');
@@ -1279,32 +1356,13 @@
             builtInTriggers.selfTrigger.setMode = selfTrigger.setMode || 0;
           }
 
-          if (autoFriendTrigger) {
-            builtInTriggers.autoAcceptFriend.enabled = autoFriendTrigger.enabled;
-            builtInTriggers.autoAcceptFriend.welcomeMessage = autoFriendTrigger.response;
-            builtInTriggers.autoAcceptFriend.triggerID = autoFriendTrigger.id;
-          }
-
           // Remove built-in triggers from regular list (keep only user triggers)
           triggers = allTriggers.filter(t => !t.triggerKey || !t.triggerKey.startsWith('__builtin_'));
 
           renderTriggerList();
         }
-        if (data.type === 'auto_reply_status') {
-          const toggle = document.getElementById('autoReplyToggle');
-          if (toggle) { toggle.checked = data.enabled; toggle.disabled = !currentUser?.uid; }
-          updateAutoReplyStatus(data.enabled ? 'on' : 'off', data.enabled ? 'ON' : 'OFF');
-        }
       }
-
-      // Bot Auto Reply status
-      if (data.type === 'bot_auto_reply_status') {
-        botAutoReplyEnabled = data.enabled;
-        const toggle = document.getElementById('botAutoReplyToggle');
-        if (toggle) toggle.checked = data.enabled;
-        updateBotAutoReplyStatus(data.enabled ? 'on' : 'off', data.enabled ? 'ON' : 'OFF');
-        console.log('🤖 Bot Auto Reply:', data.enabled ? 'ON' : 'OFF');
-      }
+      // Auto Reply Status sync is now handled by UnifiedHeader script
 
       if (data.type === 'flows_list') {
         window.availableFlows = data.flows || [];
@@ -1370,6 +1428,14 @@
           builtInTriggers.autoFile.triggerID = newTrigger.id;
           builtInTriggers.autoFile.enabled = newTrigger.enabled;
           builtInTriggers.autoFile.response = newTrigger.response;
+        } else if (newTrigger.triggerKey === '__builtin_auto_unread__') {
+          builtInTriggers.autoUnread.triggerID = newTrigger.id;
+          builtInTriggers.autoUnread.enabled = newTrigger.enabled;
+          builtInTriggers.autoUnread.response = newTrigger.response;
+        } else if (newTrigger.triggerKey === '__builtin_auto_delete_messages__') {
+          builtInTriggers.autoDelete.triggerID = newTrigger.id;
+          builtInTriggers.autoDelete.enabled = newTrigger.enabled;
+          builtInTriggers.autoDelete.response = newTrigger.response;
         } else {
           // Regular user trigger
           triggers.push(newTrigger);
@@ -1398,6 +1464,12 @@
         } else if (t.triggerKey === '__builtin_auto_file__') {
           builtInTriggers.autoFile.enabled = t.enabled;
           builtInTriggers.autoFile.response = t.response;
+        } else if (t.triggerKey === '__builtin_auto_unread__') {
+          builtInTriggers.autoUnread.enabled = t.enabled;
+          builtInTriggers.autoUnread.response = t.response;
+        } else if (t.triggerKey === '__builtin_auto_delete_messages__') {
+          builtInTriggers.autoDelete.enabled = t.enabled;
+          builtInTriggers.autoDelete.response = t.response;
         } else {
           const i = triggers.findIndex(x => x.id === t.id);
           if (i !== -1) { triggers[i] = t; if (currentTriggerId === t.id) displayTrigger(t); }
@@ -1418,6 +1490,10 @@
           builtInTriggers.autoReplyGroup.enabled = t.enabled;
         } else if (t.triggerKey === '__builtin_auto_friend__') {
           builtInTriggers.autoAcceptFriend.enabled = t.enabled;
+        } else if (t.triggerKey === '__builtin_auto_unread__') {
+          builtInTriggers.autoUnread.enabled = t.enabled;
+        } else if (t.triggerKey === '__builtin_auto_delete_messages__') {
+          builtInTriggers.autoDelete.enabled = t.enabled;
         } else {
           const i = triggers.findIndex(x => x.id === t.id);
           if (i !== -1) { triggers[i] = t; if (currentTriggerId === t.id) displayTrigger(t); }
@@ -1452,6 +1528,39 @@
       if (data.type === 'builtin_trigger_state_saved') {
         console.log('✅ Built-in trigger state saved:', data.triggerKey);
       }
+    }
+
+    // ================================================
+    // AUTO UNREAD SETUP MODAL
+    // ================================================
+    function showAutoUnreadSetup() {
+      const trigger = builtInTriggers.autoUnread;
+      document.getElementById('autoUnreadEnabled').checked = trigger.enabled;
+      document.getElementById('autoUnreadModal').style.display = 'flex';
+    }
+
+    function hideAutoUnreadModal() {
+      document.getElementById('autoUnreadModal').style.display = 'none';
+    }
+
+    function saveAutoUnreadSetup() {
+      const enabled = document.getElementById('autoUnreadEnabled').checked;
+
+      if (!currentUser?.uid) {
+        showToast('❌ Chưa đăng nhập!', 'error');
+        return;
+      }
+
+      // Update state
+      builtInTriggers.autoUnread.enabled = enabled;
+
+      // Save to database
+      saveBuiltInTriggerState('builtin_auto_unread', builtInTriggers.autoUnread);
+
+      // Hide modal and update UI
+      hideAutoUnreadModal();
+      renderTriggerList();
+      showToast('✅ Đã lưu cài đặt Tự động đánh dấu chưa đọc!', 'success');
     }
 
     function formatTrigger(t) {
@@ -1495,77 +1604,16 @@
     // ================================================
     function updateUserInfo(user) {
       const panel = document.getElementById('userInfoPanel');
-      if (!user) { panel.style.display = 'none'; return; }
-      panel.style.display = 'flex';
-      document.getElementById('userAvatar').textContent = user.name ? user.name.charAt(0).toUpperCase() : '👤';
-      document.getElementById('userName').textContent = user.name || 'Unknown';
-      document.getElementById('userUID').textContent = 'UID: ' + (user.uid || '-');
-    }
-
-    function updateAutoReplyStatus(state, text) { const s = document.getElementById('autoReplyStatus'); if (s) { s.className = 'toggle-status ' + state; s.textContent = text; } }
-    function toggleAutoReply() {
-      const t = document.getElementById('autoReplyToggle');
-      if (!t) return;
-      const newState = t.checked;
-      updateAutoReplyStatus(newState ? 'on' : 'off', newState ? 'ON' : 'OFF'); // Optimistic
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'set_auto_reply', enabled: newState }));
-      } else {
-        t.checked = !newState; // Revert
-        updateAutoReplyStatus(!newState ? 'on' : 'off', !newState ? 'ON' : 'OFF');
-        showToast('❌ Mất kết nối!', 'error');
+      if (panel) {
+        if (!user) { panel.style.display = 'none'; return; }
+        panel.style.display = 'flex';
       }
-    }
-
-    // Bot Auto Reply
-    let botAutoReplyEnabled = false;
-
-    function updateBotAutoReplyStatus(state, text) {
-      const s = document.getElementById('botAutoReplyStatus');
-      if (s) {
-        s.className = 'toggle-status ' + state;
-        s.textContent = text;
-      }
-    }
-
-    function toggleBotAutoReply() {
-      const t = document.getElementById('botAutoReplyToggle');
-      if (!t) return;
-
-      const newState = t.checked;
-
-      // Check if bot token is configured
-      const botToken = localStorage.getItem('zalo_bot_token');
-      if (newState && !botToken) {
-        t.checked = false;
-        showToast('⚠️ Chưa cấu hình Bot Token! Vui lòng vào Zalo Bot Manager để cấu hình.', 'warning');
-        if (confirm('Bạn muốn mở Zalo Bot Manager để cấu hình token?')) {
-          window.open('/zalo-bot-manager.html', '_blank');
-        }
-        return;
-      }
-
-      updateBotAutoReplyStatus(newState ? 'on' : 'off', newState ? 'ON' : 'OFF');
-
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'set_bot_auto_reply',
-          enabled: newState,
-          botToken: botToken
-        }));
-        showToast(`✅ Bot Auto Reply: ${newState ? 'BẬT' : 'TẮT'}`, 'success');
-      } else {
-        t.checked = !newState;
-        updateBotAutoReplyStatus(!newState ? 'on' : 'off', !newState ? 'ON' : 'OFF');
-        showToast('❌ Mất kết nối!', 'error');
-      }
-    }
-
-    function initBotAutoReply() {
-      // Get current status from server
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
-      }
+      const avatar = document.getElementById('userAvatar');
+      if (avatar) avatar.textContent = user?.name ? user.name.charAt(0).toUpperCase() : '👤';
+      const name = document.getElementById('userName');
+      if (name) name.textContent = user?.name || 'Unknown';
+      const uid = document.getElementById('userUID');
+      if (uid) uid.textContent = 'UID: ' + (user?.uid || '-');
     }
 
     function formatDateTime(ts) {
@@ -1574,6 +1622,16 @@
       if (isNaN(d.getTime())) return 'N/A';
       return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
+
+    function initTriggerManager() {
+      // Inject Shared Toggles
+      if (window.UnifiedHeader) {
+        UnifiedHeader.setPageActions(UnifiedHeader.getSharedTogglesHTML());
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', initTriggerManager);
+
     function formatTimeAgo(ts) {
       if (!ts || isNaN(ts)) return '';
       const d = Date.now() - ts;
@@ -1656,13 +1714,14 @@
     // ================================================
     function renderTriggerList() {
       const c = document.getElementById('triggerList');
-
-      let html = '';
+      const d = document.getElementById('defaultTriggerList'); // New Right Sidebar
 
       // ===== BUILT-IN TRIGGERS (Special section) =====
-      html += renderBuiltInTriggers();
+      // Render to Right Sidebar instead
+      d.innerHTML = renderBuiltInTriggers();
 
       // ===== USER TRIGGERS =====
+      let html = '';
       if (triggers.length === 0) {
         html += '<div style="text-align:center; padding:40px; color:#999;">📋 Chưa có trigger<br><button onclick="showNewTriggerModal()" style="margin-top:10px; padding:8px 16px; background:#667eea; color:white; border:none; border-radius:6px; cursor:pointer;">➕ Tạo mới</button></div>';
         c.innerHTML = html;
@@ -1673,26 +1732,24 @@
       const active = triggers.filter(t => t.enabled), inactive = triggers.filter(t => !t.enabled);
       if (active.length > 0) { html += '<div class="trigger-group"><div class="trigger-group-title">✅ Đang hoạt động (' + active.length + ')</div>' + active.map(renderTriggerItem).join('') + '</div>'; }
       if (inactive.length > 0) { html += '<div class="trigger-group"><div class="trigger-group-title">⏸️ Tạm dừng (' + inactive.length + ')</div>' + inactive.map(renderTriggerItem).join('') + '</div>'; }
-      html += '<button class="new-trigger-btn" onclick="showNewTriggerModal()">➕ Tạo trigger mới</button>';
+      // html += '<button class="new-trigger-btn" onclick="showNewTriggerModal()">➕ Tạo trigger mới</button>'; // User can use header button or empty state button
       c.innerHTML = html;
       document.getElementById('triggerCount').textContent = triggers.length;
     }
 
     function renderBuiltInTriggers() {
+      // Return HTML for items directly, without the big wrapper box if we are in sidebar
       return `
-        <div class="trigger-group" style="margin-bottom: 24px; border: 1px solid #e0e0e0; border-radius: 14px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden;">
-          <div class="trigger-group-title" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 20px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;">
-            ⚙️ Triggers Mặc Định
-          </div>
-          <div style="padding: 16px;">
+          <div style="padding: 12px;">
             ${renderBuiltInTriggerItem(builtInTriggers.autoReplyUser)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoReplyGroup)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoAcceptFriend)}
             ${renderBuiltInTriggerItem(builtInTriggers.autoFile)}
+            ${renderBuiltInTriggerItem(builtInTriggers.autoUnread)}
+            ${renderBuiltInTriggerItem(builtInTriggers.autoDelete)}
             ${renderBuiltInTriggerItem(builtInTriggers.selfTrigger)}
             ${renderBuiltInTriggerItem(builtInTriggers.aiConversation)}
           </div>
-        </div>
       `;
     }
 
@@ -1734,6 +1791,8 @@
       else if (triggerId === 'builtin_auto_file') trigger = builtInTriggers.autoFile;
       else if (triggerId === 'builtin_self_trigger') trigger = builtInTriggers.selfTrigger;
       else if (triggerId === 'builtin_ai_conversation') trigger = builtInTriggers.aiConversation;
+      else if (triggerId === 'builtin_auto_unread') trigger = builtInTriggers.autoUnread;
+      else if (triggerId === 'builtin_auto_delete_messages') trigger = builtInTriggers.autoDelete;
 
       if (!trigger) {
         console.error('Trigger not found for ID:', triggerId);
@@ -1818,7 +1877,70 @@
         else alert('Tính năng đang cập nhật...');
       } else if (triggerId === 'builtin_ai_conversation') {
         showAIConversationSetup();
+      } else if (triggerId === 'builtin_auto_unread') {
+        showAutoUnreadSetup();
+      } else if (triggerId === 'builtin_auto_delete_messages') {
+        showAutoDeleteSetup();
       }
+    }
+
+    // ================================================
+    // AUTO DELETE SETUP MODAL
+    // ================================================
+    function showAutoDeleteSetup() {
+      const trigger = builtInTriggers.autoDelete;
+
+      // Set TTL
+      const ttl = trigger.response || "86400000"; // default 1 day if empty
+      const radios = document.getElementsByName('autoDeleteTTL');
+      let found = false;
+      for (const r of radios) {
+        if (r.value === String(ttl)) {
+          r.checked = true;
+          found = true;
+        }
+      }
+      if (!found && radios.length > 0) radios[1].checked = true; // default 1 day
+
+      // Set enabled
+      document.getElementById('autoDeleteEnabled').checked = trigger.enabled;
+
+      // Show modal
+      document.getElementById('autoDeleteModal').style.display = 'flex';
+    }
+
+    function hideAutoDeleteModal() {
+      document.getElementById('autoDeleteModal').style.display = 'none';
+    }
+
+    function saveAutoDeleteSetup() {
+      const radios = document.getElementsByName('autoDeleteTTL');
+      let selectedTTL = "86400000";
+      for (const r of radios) {
+        if (r.checked) {
+          selectedTTL = r.value;
+          break;
+        }
+      }
+
+      const enabled = document.getElementById('autoDeleteEnabled').checked;
+
+      if (!currentUser?.uid) {
+        showToast('❌ Chưa đăng nhập!', 'error');
+        return;
+      }
+
+      // Update state
+      builtInTriggers.autoDelete.response = selectedTTL; // We use response field to store TTL
+      builtInTriggers.autoDelete.enabled = enabled;
+
+      // Save to database
+      saveBuiltInTriggerState('builtin_auto_delete_messages', builtInTriggers.autoDelete);
+
+      // Hide and update UI
+      hideAutoDeleteModal();
+      renderTriggerList();
+      showToast('✅ Đã lưu cài đặt Tự động xóa tin nhắn!', 'success');
     }
 
     // ================================================
@@ -1857,6 +1979,7 @@
     }
 
     function saveAutoMessageSetup() {
+      const triggerId = document.getElementById('autoMessageModal').dataset.triggerId;
       const response = document.getElementById('autoMessageResponse').value.trim();
       const enabled = document.getElementById('autoMessageEnabled').checked;
       const cooldownSeconds = parseInt(document.getElementById('autoMessageCooldown').value) || 30;
@@ -2082,6 +2205,8 @@
       else if (triggerId === 'builtin_auto_reply_group') specialKey = '__builtin_auto_reply_group__';
       else if (triggerId === 'builtin_auto_friend') specialKey = '__builtin_auto_friend__';
       else if (triggerId === 'builtin_auto_file') specialKey = '__builtin_auto_file__';
+      else if (triggerId === 'builtin_auto_unread') specialKey = '__builtin_auto_unread__';
+      else if (triggerId === 'builtin_auto_delete_messages') specialKey = '__builtin_auto_delete_messages__';
 
       // Nếu đã có triggerID trong DB, gửi update với đầy đủ data
       if (trigger.triggerID) {
@@ -2136,14 +2261,16 @@
         '<div class="trigger-section"><div class="section-label">🚀 Chế độ</div><div class="info-value">' + getModeText(t.setMode) + (t.setMode === 1 ? ' - <a href="#" onclick="openTriggerBuilder();return false;" style="color:#9c27b0;">Mở Flow Builder</a>' : '') + '</div></div>' +
         (t.setMode === 0 ? '<div class="trigger-section"><div class="section-label">💬 Trả lời</div><div class="response-box">' + escapeHtml(t.response) + '</div></div>' : '') +
         '<div class="trigger-section"><div class="section-label">ℹ️ Thông tin</div>' +
+        '<div class="info-grid">' + // Start Grid
         '<div class="info-item"><span class="info-label">Trạng thái:</span><span class="info-value">' + (t.enabled ? '✅ Hoạt động' : '⏸️ Tạm dừng') + '</span></div>' +
         '<div class="info-item"><span class="info-label">Scope:</span><span class="info-value">' + getScopeText(t.scope) + '</span></div>' +
-        (uidsDisplay ? '<div class="info-item"><span class="info-label">UIDs:</span><span class="info-value" style="font-size:11px;">' + uidsDisplay + '</span></div>' : '') +
         '<div class="info-item"><span class="info-label">Giờ:</span><span class="info-value">' + t.schedule.startTime + ' - ' + t.schedule.endTime + '</span></div>' +
-        (t.dateStart || t.dateEnd ? '<div class="info-item"><span class="info-label">Ngày:</span><span class="info-value">' + (t.dateStart || '...') + ' → ' + (t.dateEnd || '...') + '</span></div>' : '') +
         '<div class="info-item"><span class="info-label">Cooldown:</span><span class="info-value">' + (t.cooldown / 1000) + 's</span></div>' +
+        (t.dateStart || t.dateEnd ? '<div class="info-item"><span class="info-label">Ngày:</span><span class="info-value">' + (t.dateStart || '...') + ' → ' + (t.dateEnd || '...') + '</span></div>' : '') +
+        (uidsDisplay ? '<div class="info-item" style="grid-column: span 2;"><span class="info-label">UIDs:</span><span class="info-value" style="font-size:11px;">' + uidsDisplay + '</span></div>' : '') +
         '<div class="info-item"><span class="info-label">Tạo lúc:</span><span class="info-value">' + formatDateTime(t.timeCreated) + '</span></div>' +
-        '<div class="info-item"><span class="info-label">Cập nhật:</span><span class="info-value">' + formatDateTime(t.timeUpdate) + '</span></div></div></div>';
+        '<div class="info-item"><span class="info-label">Cập nhật:</span><span class="info-value">' + formatDateTime(t.timeUpdate) + '</span></div>' +
+        '</div></div></div>'; // End Grid
     }
 
     function showEmptyState() {
@@ -2404,6 +2531,12 @@
     // INIT
     // ================================================
     document.addEventListener('DOMContentLoaded', () => {
+      // Inject Toggles into Unified Header
+      // Inject Unified Header Toggles
+      if (window.UnifiedHeader) {
+        UnifiedHeader.setPageActions(UnifiedHeader.getSharedTogglesHTML());
+      }
+
       document.getElementById('triggerModal').addEventListener('click', (e) => { if (e.target.id === 'triggerModal') hideTriggerModal(); });
       connectWebSocket();
     });
@@ -2448,7 +2581,8 @@
           <label class="form-label">Nội dung trả lời</label>
           <textarea class="form-input" id="autoFileResponse" rows="8"
             placeholder="xlsx: Bạn đã gửi file Excel...&#10;pdf: Bạn đã gửi file PDF...&#10;default: Đã nhận được file"></textarea>
-          <div class="trigger-keywords-preview" style="margin-top:6px;">Trả lời khác nhau tùy theo đuôi file nhận được.
+          <div class="trigger-keywords-preview" style="margin-top:6px;">Trả lời khác nhau tùy theo đuôi file nhận
+            được.
           </div>
         </div>
       </div>
@@ -2491,10 +2625,12 @@
             <thead
               style="position:sticky; top:0; background:linear-gradient(180deg, #f5f7fa 0%, #e8ecef 100%); z-index:1; border-bottom:2px solid #ddd;">
               <tr>
-                <th style="width:22%; padding:12px 10px; font-size:12px; font-weight:600; color:#455a64;">🏷️ Lệnh</th>
+                <th style="width:22%; padding:12px 10px; font-size:12px; font-weight:600; color:#455a64;">🏷️ Lệnh
+                </th>
                 <th style="width:20%; padding:12px 10px; font-size:12px; font-weight:600; color:#455a64;">⚙️ Hành động
                 </th>
-                <th style="width:48%; padding:12px 10px; font-size:12px; font-weight:600; color:#455a64;">📝 Nội dung /
+                <th style="width:48%; padding:12px 10px; font-size:12px; font-weight:600; color:#455a64;">📝 Nội dung
+                  /
                   Flow</th>
                 <th style="width:10%; padding:12px 10px;"></th>
               </tr>
@@ -2815,7 +2951,8 @@
         <div style="background:#e3f2fd; border:1px solid #90caf9; padding:12px; border-radius:8px; margin-bottom:16px;">
           <h4 style="margin:0 0 8px 0; color:#1565c0; font-size:14px;">ℹ️ Hướng dẫn</h4>
           <p style="margin:0; font-size:12px; line-height:1.6; color:#333;">
-            Trò chuyện liên tục với AI. User gửi lệnh → AI mode bật → Mọi tin nhắn tiếp theo được AI trả lời tự động.<br><br>
+            Trò chuyện liên tục với AI. User gửi lệnh → AI mode bật → Mọi tin nhắn tiếp theo được AI trả lời tự
+            động.<br><br>
             <strong>Tự set lệnh điều khiển:</strong> Bạn có thể đặt bất kỳ lệnh nào (/ai, /chat, /bot, v.v.)<br>
             <strong>Timeout:</strong> Tự động tắt sau X phút không nhận tin nhắn
           </p>
@@ -2832,12 +2969,14 @@
           <div class="form-group" style="margin:0;">
             <label class="form-label">Lệnh BẬT AI <span style="color:red;">*</span></label>
             <input type="text" class="form-input" id="aiConvCommandOn" placeholder="/ai" value="/ai">
-            <div class="trigger-keywords-preview" style="margin-top:6px; font-size:11px;">User gửi lệnh này → Bật AI mode</div>
+            <div class="trigger-keywords-preview" style="margin-top:6px; font-size:11px;">User gửi lệnh này → Bật AI
+              mode</div>
           </div>
           <div class="form-group" style="margin:0;">
             <label class="form-label">Lệnh TẮT AI <span style="color:red;">*</span></label>
             <input type="text" class="form-input" id="aiConvCommandOff" placeholder="/ai-off" value="/ai-off">
-            <div class="trigger-keywords-preview" style="margin-top:6px; font-size:11px;">User gửi lệnh này → Tắt AI mode</div>
+            <div class="trigger-keywords-preview" style="margin-top:6px; font-size:11px;">User gửi lệnh này → Tắt AI
+              mode</div>
           </div>
         </div>
 
@@ -2861,13 +3000,13 @@
         <div class="form-group">
           <label class="form-label">Timeout (phút)</label>
           <input type="number" class="form-input" id="aiConvTimeout" value="30" min="1" max="1440">
-          <div class="trigger-keywords-preview" style="margin-top:6px;">Tự động tắt AI mode sau X phút không chat</div>
+          <div class="trigger-keywords-preview" style="margin-top:6px;">Tự động tắt AI mode sau X phút không chat
+          </div>
         </div>
 
         <div class="form-group">
           <label class="form-label">Tin nhắn khi timeout</label>
-          <input type="text" class="form-input" id="aiConvTimeoutMsg"
-            placeholder="Hết thời gian. Gửi /ai để tiếp tục!">
+          <input type="text" class="form-input" id="aiConvTimeoutMsg" placeholder="Hết thời gian. Gửi /ai để tiếp tục!">
           <div class="trigger-keywords-preview" style="margin-top:6px;">Thông báo khi AI mode tự động tắt</div>
         </div>
 
@@ -2886,6 +3025,7 @@
     </div>
   </div>
 
+  <script src="/assets/unified-header.js?v=4"></script>
 </body>
 
 </html>

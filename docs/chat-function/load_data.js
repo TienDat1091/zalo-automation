@@ -199,6 +199,12 @@ async function selectFriend(userId, displayName, avatar) {
   document.getElementById('chatName').textContent = displayName || 'Người dùng Zalo';
   document.getElementById('chatUid').textContent = 'UID: ' + userId;
 
+  // ✅ Sync Header Toggle state
+  const headerToggle = document.getElementById('headerAutoReplyToggle');
+  if (headerToggle) {
+    headerToggle.checked = !autoReplyBlacklist.has(userId);
+  }
+
   // ✅ Add delete conversation button with unique icon
   const chatHeader = document.getElementById('chatHeader');
   let deleteBtn = document.getElementById('deleteConvBtn');
@@ -289,18 +295,18 @@ function renderMessages() {
     if (msgType === 'image' && msg.imageUrl) {
       attachmentHtml = `
       <div class="message-attachment" style="margin-top:8px;">
-        <img src="${escapeHtml(msg.imageUrl)}" alt="Ảnh"
+        <img src="${escapeHtml(msg.imageUrl || 'https://via.placeholder.com/200')}" alt="Ảnh"
           style="max-width:200px;max-height:200px;border-radius:8px;cursor:pointer;"
-          onclick="window.open('${escapeHtml(msg.imageUrl)}', '_blank')"
-          onerror="this.style.display='none'; this.parentElement.innerHTML='[Ảnh không tải được]';">
+          onclick="window.open('${escapeHtml(msg.imageUrl || '#')}', '_blank')"
+          onerror="this.src='https://via.placeholder.com/200'; this.onerror=null;">
         </div>
     `;
     } else if (msgType === 'file' && msg.fileData) {
       const fileIcon = { pdf: '📄', word: '📝', excel: '📊', powerpoint: '📽️', archive: '📦', audio: '🎵', video: '🎬', image: '🖼️' }[msg.fileData.fileType] || '📎';
       const fileSize = msg.fileData.fileSize ? formatFileSizeLD(msg.fileData.fileSize) : '';
       // ✅ View URL (inline) và Download URL
-      const viewUrl = msg.fileData.fileUrl ? `/ api / proxy - file ? url = ${encodeURIComponent(msg.fileData.fileUrl)}& name=${encodeURIComponent(msg.fileData.fileName || 'file')}& mode=view` : '#';
-      const downloadUrl = msg.fileData.fileUrl ? `/ api / proxy - file ? url = ${encodeURIComponent(msg.fileData.fileUrl)}& name=${encodeURIComponent(msg.fileData.fileName || 'file')}& mode=download` : '#';
+      const viewUrl = msg.fileData.fileUrl ? `/api/proxy-file?url=${encodeURIComponent(msg.fileData.fileUrl)}&name=${encodeURIComponent(msg.fileData.fileName || 'file')}&mode=view` : '#';
+      const downloadUrl = msg.fileData.fileUrl ? `/api/proxy-file?url=${encodeURIComponent(msg.fileData.fileUrl)}&name=${encodeURIComponent(msg.fileData.fileName || 'file')}&mode=download` : '#';
 
       attachmentHtml = `
       <div class="message-attachment" style="margin-top:8px;">
@@ -316,7 +322,8 @@ function renderMessages() {
     } else if (msgType === 'gif' && msg.imageUrl) {
       attachmentHtml = `
       <div class="message-attachment" style="margin-top:8px;">
-        <img src="${escapeHtml(msg.imageUrl)}" alt="GIF" style="max-width:200px;border-radius:8px;">
+        <img src="${escapeHtml(msg.imageUrl || 'https://via.placeholder.com/200')}" alt="GIF" style="max-width:200px;border-radius:8px;"
+          onerror="this.src='https://via.placeholder.com/200'; this.onerror=null;">
         </div>
     `;
     } else if (msgType === 'sticker') {
@@ -328,7 +335,8 @@ function renderMessages() {
 
     return `
       <div class="message ${isSelf ? 'self' : ''} ${isAutoReply ? 'auto-reply' : ''}">
-        <img class="avatar" src="${isSelf ? document.getElementById('userAvatar').src : (selectedFriend?.avatar || 'https://via.placeholder.com/50')}" alt="Avatar">
+        <img class="avatar" src="${(isSelf ? document.getElementById('userAvatar').src : selectedFriend?.avatar) || 'https://via.placeholder.com/50'}" alt="Avatar"
+          onerror="this.src='https://via.placeholder.com/50'; this.onerror=null;">
           <div>
             <div class="bubble">
               ${contentText}
@@ -511,3 +519,84 @@ async function deleteChat(uid, name) {
   }
 }
 window.deleteChat = deleteChat;
+
+// ✅ TYPING INDICATOR HANDLER
+window.typingTimeouts = window.typingTimeouts || {};
+
+function showTypingIndicator(uid) {
+  updateSidebarTyping(uid, true);
+  if (typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === uid) {
+    updateChatHeaderTyping(true);
+  }
+  if (window.typingTimeouts[uid]) clearTimeout(window.typingTimeouts[uid]);
+  window.typingTimeouts[uid] = setTimeout(() => {
+    hideTypingIndicator(uid);
+  }, 3000);
+}
+
+function hideTypingIndicator(uid) {
+  updateSidebarTyping(uid, false);
+  if (typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === uid) {
+    updateChatHeaderTyping(false);
+  }
+}
+
+function updateSidebarTyping(uid, isTyping) {
+  const friendItem = document.querySelector(`.friend-item[onclick*="${uid}"]`);
+  if (!friendItem) return;
+
+  let previewEl = friendItem.querySelector('.preview');
+  if (!previewEl) previewEl = friendItem.querySelector('.friend-message');
+
+  if (previewEl) {
+    if (isTyping) {
+      if (!previewEl.hasAttribute('data-original-html')) {
+        previewEl.setAttribute('data-original-html', previewEl.innerHTML);
+      }
+      previewEl.innerHTML = '<span style="color:#0068ff; font-style:italic;">✍️ Đang soạn tin...</span>';
+    } else {
+      const msgInfo = typeof messageStore !== 'undefined' ? messageStore.get(uid) : null;
+      if (msgInfo) {
+        const hasMessages = !!msgInfo;
+        const previewText = hasMessages
+          ? `<span class="has-message">${escapeHtml(msgInfo.lastMessage.substring(0, 30))}${msgInfo.lastMessage.length > 30 ? '...' : ''}</span>`
+          : 'Nhấn để chat • UID: ' + uid;
+        previewEl.innerHTML = previewText;
+        previewEl.removeAttribute('data-original-html');
+      } else if (previewEl.hasAttribute('data-original-html')) {
+        previewEl.innerHTML = previewEl.getAttribute('data-original-html');
+        previewEl.removeAttribute('data-original-html');
+      }
+    }
+  }
+}
+
+function updateChatHeaderTyping(isTyping) {
+  const header = document.getElementById('chatHeader');
+  if (!header) return;
+
+  let statusEl = header.querySelector('.status');
+  if (!statusEl) {
+    const infoDiv = header.querySelector('.info') || header.querySelector('div[style*="flex-direction:column"]');
+    if (infoDiv) {
+      statusEl = document.createElement('div');
+      statusEl.className = 'status';
+      statusEl.style.fontSize = '12px';
+      infoDiv.appendChild(statusEl);
+    }
+  }
+
+  if (statusEl) {
+    if (isTyping) {
+      statusEl.textContent = '✍️ Đang soạn tin...';
+      statusEl.style.color = '#0068ff';
+      statusEl.style.display = 'block';
+    } else {
+      statusEl.textContent = 'Đang hoạt động';
+      statusEl.style.color = '#666';
+    }
+  }
+}
+
+window.showTypingIndicator = showTypingIndicator;
+window.hideTypingIndicator = hideTypingIndicator;

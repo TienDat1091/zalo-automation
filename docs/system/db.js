@@ -65,6 +65,21 @@ function createTables(db) {
       settingValue TEXT,
       PRIMARY KEY (userId, targetId, settingKey)
     );
+
+    CREATE TABLE IF NOT EXISTS automation_routines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userUID TEXT NOT NULL,
+      targetId TEXT NOT NULL,
+      targetName TEXT,
+      routineName TEXT NOT NULL,
+      frequency TEXT DEFAULT 'daily',
+      atTime TEXT, -- HH:mm
+      integrations TEXT DEFAULT '{}', -- JSON configuration
+      enabled INTEGER DEFAULT 1,
+      lastRun INTEGER,
+      createdAt INTEGER DEFAULT (strftime('%s','now') * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS idx_automation_routines_userUID ON automation_routines(userUID);
   `);
 
   // Thêm cột triggerType nếu chưa có (migration cho DB cũ)
@@ -405,12 +420,28 @@ function createTables(db) {
       webhookURL TEXT,
       qrCodeURL TEXT,
       isActive INTEGER DEFAULT 1,
+      isDefault INTEGER DEFAULT 0,
       createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
       updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000)
     )
   `);
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_payment_gates_userUID ON payment_gates(userUID)`);
+
+  // Migration: Add isDefault column if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(payment_gates)").all();
+    const hasIsDefault = tableInfo.some(col => col.name === 'isDefault');
+
+    if (!hasIsDefault) {
+      console.log('🔄 Migrating payment_gates table: Adding isDefault column...');
+      db.exec(`ALTER TABLE payment_gates ADD COLUMN isDefault INTEGER DEFAULT 0`);
+      console.log('✅ Migration complete: isDefault column added');
+    }
+  } catch (err) {
+    console.error('❌ Migration error:', err.message);
+  }
+
 
   // USER TABLES (Custom data tables)
   db.exec(`
@@ -497,6 +528,7 @@ function createTables(db) {
       receivedAt INTEGER,
       processedAt INTEGER,
       createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
+      updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000),
       FOREIGN KEY (gateID) REFERENCES payment_gates(gateID) ON DELETE CASCADE
     )
   `);
@@ -507,6 +539,20 @@ function createTables(db) {
     CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
     CREATE INDEX IF NOT EXISTS idx_transactions_transactionCode ON transactions(transactionCode);
   `);
+
+  // Migration: Add updatedAt column to transactions if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(transactions)").all();
+    const hasUpdatedAt = tableInfo.some(col => col.name === 'updatedAt');
+
+    if (!hasUpdatedAt) {
+      console.log('🔄 Migrating transactions table: Adding updatedAt column...');
+      db.exec(`ALTER TABLE transactions ADD COLUMN updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000)`);
+      console.log('✅ Migration complete: updatedAt column added to transactions');
+    }
+  } catch (err) {
+    console.error('❌ Migration error (transactions):', err.message);
+  }
 
   // ZALO BOT CONTACTS
   db.exec(`

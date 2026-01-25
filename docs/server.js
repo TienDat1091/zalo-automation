@@ -7,6 +7,7 @@ const session = require('express-session');
 const { loginZalo } = require('./loginZalo.js');
 const { startWebSocketServer, triggerDB } = require('./system/websocket.js');
 const { loadFriends } = require('./chat-function/friends.js');
+const { executeRoutine } = require('./routineExecutor');
 
 // ✅ FIX: Patch BigInt serialization globally to prevent "Do not know how to serialize a BigInt"
 BigInt.prototype.toJSON = function () { return this.toString(); };
@@ -16,8 +17,8 @@ const app = express();
 // Enable trust proxy for Render to get real client IP
 app.set('trust proxy', 1);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Enable CORS for all origins
 app.use((req, res, next) => {
@@ -68,11 +69,15 @@ app.use(session({
 // Single-user mode: use global apiState only
 app.use((req, res, next) => {
   // Skip cho login page, static files, QR, API endpoints, force-login
-  const skipPaths = ['/assets', '/qr.png', '/ping', '/health', '/api/', '/session-locked', '/force-new-login'];
+  const skipPaths = [
+    '/assets/', '/qr.png', '/ping', '/health', '/api/',
+    '/session-locked', '/force-new-login', '/IndexedDB.js',
+    '/chat-function/', '/blocks/'
+  ];
 
   // Check if path starts with any skip path (handle query strings too)
   const pathWithoutQuery = req.path.split('?')[0];
-  if (pathWithoutQuery === '/' || skipPaths.some(p => pathWithoutQuery.startsWith(p))) {
+  if (pathWithoutQuery === '/' || skipPaths.some(p => pathWithoutQuery === p || pathWithoutQuery.startsWith(p))) {
     return next();
   }
 
@@ -259,6 +264,19 @@ app.get('/trigger-notifications.html', (req, res) => res.sendFile(path.join(__di
 app.get('/trigger-statistics.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'trigger-statistics.html')));
 app.get('/storage-info.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'storage-info.html')));
 app.get('/email-manager.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'email-manager.html')));
+app.get('/sepay-test.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'sepay-test.html')));
+
+// =====================================================
+// SEPAY API ROUTES
+// =====================================================
+try {
+  const sepayRoutes = require('./file-function/sepay-api-routes');
+  sepayRoutes(app, triggerDB, apiState);
+  console.log('✅ SEPAY routes registered');
+} catch (error) {
+  console.warn('⚠️ Could not load SEPAY routes:', error.message);
+}
+
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -417,7 +435,16 @@ require('./file-function/file-api.js')(app, triggerDB);
 require('./file-function/email-api.js')(app, triggerDB);
 
 // Register Bank API endpoints
-require('./file-function/bank-api.js')(app, triggerDB);
+require('./file-function/bank-api.js')(app, triggerDB, apiState);
+
+// Register Transaction Statistics API endpoints
+try {
+  const statsRoutes = require('./file-function/transaction-stats-routes.js');
+  statsRoutes(app, triggerDB);
+  console.log('✅ Transaction statistics routes registered');
+} catch (error) {
+  console.warn('⚠️ Could not load transaction stats routes:', error.message);
+}
 
 // 404 handler
 app.use((req, res) => {
@@ -563,6 +590,16 @@ server.listen(PORT, () => {
                 const fakeReq = { type: 'scheduled', threadId: task.targetId, data: { content: 'Triggered by Schedule' } };
                 await flowExecutor.executeFlow(apiState, flow, task.targetId, fakeReq, apiState.currentUser.uid);
               }
+            } else if (task.type === 'forward') {
+              // Bulk Forward
+              const threadIds = task.targetId.split(',').map(id => id.trim()).filter(id => id);
+              if (threadIds.length > 0) {
+                // Determine if they are users or groups (for now assume users as targetId usually is)
+                // zca-js forwardMessage handles multiple threadIds in one call
+                // By default we use User type, but we could detect if any ID starts with group pattern if known
+                // Usually group IDs in Zalo are different.
+                await apiState.api.forwardMessage({ message: task.content }, threadIds);
+              }
             } else {
               // Send Text
               await apiState.api.sendMessage(task.content, task.targetId);
@@ -577,6 +614,30 @@ server.listen(PORT, () => {
           }
         }
       }
+
+      // ============================================
+      // AUTOMATION ROUTINES RUNNER
+      // ============================================
+      const routines = triggerDB.getDueAutomationRoutines ? triggerDB.getDueAutomationRoutines() : [];
+      // Manual filter in code for better precision/safety
+      const h = new Date().getHours().toString().padStart(2, '0');
+      const m = new Date().getMinutes().toString().padStart(2, '0');
+      const currentTimeStr = `${h}:${m}`;
+      const today = new Date().setHours(0, 0, 0, 0);
+
+      for (const routine of routines) {
+        if (!routine.enabled) continue;
+
+        // daily frequency logic: check time match and not run today
+        const timeMatch = routine.atTime === currentTimeStr;
+        const notRunToday = !routine.lastRun || routine.lastRun < today;
+
+        if (timeMatch && notRunToday) {
+          // FIRE AND FORGET - Don't await individual routines to avoid blocking the loop
+          executeRoutine(apiState, routine).catch(e => console.error(`Error running routine ${routine.id}:`, e));
+        }
+      }
+
     } catch (err) {
       console.error('❌ Scheduler error:', err.message);
     }

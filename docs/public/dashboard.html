@@ -5,8 +5,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Zalo Messenger</title>
-  <link rel="stylesheet" href="assets/style_dashboard.css?v=1.1" />
+  <link rel="stylesheet" href="assets/style_dashboard.css?v=2" />
+  <link rel="stylesheet" href="/assets/unified-header.css?v=4">
   <style>
+    .container {
+      height: calc(100vh - 64px) !important;
+    }
+
     /* ✅ CSS cho tin nhắn Auto Reply */
     .message.auto-reply .message-content {
       background: linear-gradient(135deg, #e3f2fd, #bbdefb) !important;
@@ -487,47 +492,46 @@
 
 <body>
   <!-- 📱 Mobile UI Elements -->
-  <button class="mobile-toggle" id="mobileToggle" onclick="toggleMobileSidebar()">☰</button>
-  <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
+  <!-- <button class="mobile-toggle" id="mobileToggle" onclick="toggleMobileSidebar()">☰</button> -->
+  <!-- <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div> -->
 
   <div class="container">
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <h1>Zalo Messenger</h1>
-        <div class="user-info" id="userInfo" style="display:none;">
+        <!-- <h1>Zalo Messenger</h1> REMOVED - In Unified Header -->
+        <div class="user-info" id="userInfo" style="display:none !important;">
           <img id="userAvatar" src="" alt="Avatar">
           <div id="userName">Đang tải...</div>
           <div id="userUid" style="font-size:12px;"></div>
-
-          <!-- ✅ Compact Button Grid -->
-          <div class="button-grid"
-            style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-top:12px;">
-            <button onclick="openStorageInfo()" title="Thống kê & Quản lý"
-              style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #4CAF50, #2E7D32); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span style="font-size:18px;">📊</span>
-              <span>Thống kê</span>
-            </button>
-            <button onclick="openFriendRequestsPanel()" title="Lời mời kết bạn"
-              style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #2196F3, #1565C0); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span style="font-size:18px;">🤝</span>
-              <span>Lời mời</span>
-            </button>
-            <button onclick="openSentFriendRequestsPanel()" title="Lời mời đã gửi"
-              style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #FF9800, #E65100); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span style="font-size:18px;">📤</span>
-              <span>Đã gửi</span>
-            </button>
-            <button onclick="openAutoReplyViewer()" title="Cài đặt kịch bản"
-              style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #9C27B0, #6A1B9A); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span style="font-size:18px;">🤖</span>
-              <span>Kịch bản</span>
-            </button>
-          </div>
 
           <!-- ✅ Compact Logout Button -->
           <button class="logout-btn" onclick="logout()"
             style="margin-top:10px; width:100%; padding:8px; border:none; border-radius:8px; background:#ff4757; color:white; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px;">
             <span>🚪</span><span>Đăng xuất</span>
+          </button>
+        </div>
+
+        <!-- ✅ Compact Button Grid (Moved outside #userInfo) -->
+        <div class="button-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-top:0px;">
+          <button onclick="openStorageInfo()" title="Thống kê & Quản lý"
+            style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #4CAF50, #2E7D32); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span style="font-size:18px;">📊</span>
+            <span>Thống kê</span>
+          </button>
+          <button onclick="openFriendRequestsPanel()" title="Lời mời kết bạn"
+            style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #2196F3, #1565C0); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span style="font-size:18px;">🤝</span>
+            <span>Lời mời</span>
+          </button>
+          <button onclick="openSentFriendRequestsPanel()" title="Lời mời đã gửi"
+            style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #FF9800, #E65100); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span style="font-size:18px;">📤</span>
+            <span>Đã gửi</span>
+          </button>
+          <button onclick="openAutoReplyViewer()" title="Cài đặt kịch bản"
+            style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #9C27B0, #6A1B9A); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span style="font-size:18px;">🤖</span>
+            <span>Kịch bản</span>
           </button>
         </div>
       </div>
@@ -562,8 +566,20 @@
       <div id="friendsSearch" class="search-content active">
         <div class="friends-search-box">
           <input type="text" id="friendsSearchInput" placeholder="🔍 Tìm bạn bè hoặc nhập SĐT..." autocomplete="off"
-            onkeyup="searchFriends(this.value)">
+            onkeyup="applyFilters()">
         </div>
+
+        <!-- ✅ AUTO-REPLY FILTER -->
+        <div class="filter-box" style="padding: 0 12px 10px 12px; display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 12px; color: #666; white-space: nowrap;">Lọc:</label>
+          <select id="autoReplyFilter" onchange="applyFilters()"
+            style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; background: white; cursor: pointer;">
+            <option value="all">Toàn bộ bạn bè</option>
+            <option value="on">Đã BẬT Tự động trả lời</option>
+            <option value="off">Đã TẮT Tự động trả lời</option>
+          </select>
+        </div>
+
         <div class="search-results-container" id="friendsResults"></div>
       </div>
 
@@ -688,25 +704,6 @@
     </div>
   </div>
 
-  <!-- 🔔 Notification Bell - Fixed position to avoid overlap with chat header buttons -->
-  <div class="notification-bell" onclick="toggleNotificationPanel()" id="notificationBell"
-    style="position:fixed; top:20px; left:280px; z-index:999; background:#fff; border-radius:50%; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15); cursor:pointer;">
-    <span class="icon">🔔</span>
-    <span class="badge" id="notificationBadge"
-      style="display:none; position:absolute; top:-5px; right:-5px; background:#ff4757; color:white; font-size:10px; padding:2px 6px; border-radius:10px;">0</span>
-  </div>
-
-  <!-- 📋 Notification Panel -->
-  <div class="notification-panel" id="notificationPanel">
-    <div class="panel-header">
-      <span>🔔 Hoạt động gần đây</span>
-      <button class="clear-btn" onclick="clearNotifications()">Xóa tất cả</button>
-    </div>
-    <div class="panel-body" id="notificationList">
-      <div class="notification-empty">Chưa có hoạt động mới</div>
-    </div>
-  </div>
-
   <!-- ✅ Custom Confirm Modal -->
   <div id="customConfirmModal"
     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; display:none; align-items:center; justify-content:center;">
@@ -750,7 +747,18 @@
     </div>
   </div>
 
+
+  <!-- ✅ External Scripts MOVED UP to prevent ReferenceErrors -->
   <script src="assets/websocket-helper.js"></script>
+  <script src="/assets/unified-header.js?v=4"></script>
+  <script src="chat-function/notifications.js"></script>
+  <script src="chat-function/load_data.js"></script>
+  <script src="chat-function/sort.js"></script>
+  <script src="chat-function/file-handler.js"></script>
+  <script src="IndexedDB.js"></script>
+  <script src="chat-function/logout.js"></script>
+  <script src="chat-function/search.js"></script>
+
   <script>
     // ========== 🔒 CLEAN URL - Ẩn thông tin nhạy cảm ==========
     (function () {
@@ -816,6 +824,86 @@
 
     function showAlert(message, title = 'ℹ️ Thông báo') {
       showToast(message, 'info');
+    }
+
+    // ========== NOTIFICATION FUNCTIONS ==========
+    let notifications = [];
+
+    function toggleNotificationPanel() {
+      const panel = document.getElementById('notificationPanel');
+      panel.classList.toggle('active');
+    }
+
+    function addNotificationToPanel(name, message, uid, avatar, timestamp) {
+      notifications.unshift({
+        name: name || 'Hệ thống',
+        message: message || '',
+        uid: uid,
+        avatar: avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3C/svg%3E',
+        timestamp: timestamp || Date.now()
+      });
+
+      if (notifications.length > 50) notifications.pop();
+      renderNotificationPanel();
+      updateNotificationBadge();
+    }
+
+    function renderNotificationPanel() {
+      const panelBody = document.getElementById('notificationPanelBody');
+      if (!panelBody) return;
+
+      if (notifications.length === 0) {
+        panelBody.innerHTML = '<div class="notification-empty">Không có thông báo mới</div>';
+        return;
+      }
+
+      panelBody.innerHTML = notifications.map(notif => `
+        <div class="notification-item" onclick="selectFriend('${notif.uid}', '${escapeJs(notif.name)}', '${notif.avatar}')">
+          <img src="${notif.avatar}" alt="Avatar">
+          <div class="info">
+            <div class="name">${escapeHtml(notif.name)}</div>
+            <div class="message">${escapeHtml(notif.message.substring(0, 60))}${notif.message.length > 60 ? '...' : ''}</div>
+            <div class="time">${formatTime(notif.timestamp)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateNotificationBadge() {
+      const badge = document.getElementById('notificationBadge');
+      if (!badge) return;
+      badge.textContent = notifications.length;
+      badge.style.display = notifications.length > 0 ? 'flex' : 'none';
+    }
+
+    function clearNotifications() {
+      notifications = [];
+      renderNotificationPanel();
+      updateNotificationBadge();
+    }
+
+    function showNotification(senderName, message, uid, avatar) {
+      // Use showNewMessageNotification from notifications.js if available
+      if (typeof showNewMessageNotification === 'function') {
+        showNewMessageNotification(senderName, message, uid, avatar);
+      } else {
+        showToast(`🔔 ${senderName}: ${message.substring(0, 30)}...`, 'info');
+      }
+    }
+
+    // ========== ALPHABETICAL SORT FUNCTION ==========
+    function sortFriendsAfterLoad() {
+      console.log('🔤 Sorting friends alphabetically (A-Z)...');
+      if (!friends || friends.length === 0) return;
+
+      friends.sort((a, b) => {
+        const nameA = (a.displayName || a.zaloName || '').toLowerCase();
+        const nameB = (b.displayName || b.zaloName || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+
+      filteredFriends = [...friends];
+      renderFriendsVirtual();
     }
 
     // ========== DATABASE MANAGEMENT ==========
@@ -1047,6 +1135,12 @@
         }
 
         // ✅ XỬ LÝ new_message (bao gồm cả auto reply)
+        if (data.type === 'typing') {
+          if (typeof showTypingIndicator === 'function') {
+            showTypingIndicator(data.uid);
+          }
+        }
+
         if (data.type === 'new_message') {
           console.log('📨 new_message from:', data.uid, data.message?.isAutoReply ? '(Auto Reply)' : '');
 
@@ -1127,6 +1221,37 @@
           }
 
           moveConversationToTop(uid);
+        }
+
+        // ✅ XỬ LÝ GLOBAL AUTO REPLY STATUS (từ trigger-manager)
+        if (data.type === 'auto_reply_status_changed') {
+          console.log('🔄 Global Auto Reply status changed:', data.enabled);
+
+          if (data.enabled) {
+            // When global auto-reply is ON, clear blacklist (enable all users)
+            autoReplyBlacklist.clear();
+          } else {
+            // When global auto-reply is OFF, add all friends to blacklist (disable all)
+            friends.forEach(friend => {
+              autoReplyBlacklist.add(friend.userId);
+            });
+          }
+
+          // Re-render friends list to update toggle states
+          renderFriendsVirtual();
+
+          // ✅ ALWAYS update header toggle (real-time sync)
+          const headerToggle = document.getElementById('headerAutoReplyToggle');
+          if (headerToggle) {
+            // If a friend is selected, check their specific status
+            // Otherwise just use global status
+            if (selectedFriend) {
+              headerToggle.checked = !autoReplyBlacklist.has(selectedFriend.userId);
+            } else {
+              headerToggle.checked = data.enabled;
+            }
+            console.log('🔄 Header Auto Reply toggle updated:', headerToggle.checked);
+          }
         }
 
         // ✅ XỬ LÝ KẾT QUẢ TÌM KIẾM QUA SỐ ĐIỆN THOẠI
@@ -1219,208 +1344,9 @@
       }
     };
 
-    // ========== CHAT FUNCTIONS ==========
-    function selectFriend(userId, displayName, avatar) {
-      console.log(`💬 Selecting friend: ${displayName} (${userId})`);
-
-      selectedFriend = { userId, displayName, avatar };
-
-      document.getElementById('chatHeader').style.display = 'flex';
-      document.getElementById('chatAvatar').src = avatar;
-      document.getElementById('chatName').textContent = displayName;
-      document.getElementById('chatUid').textContent = 'UID: ' + userId;
-      document.getElementById('inputArea').style.display = 'flex';
-
-      currentMessages = [];
-      document.getElementById('messagesContainer').innerHTML = '<div class="loading-chat"><div class="spinner"></div></div>';
-
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        console.log(`📤 Requesting message history for: ${userId}`);
-        ws.send(JSON.stringify({ type: 'get_messages', uid: userId }));
-      } else {
-        console.warn('⚠️ WebSocket not ready');
-      }
-    }
-
-    // ✅ CẬP NHẬT renderMessages để hiển thị ảnh/file
-    function renderMessages() {
-      const container = document.getElementById('messagesContainer');
-      if (!container) return;
-
-      if (currentMessages.length === 0) {
-        container.innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Không có tin nhắn</div></div>';
-        return;
-      }
-
-      let html = '';
-      for (const msg of currentMessages) {
-        const isSelf = msg.isSelf || msg.senderId === currentUserId;
-        const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('vi-VN') : '';
-        const content = msg.content || msg.msg || '';
-        const isAutoReply = msg.isAutoReply || false;
-        const msgType = msg.type || 'text';
-
-        // ✅ Render attachment nếu có
-        let attachmentHtml = '';
-
-        if (msgType === 'image' && msg.imageUrl) {
-          attachmentHtml = `
-            <div class="message-attachment">
-              <img src="${escapeHtml(msg.imageUrl)}" alt="Ảnh" onclick="window.open('${escapeHtml(msg.imageUrl)}', '_blank')" onerror="this.style.display='none'">
-            </div>
-          `;
-        } else if (msgType === 'file' && msg.fileData) {
-          const fileIcon = { pdf: '📄', word: '📝', excel: '📊', powerpoint: '📽️', archive: '📦', audio: '🎵', video: '🎬', image: '🖼️' }[msg.fileData.fileType] || '📎';
-          const fileSize = msg.fileData.fileSize ? formatFileSize(msg.fileData.fileSize) : '';
-          attachmentHtml = `
-            <div class="message-attachment">
-              <a href="${escapeHtml(msg.fileData.fileUrl || '#')}" class="file-link" target="_blank" download>
-                <span>${fileIcon}</span>
-                <span>${escapeHtml(msg.fileData.fileName || 'File')}</span>
-                ${fileSize ? '<span style="color:#888;font-size:11px;">(' + fileSize + ')</span>' : ''}
-              </a>
-            </div>
-          `;
-        } else if (msgType === 'gif' && msg.imageUrl) {
-          attachmentHtml = `
-            <div class="message-attachment">
-              <img src="${escapeHtml(msg.imageUrl)}" alt="GIF" style="max-width:200px;border-radius:8px;">
-            </div>
-          `;
-        } else if (msgType === 'sticker') {
-          attachmentHtml = '<div class="message-attachment">😊 Sticker</div>';
-        }
-
-        html += `
-          <div class="message ${isSelf ? 'self' : 'other'} ${isAutoReply ? 'auto-reply' : ''}">
-            <div class="message-content">
-              ${msgType === 'text' || !attachmentHtml ? escapeHtml(content) : ''}
-              ${attachmentHtml}
-              ${isAutoReply ? '<span class="auto-reply-badge">🤖 Auto</span>' : ''}
-              <span class="message-time">${timestamp}</span>
-            </div>
-          </div>
-        `;
-      }
-
-      container.innerHTML = html;
-      scrollToBottom();
-    }
-
-    function formatFileSize(bytes) {
-      if (!bytes) return '';
-      const k = 1024;
-      const sizes = ['B', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
-    }
-
-    function escapeHtml(text) {
-      if (!text) return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    function escapeJs(str) {
-      return (str || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
-    }
-
-    function scrollToBottom() {
-      const container = document.getElementById('messagesContainer');
-      if (container) {
-        setTimeout(() => {
-          container.scrollTop = container.scrollHeight;
-          console.log(`⬇️ Scrolled to bottom`);
-        }, 100);
-      }
-    }
-
-    function sendMessage() {
-      if (!selectedFriend) {
-        alert('Vui lòng chọn bạn bè trước');
-        return;
-      }
-
-      // ✅ Gửi attachment nếu có
-      if (pendingAttachment) {
-        sendFileAttachment();
-        // Nếu không có text thì chỉ gửi attachment
-        const input = document.getElementById('messageInput');
-        if (!input.value.trim()) {
-          input.value = '';
-          return;
-        }
-      }
-
-      const input = document.getElementById('messageInput');
-      const text = input.value.trim();
-
-      if (!text) return;
-
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        console.log(`📤 Sending message: "${text}"`);
-        ws.send(JSON.stringify({
-          type: 'send_message',
-          uid: selectedFriend.userId,
-          text: text,
-          timestamp: Date.now()
-        }));
-        input.value = '';
-      }
-    }
-
-    function renderFriendsVirtual() {
-      const friendsListEl = document.getElementById('friendsList');
-      if (!friendsListEl || filteredFriends.length === 0) {
-        // console.warn('⚠️ friendsList element not found or empty');
-        if (friendsListEl) friendsListEl.innerHTML = '<div class="notification-empty">Không tìm thấy bạn bè</div>';
-        return;
-      }
-
-      let html = '';
-      let currentSection = '';
-
-      for (const friend of filteredFriends) {
-        const isSelected = selectedFriend && selectedFriend.userId === friend.userId;
-        const msgData = messageStore.get(friend.userId);
-        const lastMsg = msgData?.lastMessage || 'Nhắn tin...';
-
-        // Determine Section Header
-        const name = friend.displayName || friend.zaloName || '';
-        const firstLetter = name.charAt(0).toUpperCase();
-
-        // Only show header if it's a valid letter and different from previous
-        if (/[A-Z]/.test(firstLetter) && firstLetter !== currentSection) {
-          currentSection = firstLetter;
-          html += `<div class="friend-section-header" style="padding: 10px 16px; font-weight: bold; font-size: 14px; background: #f9fafc; color: #0068ff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 5;">${currentSection}</div>`;
-        } else if (!/[A-Z]/.test(firstLetter) && currentSection !== '#') {
-          // Group non-letters under #
-          currentSection = '#';
-          html += `<div class="friend-section-header" style="padding: 10px 16px; font-weight: bold; font-size: 14px; background: #f9fafc; color: #0068ff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 5;">#</div>`;
-        }
-
-        html += `
-          <div class="friend-item ${isSelected ? 'selected' : ''}" onclick="selectFriend('${friend.userId}', '${escapeJs(friend.displayName)}', '${friend.avatar}')">
-            <img src="${friend.avatar}" alt="Avatar">
-            <div class="friend-info">
-              <div class="friend-name">${friend.displayName}</div>
-              <div class="friend-message">${escapeHtml(lastMsg).substring(0, 30)}...</div>
-            </div>
-            
-            <!-- Force Render Toggle for ALL items for debug/visibility -->
-            <label class="ar-toggle" onclick="event.stopPropagation()" title="Bật/Tắt tự động trả lời">
-                 <input type="checkbox" ${!autoReplyBlacklist.has(friend.userId) ? 'checked' : ''} onchange="toggleAutoReply('${friend.userId}', this.checked)">
-                 <span class="ar-slider"></span>
-            </label>
-         
-          </div>
-        `;
-      }
-
-      friendsListEl.innerHTML = html;
-      console.log(`✅ Rendered ${filteredFriends.length} friends with headers`);
-    }
+    // ========== CHAT & RENDER FUNCTIONS (MOVED TO EXTERNAL FILES) ==========
+    // selectFriend, renderMessages, renderFriendsVirtual, sendMessage, etc.
+    // are now loaded from chat-function/*.js
 
     // Function to handle header toggle
     function toggleHeaderAutoReply(enabled) {
@@ -1455,11 +1381,67 @@
       }
 
       // Sync Sidebar Checkbox
-      // Note: We use querySelectorAll to find all instances (search results + friend list)
       const sidebarToggles = document.querySelectorAll(`.friend-item[onclick*="${userId}"] input[type="checkbox"]`);
       sidebarToggles.forEach(toggle => {
         toggle.checked = enabled;
       });
+
+      showToast(enabled ? '✅ Đã BẬT tự động trả lời' : '🚫 Đã TẮT tự động trả lời', enabled ? 'success' : 'warning');
+
+      // Update the friend item in the list if it exists
+      const friendItem = document.querySelector(`.friend-item[onclick*="${userId}"]`);
+      if (friendItem) {
+        if (enabled) friendItem.classList.add('auto-reply-on');
+        else friendItem.classList.remove('auto-reply-on');
+      }
+    }
+
+    // ✅ CONSOLIDATED FILTER & SEARCH
+    function applyFilters() {
+      const query = document.getElementById('friendsSearchInput')?.value || '';
+      const filterValue = document.getElementById('autoReplyFilter')?.value || 'all';
+
+      // If it's a phone search, delegate to searchFriends (which handles searchByPhone)
+      const isPhone = /^(\+84|84|0)?[0-9]{8,10}$/.test(query.trim());
+      if (isPhone && query.trim().length >= 9) {
+        if (typeof searchFriends === 'function') {
+          searchFriends(query.trim());
+          return;
+        }
+      }
+
+      console.log(`🔍 Applying Filters: query="${query}", filter="${filterValue}"`);
+
+      const sourceFriends = (typeof allFriends !== 'undefined' && allFriends) ? allFriends : (typeof friends !== 'undefined' ? friends : []);
+      const lowerQuery = query.trim().toLowerCase();
+
+      // Clear search results div if we're doing local list filtering
+      const resultsDiv = document.getElementById('friendsResults');
+      if (resultsDiv && !isPhone) resultsDiv.innerHTML = '';
+
+      if (typeof filteredFriends !== 'undefined') {
+        filteredFriends = sourceFriends.filter(f => {
+          // 1. Search filter
+          const displayName = f.displayName || '';
+          const userId = f.userId || '';
+          const searchMatch = !lowerQuery ||
+            displayName.toLowerCase().includes(lowerQuery) ||
+            userId.toLowerCase().includes(lowerQuery);
+
+          if (!searchMatch) return false;
+
+          // 2. Auto-reply filter
+          const isEnabled = !autoReplyBlacklist.has(f.userId);
+          if (filterValue === 'on') return isEnabled;
+          if (filterValue === 'off') return !isEnabled;
+
+          return true;
+        });
+
+        if (typeof renderFriendsVirtual === 'function') {
+          renderFriendsVirtual();
+        }
+      }
     }
     function FriendTab(tab) {
       console.log(`🔄 Switching to ${tab} search`);
@@ -1537,10 +1519,10 @@
       if (!resultsDiv) return;
 
       resultsDiv.innerHTML = `
-        < div style = "padding: 30px; text-align: center; color: #999;" >
+        <div style="padding: 30px; text-align: center; color: #999;">
           <div style="font-size: 32px; margin-bottom: 10px;">😕</div>
           <div>Không tìm thấy người dùng với số điện thoại này</div>
-        </div >
+        </div>
         `;
     }
 
@@ -1549,10 +1531,10 @@
       if (!resultsDiv) return;
 
       resultsDiv.innerHTML = `
-        < div style = "padding: 30px; text-align: center; color: #f44336;" >
+        <div style="padding: 30px; text-align: center; color: #f44336;">
           <div style="font-size: 32px; margin-bottom: 10px;">❌</div>
           <div>Lỗi: ${escapeHtml(error || 'Không thể tìm kiếm')}</div>
-        </div >
+        </div>
         `;
     }
 
@@ -1605,7 +1587,7 @@
         alert('Vui lòng đăng nhập trước!');
         return;
       }
-      const url = `/ trigger - manager.html ? userUID = ${currentUserId}& dbName=ZaloChat_${currentUserId} `;
+      const url = `/trigger-manager.html?userUID=${currentUserId}&dbName=ZaloChat_${currentUserId}`;
       window.open(url, '_blank');
     }
 
@@ -1615,165 +1597,12 @@
         alert('Vui lòng đăng nhập trước!');
         return;
       }
-      const url = `/ storage - info.html ? userUID = ${currentUserId} `;
+      const url = `/storage-info.html?userUID=${currentUserId}`;
       window.open(url, '_blank');
     }
 
-    // ========== FILE ATTACHMENT HANDLERS ==========
-    let pendingAttachment = null;
+    // FILE ATTACHMENT HANDLERS are now managed by file-handler.js 
 
-    function handleFileSelect(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      pendingAttachment = file;
-      const preview = document.getElementById('attachmentPreview');
-      const previewImage = document.getElementById('previewImage');
-      const previewFile = document.getElementById('previewFile');
-
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          previewImage.src = e.target.result;
-          previewImage.style.display = 'block';
-          previewFile.style.display = 'none';
-          preview.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-      } else {
-        previewImage.style.display = 'none';
-        previewFile.style.display = 'flex';
-        previewFile.querySelector('.file-name').textContent = file.name;
-        preview.style.display = 'block';
-      }
-      event.target.value = '';
-    }
-
-    function removeAttachment() {
-      pendingAttachment = null;
-      document.getElementById('attachmentPreview').style.display = 'none';
-      document.getElementById('previewImage').src = '';
-    }
-
-    function sendFileAttachment() {
-      if (!pendingAttachment || !selectedFriend) return;
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        ws.send(JSON.stringify({
-          type: pendingAttachment.type.startsWith('image/') ? 'send_chat_image' : 'send_chat_file',
-          uid: selectedFriend.userId,
-          fileName: pendingAttachment.name,
-          fileType: pendingAttachment.type,
-          fileSize: pendingAttachment.size,
-          data: e.target.result
-        }));
-        removeAttachment();
-      };
-      reader.readAsDataURL(pendingAttachment);
-    }
-
-    // ========== NOTIFICATION PANEL HANDLERS ==========
-    let notifications = JSON.parse(localStorage.getItem('zalo_notifications') || '[]');
-
-    function toggleNotificationPanel() {
-      const panel = document.getElementById('notificationPanel');
-      panel.classList.toggle('active');
-    }
-
-    function addNotificationToPanel(name, message, uid, avatar, timestamp) {
-      const notification = {
-        id: Date.now(),
-        name,
-        message,
-        uid,
-        avatar,
-        timestamp: timestamp || Date.now()
-      };
-
-      notifications.unshift(notification);
-      if (notifications.length > 50) notifications = notifications.slice(0, 50);
-      localStorage.setItem('zalo_notifications', JSON.stringify(notifications));
-
-      renderNotificationPanel();
-      updateNotificationBadge();
-    }
-
-    function renderNotificationPanel() {
-      const container = document.getElementById('notificationList');
-      if (notifications.length === 0) {
-        container.innerHTML = '<div class="notification-empty">Chưa có hoạt động mới</div>';
-        return;
-      }
-
-      container.innerHTML = notifications.slice(0, 20).map(n => `
-        <div class="notification-item" onclick="goToConversation('${n.uid}', '${escapeJs(n.name)}', '${n.avatar || ''}')">
-          <img src="${n.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}" onerror="this.onerror=null;" alt="">
-            <div class="info">
-              <div class="name">${escapeHtml(n.name)}</div>
-              <div class="message">${escapeHtml(n.message?.substring(0, 50) || '')}</div>
-              <div class="time">${formatTime(n.timestamp)}</div>
-            </div>
-          </div>
-      `).join('');
-    }
-
-    function updateNotificationBadge() {
-      const badge = document.getElementById('notificationBadge');
-      const count = notifications.filter(n => n.timestamp > (Date.now() - 3600000)).length;
-      if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = 'flex';
-      } else {
-        badge.style.display = 'none';
-      }
-    }
-
-    // ✅ ADD NOTIFICATION TO PANEL
-    function addNotificationToPanel(name, message, uid, avatar, timestamp) {
-      console.log('🔔 Adding notification:', name, message);
-      notifications.unshift({
-        name: name,
-        message: message,
-        uid: uid,
-        avatar: avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3C/svg%3E',
-        timestamp: timestamp || Date.now()
-      });
-
-      // Limit to 50 items
-      if (notifications.length > 50) notifications = notifications.slice(0, 50);
-
-      localStorage.setItem('zalo_notifications', JSON.stringify(notifications));
-      renderNotificationPanel();
-      updateNotificationBadge();
-    }
-
-    function clearNotifications() {
-      notifications = [];
-      localStorage.removeItem('zalo_notifications');
-      renderNotificationPanel();
-      updateNotificationBadge();
-    }
-
-    function goToConversation(uid, name, avatar) {
-      document.getElementById('notificationPanel').classList.remove('active');
-      selectFriend(uid, name, avatar);
-    }
-
-    // Close panel when clicking outside
-    document.addEventListener('click', (e) => {
-      const panel = document.getElementById('notificationPanel');
-      const bell = document.getElementById('notificationBell');
-      if (!panel.contains(e.target) && !bell.contains(e.target)) {
-        panel.classList.remove('active');
-      }
-    });
-
-    // Initialize notification panel on load
-    document.addEventListener('DOMContentLoaded', () => {
-      renderNotificationPanel();
-      updateNotificationBadge();
-    });
     // ========== FRIEND REQUEST UI ==========
     function openFriendRequestsPanel() {
       document.getElementById('frModal').style.display = 'block';
@@ -2309,52 +2138,15 @@
 
       console.log(`👪 Selected group: ${groupName} (${groupId})`);
     }
+
+
   </script>
-  <script src="IndexedDB.js"></script>
-  <script src="chat-function/file-handler.js"></script>
-  <script src="chat-function/load_data.js"></script>
-  <script src="chat-function/sort.js"></script>
-  <script src="chat-function/logout.js"></script>
-  <script src="chat-function/search.js"></script>
-  <script src="chat-function/notifications.js"></script>
   <script>
-    // ✅ ALPHABETICAL SORT FUNCTION
-    function sortFriendsAfterLoad() {
-      console.log('🔤 Sorting friends alphabetically (A-Z)...');
-      if (!friends || friends.length === 0) return;
-
-      friends.sort((a, b) => {
-        const nameA = (a.displayName || a.zaloName || '').toLowerCase();
-        const nameB = (b.displayName || b.zaloName || '').toLowerCase();
-        return nameA.localeCompare(nameB);
-      });
-
-      filteredFriends = [...friends];
-      renderFriendsVirtual();
-    }
-
-    // Auto-Reply Toggle Logic
-    function toggleAutoReply(userId, enabled) {
-      console.log(`👤 Toggling Auto - Reply for ${userId}: ${enabled}`);
-
-      // Optimistic update
-      if (enabled) {
-        autoReplyBlacklist.delete(userId);
-      } else {
-        autoReplyBlacklist.add(userId);
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.UnifiedHeader) {
+        UnifiedHeader.setPageActions(UnifiedHeader.getSharedTogglesHTML());
       }
-
-      // Send to server
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'toggle_user_auto_reply',
-          targetId: userId,
-          enabled: enabled
-        }));
-      }
-
-      showToast(enabled ? '✅ Đã BẬT tự động trả lời' : '🚫 Đã TẮT tự động trả lời', enabled ? 'success' : 'warning');
-    }
+    });
   </script>
 </body>
 

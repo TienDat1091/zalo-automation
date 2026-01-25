@@ -82,3 +82,157 @@ Lưu ý: hãy giữ token này an toàn và bảo mật, vì bất kỳ ai có t
 [19:11:25] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
 [19:11:36] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
 [19:11:47] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:22:02] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:22:11] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:22:53] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:23:01] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:23:03] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:37:35] RECV: Type=0 Content="time" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:11:21] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:11:31] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:23:54] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:23:57] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:11:59] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:12:04] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:14:22] RECV: Type=0 Content="Bdj" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:14:59] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:15:02] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:20:09] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:20:23] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:21:14] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:21:17] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:23:17] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:23:20] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:30:10] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:30:13] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:39:58] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:40:00] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:44:26] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:44:28] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:48:54] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:48:58] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:52:00] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:52:02] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:55:53] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:55:55] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:00:29] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:00:31] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:13:29] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:14:11] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:51:54] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:51:57] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:14:04] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:14:07] RECV: Type=0 Content="1000" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:19:42] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:19:46] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:25:47] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:25:50] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:27:53] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[19:27:56] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:48:29] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:48:32] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:05:37] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:05:40] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:39:18] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:39:22] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:39:35] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:39:38] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:42:24] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:42:29] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:05:00] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:05:02] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:24:00] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:24:03] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:35:00] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:35:03] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:36:08] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:36:13] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:20:09] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:20:11] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:21:44] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:21:46] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:44:32] RECV: Type=0 Content="Hfbf" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:44:40] RECV: Type=0 Content="Ccjj" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:44:42] RECV: Type=0 Content="Kdkdj" IsSelf=false UID=undefined MyUID=716585949090695726
+[02:44:43] RECV: Type=0 Content="Jrj" IsSelf=false UID=undefined MyUID=716585949090695726
+[03:01:22] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[03:01:25] RECV: Type=0 Content="10000" IsSelf=false UID=undefined MyUID=716585949090695726
+[14:05:35] RECV: Type=0 Content="in" IsSelf=false UID=undefined MyUID=716585949090695726
+[14:06:16] RECV: Type=0 Content="in" IsSelf=false UID=undefined MyUID=716585949090695726
+[14:25:06] RECV: Type=0 Content="fsf" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:42:17] RECV: Type=0 Content=");₫" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:01:15] RECV: Type=0 Content="Dnjdp" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:01:20] RECV: Type=0 Content="Cc" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:01:28] RECV: Type=0 Content="Vv" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:01:32] RECV: Type=0 Content="Vc" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:01:35] RECV: Type=0 Content="Ggg" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:01:51] RECV: Type=0 Content="Tgv" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:23:03] RECV: Type=text Content="eqweqw" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[23:23:03] processSelfTrigger CALLED for "eqweqw"
+[23:32:28] RECV: Type=text Content="fvfd" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[23:32:28] processSelfTrigger CALLED for "fvfd"
+[23:41:23] RECV: Type=text Content="hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[23:41:23] processSelfTrigger CALLED for "hi"
+[23:41:26] RECV: Type=text Content="dfsd" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[23:41:26] processSelfTrigger CALLED for "dfsd"
+[18:29:41] RECV: Type=text Content="gfd" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:41] processSelfTrigger CALLED for "gfd"
+[18:29:41] RECV: Type=text Content="gf" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:41] processSelfTrigger CALLED for "gf"
+[18:29:42] RECV: Type=text Content="gf" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:42] processSelfTrigger CALLED for "gf"
+[18:29:42] RECV: Type=text Content="gf" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:42] processSelfTrigger CALLED for "gf"
+[18:29:42] RECV: Type=text Content="fg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:42] processSelfTrigger CALLED for "fg"
+[18:29:42] RECV: Type=text Content="fg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:42] processSelfTrigger CALLED for "fg"
+[18:29:43] RECV: Type=text Content="fg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:43] processSelfTrigger CALLED for "fg"
+[18:29:43] RECV: Type=text Content="fg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:43] processSelfTrigger CALLED for "fg"
+[18:29:43] RECV: Type=text Content="fg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:43] processSelfTrigger CALLED for "fg"
+[18:29:43] RECV: Type=text Content="fg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:43] processSelfTrigger CALLED for "fg"
+[18:29:44] RECV: Type=text Content="fg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:44] processSelfTrigger CALLED for "fg"
+[18:29:45] RECV: Type=text Content="fgfg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:45] processSelfTrigger CALLED for "fgfg"
+[18:29:45] RECV: Type=text Content="f" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:45] processSelfTrigger CALLED for "f"
+[18:29:45] RECV: Type=text Content="gf" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:45] processSelfTrigger CALLED for "gf"
+[18:29:47] RECV: Type=text Content="fg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:29:47] processSelfTrigger CALLED for "fg"
+[18:34:54] RECV: Type=text Content="gfdg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:34:54] processSelfTrigger CALLED for "gfdg"
+[18:34:54] RECV: Type=text Content="gf" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:34:54] processSelfTrigger CALLED for "gf"
+[18:34:55] RECV: Type=text Content="gf" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:34:55] processSelfTrigger CALLED for "gf"
+[18:34:56] RECV: Type=text Content="gf" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:34:56] processSelfTrigger CALLED for "gf"
+[18:34:58] RECV: Type=text Content="gfsda" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:34:58] processSelfTrigger CALLED for "gfsda"
+[18:34:58] RECV: Type=text Content="a" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:34:58] processSelfTrigger CALLED for "a"
+[18:34:59] RECV: Type=text Content="bvc" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:34:59] processSelfTrigger CALLED for "bvc"
+[18:47:59] RECV: Type=text Content="gdfg" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[18:47:59] processSelfTrigger CALLED for "gdfg"
+[21:10:12] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:11:32] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:11:52] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:12:10] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:14:41] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:14:57] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:15:33] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:16:22] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:16:25] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:19:34] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:19:36] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:23:03] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:23:11] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:23:13] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:23:22] RECV: Type=0 Content="/ai-off" IsSelf=false UID=undefined MyUID=716585949090695726

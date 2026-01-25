@@ -6,10 +6,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flow Builder v4</title>
   <link rel="stylesheet" href="/assets/style_trigger_builder.css">
+  <link rel="stylesheet" href="/assets/unified-header.css?v=4">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sub-header for Builder Actions */
+    .builder-toolbar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 50px;
+      flex-shrink: 0;
+    }
+
+    .main-container {
+      flex: 1;
+      height: calc(100vh - 114px) !important;
+      /* 64px header + 50px toolbar */
+    }
+  </style>
 </head>
 
 <body>
-  <div class="header">
+  <div class="builder-toolbar">
     <div class="header-left">
       <button class="btn" onclick="location.href='trigger-manager.html'">Quay lại</button>
       <div class="trigger-title">
@@ -19,11 +46,6 @@
       </div>
     </div>
     <div class="header-actions">
-
-      <a href="unified-manager.html" target="_blank" rel="noopener noreferrer" class="btn">
-        <span>📊</span>
-        <span>Data Manager</span>
-      </a>
       <button class="btn btn-primary" onclick="showToast('✅ Tự động lưu!','success')">💾 Lưu</button>
     </div>
   </div>
@@ -89,9 +111,15 @@
   <script src="blocks/send-email.js"></script>
   <script src="blocks/find-user.js"></script>
   <!-- UI Controller - Load CUỐI CÙNG -->
+  <script src="/assets/unified-header.js?v=4"></script>
   <script src="blocks/flow-builder-ui.js"></script>
-
-
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.UnifiedHeader) {
+        UnifiedHeader.setPageActions(UnifiedHeader.getSharedTogglesHTML());
+      }
+    });
+  </script>
 </body>
 
 </html>

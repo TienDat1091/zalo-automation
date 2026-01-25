@@ -6,9 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📊 Data Manager - Zalo Automation</title>
     <link rel="stylesheet" href="/assets/style_bank_manager.css">
+    <link rel="stylesheet" href="/assets/unified-header.css?v=4">
     <style>
         body {
             display: flex;
+            flex-direction: column;
             height: 100vh;
             background: #f5f7fa;
         }
@@ -161,77 +163,69 @@
 </head>
 
 <body>
-    <nav class="sidebar">
-        <div class="sidebar-header">
-            <h3>📊 Quản lý dữ liệu</h3>
-        </div>
-        <div class="nav-list">
-            <button class="nav-item" onclick="loadManager('bank-manager.html', this)">
-                <span class="icon">💳</span>
-                <span>Bank Manager</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('ai-manager.html', this)">
-                <span class="icon">🧠</span>
-                <span>AI Manager</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('file-manager.html', this)">
-                <span class="icon">📁</span>
-                <span>File Manager</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('image-manager.html', this)">
-                <span class="icon">🖼️</span>
-                <span>Image Manager</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('table-manager.html', this)">
-                <span class="icon">📊</span>
-                <span>Table Manager</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('google-sheets-manager.html', this)">
-                <span class="icon">📗</span>
-                <span>Sheets Manager</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('email-manager.html', this)">
-                <span class="icon">📧</span>
-                <span>Email Manager</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('scheduled-manager.html', this)">
-                <span class="icon">📅</span>
-                <span>Scheduled Tasks</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('variable-manager.html', this)">
-                <span class="icon">🏷️</span>
-                <span>Variables Manager</span>
-            </button>
-            <button class="nav-item" onclick="loadManager('zalo-bot-manager.html', this)">
-                <span class="icon">🤖</span>
-                <span>Zalo Bot Manager</span>
-            </button>
-        </div>
-    </nav>
-
-    <main class="main-wrapper">
-        <header class="app-header">
-            <h1>📊 Data Manager</h1>
-            <div style="display: flex; gap: 8px;">
-                <a href="/trigger-manager.html" class="header-btn">
-                    <span>⚡</span>
-                    <span>Trigger Manager</span>
-                </a>
-                <a href="/dashboard.html" class="header-btn">
-                    <span>💬</span>
-                    <span>Dashboard</span>
-                </a>
+    <div class="content-wrapper" style="display:flex; flex:1; overflow:hidden;">
+        <nav class="sidebar">
+            <!-- Sidebar Header Removed -->
+            <div class="nav-list">
+                <button class="nav-item" onclick="loadManager('bank-manager.html', this)">
+                    <span class="icon">💳</span>
+                    <span>Bank Manager</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('ai-manager.html', this)">
+                    <span class="icon">🧠</span>
+                    <span>AI Manager</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('file-manager.html', this)">
+                    <span class="icon">📁</span>
+                    <span>File Manager</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('image-manager.html', this)">
+                    <span class="icon">🖼️</span>
+                    <span>Image Manager</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('table-manager.html', this)">
+                    <span class="icon">📊</span>
+                    <span>Table Manager</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('google-sheets-manager.html', this)">
+                    <span class="icon">📗</span>
+                    <span>Sheets Manager</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('email-manager.html', this)">
+                    <span class="icon">📧</span>
+                    <span>Email Manager</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('scheduled-manager.html', this)">
+                    <span class="icon">📅</span>
+                    <span>Scheduled Tasks</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('auto-msg-manager.html', this)">
+                    <span class="icon">💬</span>
+                    <span>Tin nhắn Tự động</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('variable-manager.html', this)">
+                    <span class="icon">🏷️</span>
+                    <span>Variables Manager</span>
+                </button>
+                <button class="nav-item" onclick="loadManager('zalo-bot-manager.html', this)">
+                    <span class="icon">🤖</span>
+                    <span>Zalo Bot Manager</span>
+                </button>
             </div>
-        </header>
+        </nav>
 
-        <div class="welcome-screen" id="welcomeScreen">
-            <div class="icon">📊</div>
-            <h2>Data Manager</h2>
-            <p>Chọn một mục từ menu bên trái để bắt đầu</p>
-        </div>
+        <main class="main-wrapper">
+            <!-- App Header Removed -->
 
-        <iframe class="content-frame" id="contentFrame" style="display: none;"></iframe>
-    </main>
+            <div class="welcome-screen" id="welcomeScreen">
+                <div class="icon">📊</div>
+                <h2>Data Manager</h2>
+                <p>Chọn một mục từ menu bên trái để bắt đầu</p>
+            </div>
+
+            <iframe class="content-frame" id="contentFrame" style="display: none;"></iframe>
+        </main>
+    </div>
 
     <script>
         let currentPage = '';
@@ -247,9 +241,17 @@
             document.getElementById('welcomeScreen').style.display = 'none';
             const frame = document.getElementById('contentFrame');
             frame.style.display = 'block';
-            frame.src = page;
+            frame.src = page + '?t=' + new Date().getTime();
         }
+
+        // Initialize Unified Header Toggles
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.UnifiedHeader) {
+                UnifiedHeader.setPageActions(UnifiedHeader.getSharedTogglesHTML());
+            }
+        });
     </script>
+    <script src="/assets/unified-header.js?v=4"></script>
 </body>
 
 </html>

@@ -179,7 +179,9 @@ function setupMessageListener(apiState) {
       // ========================================
       if (isText) {
         const msgObj = {
-          msgId: message.msgId || `msg_${Date.now()}`,
+          msgId: message.data.msgId || message.msgId || `msg_${Date.now()}`,
+          cliMsgId: message.data.cliMsgId || null,
+          globalMsgId: message.data.globalMsgId || null,
           content: message.data.content,
           timestamp: message.ts || Date.now(),
           senderId,
@@ -226,7 +228,9 @@ function setupMessageListener(apiState) {
       else {
         const content = message.data.content;
         let msgObj = {
-          msgId: message.msgId || `msg_${Date.now()}`,
+          msgId: message.data.msgId || message.msgId || `msg_${Date.now()}`,
+          cliMsgId: message.data.cliMsgId || null,
+          globalMsgId: message.data.globalMsgId || null,
           timestamp: message.ts || Date.now(),
           senderId,
           isSelf: message.isSelf || senderId === apiState.currentUser?.uid,
@@ -518,6 +522,28 @@ async function setupFriendRequestListener(apiState) {
   }
 
   // ========================================
+  // TYPING EVENT LISTENER
+  // ========================================
+  try {
+    apiState.api.listener.on('typing', (event) => {
+      // event matches the Typing type provided: { type, data, threadId, isSelf }
+      // data: { uid, ts, isPC, gid }
+      console.log(`✍️ Typing event from ${event.threadId} (isPC: ${event.data.isPC})`);
+
+      broadcast(apiState, {
+        type: 'typing',
+        threadId: event.threadId,
+        uid: event.data.uid,
+        isGroup: event.type === 1, // ThreadType.Group = 1
+        isPC: event.data.isPC
+      });
+    });
+    console.log('✅ typing event listener registered');
+  } catch (e) {
+    console.log('ℹ️ typing listener error:', e.message);
+  }
+
+  // ========================================
   // FRIEND EVENT LISTENER - All friend event types
   // ========================================
   try {
@@ -624,13 +650,8 @@ async function setupFriendRequestListener(apiState) {
                 apiState.friends.push(newFriend);
                 console.log(`✅ Added ${newFriend.displayName} (${event.data}) to local friend cache`);
 
-                // ✅ AUTO-SET 1-DAY DELETE for new friends
-                try {
-                  await apiState.api.updateAutoDeleteChat(86400000, event.data);
-                  console.log(`⏱️ Auto-set 1-day delete for new friend: ${event.data}`);
-                } catch (autoDelErr) {
-                  console.warn('⚠️ Failed to set auto-delete for new friend:', autoDelErr.message);
-                }
+                // Removed redundant independent auto-delete logic 
+                // Auto-delete is now managed exclusively via handleSmartFriendRequest
               }
             } catch (e) {
               console.warn("⚠️ Failed to fetch new friend info, adding placeholder:", e.message);
@@ -849,6 +870,16 @@ async function handleSmartFriendRequest(apiState, userId) {
       // Broadcast
       broadcast(apiState, { type: 'friend_accepted', userId: userId, timestamp: Date.now() });
 
+      // ✅ AUTO DELETE (1 day) IF ENABLED
+      const autoDeleteTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_delete_messages__' && t.enabled === true);
+      if (autoDeleteTrigger && apiState.api.updateAutoDeleteChat) {
+        let ttl = parseInt(autoDeleteTrigger.triggerContent) || 86400000;
+        if (ttl > 0) {
+          console.log(`🗑️ Auto-Delete: Enabling ${ttl}ms timer for ${userId}`);
+          try { await apiState.api.updateAutoDeleteChat(ttl, userId); } catch (e) { }
+        }
+      }
+
       // Send Welcome Message
       const welcomeMsg = autoFriendTrigger.triggerContent?.trim();
       if (welcomeMsg) {
@@ -908,6 +939,17 @@ async function handleSmartFriendRequest(apiState, userId) {
           console.log(`✅ Friend request sent success!`);
           apiState.processedSmartFriend.add(userId);
           success = true;
+
+          // ✅ AUTO DELETE IF ENABLED
+          const autoDeleteTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_delete_messages__' && t.enabled === true);
+          if (autoDeleteTrigger && apiState.api.updateAutoDeleteChat) {
+            let ttl = parseInt(autoDeleteTrigger.triggerContent) || 86400000;
+            if (ttl > 0) {
+              console.log(`🗑️ Auto-Delete: Enabling ${ttl}ms timer for ${userId}`);
+              try { await apiState.api.updateAutoDeleteChat(ttl, userId); } catch (e) { }
+            }
+          }
+
           break;
         } catch (e) {
           console.warn(`   ⚠️ Method ${strategy.name} failed: ${e.message}`);
@@ -1016,8 +1058,31 @@ async function loginZalo(apiState) {
       const triggerDB = require('./triggerDB');
       triggerDB.ensureUserTriggers(uid);
       console.log('✅ Checked/Initialized triggers for user:', uid);
+
+      // 🔄 RESTORE AUTO-REPLY STATE FROM DB
+      const autoReplyModule = require('./autoReply');
+
+      // 1. Personal Auto-Reply
+      const savedPersonal = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_personal');
+      if (savedPersonal && savedPersonal.enabled !== undefined) {
+        autoReplyModule.autoReplyState.enabled = savedPersonal.enabled;
+        console.log(`🔄 Restored Personal Auto-Reply State: ${savedPersonal.enabled ? 'ON' : 'OFF'}`);
+      }
+
+      // 2. Bot OA Auto-Reply
+      const savedBot = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_bot');
+      if (savedBot) {
+        targetState.botAutoReplyEnabled = savedBot.enabled;
+        if (savedBot.botToken) targetState.botToken = savedBot.botToken;
+        console.log(`🔄 Restored Bot OA Auto-Reply State: ${savedBot.enabled ? 'ON' : 'OFF'}`);
+
+        // Note: Polling will be started by WebSocket 'get_bot_auto_reply_status' 
+        // or we need to expose startBotPolling here.
+        // For now, trusting the UI to trigger the check.
+      }
+
     } catch (e) {
-      console.warn('⚠️ Init triggers failed:', e.message);
+      console.warn('⚠️ Init triggers/restore state failed:', e.message);
     }
 
     // Load friends list for Smart Features
