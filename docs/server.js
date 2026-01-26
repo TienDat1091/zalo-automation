@@ -543,6 +543,9 @@ server.listen(PORT, () => {
   console.log("✅ Server is ready to accept connections!");
   console.log("");
 
+  // Ensure DB is initialized
+  triggerDB.init();
+
   // Start WebSocket server on the same HTTP server
   startWebSocketServer(apiState, server);
 
@@ -642,6 +645,10 @@ server.listen(PORT, () => {
       console.error('❌ Scheduler error:', err.message);
     }
   }, 30 * 1000); // Check every 30 seconds
+
+  // ✅ START WATCHDOG SERVICE
+  const { startWatchdog } = require('./system/watchdog');
+  startWatchdog(apiState);
 });
 
 // Graceful shutdown

@@ -172,6 +172,21 @@ function setupMessageListener(apiState) {
         return;
       }
 
+      // 🔍 DEBUG: Check Mobile vs PC Self-Message structure
+      const currentUid = apiState.currentUser?.uid;
+      const calculatedIsSelf = message.isSelf || (currentUid && message.uidFrom === currentUid);
+
+      console.log(`🔍 RECV RAW: Type=${message.type}, isSelf=${message.isSelf}, uidFrom=${message.uidFrom}, ThreadId=${message.threadId}`);
+      if (currentUid && message.uidFrom === currentUid) {
+        console.log('🔍 DETECTED SELF MESSAGE (Local Check)');
+      }
+
+      // 🔍 DEBUG: Log full data for deep inspection
+      try {
+        console.log('📦 MSG DATA:', JSON.stringify(message.data, null, 2));
+      } catch (e) { }
+
+
       const isText = typeof message.data.content === 'string';
 
       // ========================================

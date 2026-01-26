@@ -80,6 +80,25 @@ function init() {
       )
     `);
 
+        // ============================================
+        // AUTO MIGRATION (Fix for Render/Production)
+        // ============================================
+        try {
+            const tableInfo = db.prepare('PRAGMA table_info(messages)').all();
+
+            if (!tableInfo.some(c => c.name === 'cliMsgId')) {
+                console.log('🔄 Auto-Migration: Adding cliMsgId column...');
+                db.exec('ALTER TABLE messages ADD COLUMN cliMsgId TEXT');
+            }
+
+            if (!tableInfo.some(c => c.name === 'globalMsgId')) {
+                console.log('🔄 Auto-Migration: Adding globalMsgId column...');
+                db.exec('ALTER TABLE messages ADD COLUMN globalMsgId TEXT');
+            }
+        } catch (migErr) {
+            console.error('⚠️ Auto-Migration failed (might be already up to date):', migErr.message);
+        }
+
         console.log('✅ MessageDB initialized:', dbPath);
         return true;
     } catch (err) {

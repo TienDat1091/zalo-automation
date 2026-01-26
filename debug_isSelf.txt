@@ -236,3 +236,37 @@ Lưu ý: hãy giữ token này an toàn và bảo mật, vì bất kỳ ai có t
 [21:23:11] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
 [21:23:13] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
 [21:23:22] RECV: Type=0 Content="/ai-off" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:32:21] RECV: Type=0 Content="SDS" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:32:54] RECV: Type=0 Content="Fcg" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:33:03] RECV: Type=0 Content="Tt" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:33:21] RECV: Type=0 Content="Cv" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:33:26] RECV: Type=0 Content="Ff" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:33:32] RECV: Type=0 Content="C" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:33:47] RECV: Type=0 Content="Ff" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:33:49] RECV: Type=0 Content="Cg" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:33:57] RECV: Type=0 Content="Gg" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:05] RECV: Type=0 Content="Vv" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:13] RECV: Type=0 Content="Ff" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:18] RECV: Type=0 Content="Ccv" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:27] RECV: Type=0 Content="Ccv" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:36] RECV: Type=0 Content="Cc" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:44] RECV: Type=0 Content="Ffh" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:48] RECV: Type=0 Content="Gg" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:53] RECV: Type=0 Content="Fgh" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:34:57] RECV: Type=0 Content="Xxf" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:36:23] RECV: Type=0 Content="Fcc" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:36:43] RECV: Type=0 Content="Ghj" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:36:48] RECV: Type=0 Content="Ccv" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:42:41] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[21:42:41] processSelfTrigger CALLED for "/hi"
+[21:43:46] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[21:43:46] processSelfTrigger CALLED for "/hi"
+[21:48:22] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[21:48:22] processSelfTrigger CALLED for "/hi"
+[21:51:58] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[21:51:58] processSelfTrigger CALLED for "/hi"
+[21:52:15] RECV: Type=0 Content="Cfv" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:58:27] RECV: Type=text Content="/hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[21:58:27] processSelfTrigger CALLED for "/hi"
+[21:58:36] RECV: Type=text Content="fsdfsd" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[21:58:36] processSelfTrigger CALLED for "fsdfsd"

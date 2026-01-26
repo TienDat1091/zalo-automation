@@ -111,6 +111,12 @@ async function processAutoReply(apiState, message) {
 
     // ✅ Handle Self-Trigger (ALWAYS Check this first, ignore global enabled state)
     if (isSelf) {
+      console.log(`[Self-Trigger] 🚀 Processing: "${message.data.content}"`);
+      await processSelfTrigger(apiState, message, senderId);
+      return;
+    } else if (message.uidFrom === currentUid) {
+      console.log(`[Self-Trigger] ⚠️ Message is from ME but 'isSelf' was FALSE. Forcing Self-Trigger processing...`);
+      // Force processing if UIDs match even if API flag is wrong
       await processSelfTrigger(apiState, message, senderId);
       return;
     }
