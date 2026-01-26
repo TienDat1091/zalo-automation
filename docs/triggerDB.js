@@ -63,7 +63,7 @@ module.exports = {
   initBuiltInTriggers() {
     try {
       // Check Auto Friend Accept Trigger (System level)
-      const check = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_friend__' AND triggerUserID = 'system'").get();
+      const check = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_friend__' AND triggerUserID = 'system'").get();
       if (!check) {
         console.log('✨ Creating built-in trigger: Auto Friend Accept (System)');
         this.createTrigger({
@@ -77,7 +77,7 @@ module.exports = {
       }
 
       // Check Auto File Trigger
-      const checkFile = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_file__' AND triggerUserID = 'system'").get();
+      const checkFile = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_file__' AND triggerUserID = 'system'").get();
       if (!checkFile) {
         console.log('✨ Creating built-in trigger: Auto File Processing (System)');
         this.createTrigger({
@@ -91,7 +91,7 @@ module.exports = {
       }
 
       // ✅ Check Auto Reply User Trigger (1-on-1 messages)
-      const checkReplyUser = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_reply_user__' AND triggerUserID = 'system'").get();
+      const checkReplyUser = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_reply_user__' AND triggerUserID = 'system'").get();
       if (!checkReplyUser) {
         console.log('✨ Creating built-in trigger: Auto Reply User (System)');
         this.createTrigger({
@@ -105,7 +105,7 @@ module.exports = {
       }
 
       // ✅ Check Auto Reply Group Trigger (group messages)
-      const checkReplyGroup = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_reply_group__' AND triggerUserID = 'system'").get();
+      const checkReplyGroup = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_reply_group__' AND triggerUserID = 'system'").get();
       if (!checkReplyGroup) {
         console.log('✨ Creating built-in trigger: Auto Reply Group (System)');
         this.createTrigger({
@@ -119,7 +119,7 @@ module.exports = {
       }
 
       // ✅ Check Self-Trigger (Trigger by self command)
-      const checkSelfTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_self_trigger__' AND triggerUserID = 'system'").get();
+      const checkSelfTrigger = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_self_trigger__' AND triggerUserID = 'system'").get();
       if (!checkSelfTrigger) {
         console.log('✨ Creating built-in trigger: Self Trigger (System)');
         this.createTrigger({
@@ -132,7 +132,7 @@ module.exports = {
       }
 
       // ✅ Check Auto Unread Trigger
-      const checkUnreadTracker = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_unread__' AND triggerUserID = 'system'").get();
+      const checkUnreadTracker = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_unread__' AND triggerUserID = 'system'").get();
       if (!checkUnreadTracker) {
         console.log('✨ Creating built-in trigger: Auto Unread (System)');
         this.createTrigger({
@@ -146,7 +146,7 @@ module.exports = {
       }
 
       // ✅ Check Auto Delete Messages Trigger
-      const checkAutoDelete = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_delete_messages__' AND triggerUserID = 'system'").get();
+      const checkAutoDelete = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_delete_messages__' AND triggerUserID = 'system'").get();
       if (!checkAutoDelete) {
         console.log('✨ Creating built-in trigger: Auto Delete Messages (System)');
         this.createTrigger({
@@ -166,7 +166,7 @@ module.exports = {
   ensureUserTriggers(userUID) {
     try {
       // 1. Auto Friend
-      let userTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_friend__' AND triggerUserID = ?").get(userUID);
+      let userTrigger = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_friend__' AND triggerUserID = ?").get(userUID);
       if (!userTrigger) {
         console.log(`✨ Creating user trigger for ${userUID}: Auto Friend Accept`);
         // Get system template
@@ -195,7 +195,7 @@ module.exports = {
       }
 
       // 2. Auto Reply User (1-on-1 messages)
-      let userReplyTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_reply_user__' AND triggerUserID = ?").get(userUID);
+      let userReplyTrigger = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_reply_user__' AND triggerUserID = ?").get(userUID);
       if (!userReplyTrigger) {
         console.log(`✨ Creating user trigger for ${userUID}: Auto Reply User`);
         const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_auto_reply_user__' AND triggerUserID = 'system'").get();
@@ -222,7 +222,7 @@ module.exports = {
       }
 
       // 3. Auto Reply Group (group messages)
-      let groupReplyTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_reply_group__' AND triggerUserID = ?").get(userUID);
+      let groupReplyTrigger = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_reply_group__' AND triggerUserID = ?").get(userUID);
       if (!groupReplyTrigger) {
         console.log(`✨ Creating user trigger for ${userUID}: Auto Reply Group`);
         const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_auto_reply_group__' AND triggerUserID = 'system'").get();
@@ -248,7 +248,7 @@ module.exports = {
       }
 
       // 4. Self Trigger
-      let selfTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_self_trigger__' AND triggerUserID = ?").get(userUID);
+      let selfTrigger = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_self_trigger__' AND triggerUserID = ?").get(userUID);
       if (!selfTrigger) {
         console.log(`✨ Creating user trigger for ${userUID}: Self Trigger`);
         const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_self_trigger__' AND triggerUserID = 'system'").get();
@@ -275,7 +275,7 @@ module.exports = {
       }
 
       // 5. Auto Unread
-      let unreadTrigger = db.prepare("SELECT triggerID FROM triggers WHERE triggerKey = '__builtin_auto_unread__' AND triggerUserID = ?").get(userUID);
+      let unreadTrigger = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_unread__' AND triggerUserID = ?").get(userUID);
       if (!unreadTrigger) {
         console.log(`✨ Creating user trigger for ${userUID}: Auto Unread`);
         const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_auto_unread__' AND triggerUserID = 'system'").get();
@@ -353,7 +353,7 @@ module.exports = {
 
   getTriggerById(triggerID) {
     try {
-      const trigger = db.prepare('SELECT * FROM triggers WHERE triggerID = ?').get(triggerID);
+      const trigger = db.prepare('SELECT * FROM triggers WHERE id = ?').get(triggerID);
       if (trigger) {
         const formatted = this._formatTrigger(trigger);
         if (trigger.setMode === TriggerMode.Flow) {
@@ -474,7 +474,7 @@ module.exports = {
       values.push(Date.now());
       values.push(triggerID);
 
-      const sql = `UPDATE triggers SET ${fields.join(', ')} WHERE triggerID = ?`;
+      const sql = `UPDATE triggers SET ${fields.join(', ')} WHERE id = ?`;
       db.prepare(sql).run(...values);
 
       // Create flow if switching to Flow mode
@@ -492,11 +492,11 @@ module.exports = {
 
   toggleTrigger(triggerID) {
     try {
-      const trigger = db.prepare('SELECT enabled FROM triggers WHERE triggerID = ?').get(triggerID);
+      const trigger = db.prepare('SELECT enabled FROM triggers WHERE id = ?').get(triggerID);
       if (!trigger) return null;
 
       const newEnabled = trigger.enabled ? 0 : 1;
-      db.prepare('UPDATE triggers SET enabled = ?, timeUpdate = ? WHERE triggerID = ?')
+      db.prepare('UPDATE triggers SET enabled = ?, timeUpdate = ? WHERE id = ?')
         .run(newEnabled, Date.now(), triggerID);
 
       return this.getTriggerById(triggerID);
@@ -508,7 +508,7 @@ module.exports = {
 
   deleteTrigger(triggerID) {
     try {
-      db.prepare('DELETE FROM triggers WHERE triggerID = ?').run(triggerID);
+      db.prepare('DELETE FROM triggers WHERE id = ?').run(triggerID);
       return true;
     } catch (error) {
       console.error('❌ Delete trigger error:', error.message);
@@ -564,8 +564,8 @@ module.exports = {
 
   _formatTrigger(row) {
     return {
-      triggerID: row.triggerID,
-      id: row.triggerID,
+      triggerID: row.id,
+      id: row.id,
       triggerName: row.triggerName,
       name: row.triggerName,
       triggerKey: row.triggerKey,
@@ -710,7 +710,7 @@ module.exports = {
       const sql = `
         SELECT f.*, t.triggerName 
         FROM flows f
-        JOIN triggers t ON f.triggerID = t.triggerID
+        JOIN triggers t ON f.triggerID = t.id
         WHERE t.triggerUserID = ?
         ORDER BY f.flowID DESC
       `;

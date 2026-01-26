@@ -100,7 +100,7 @@ function createTables(db) {
       isActive INTEGER DEFAULT 1,
       createdAt INTEGER DEFAULT (strftime('%s','now') * 1000),
       updatedAt INTEGER DEFAULT (strftime('%s','now') * 1000),
-      FOREIGN KEY (triggerID) REFERENCES triggers(triggerID) ON DELETE CASCADE
+      FOREIGN KEY (triggerID) REFERENCES triggers(id) ON DELETE CASCADE
     )
   `);
 
@@ -394,7 +394,7 @@ function createTables(db) {
       triggerID INTEGER,
       FOREIGN KEY (senderProfileID) REFERENCES email_senders(senderID) ON DELETE CASCADE,
       FOREIGN KEY (flowID) REFERENCES flows(flowID),
-      FOREIGN KEY (triggerID) REFERENCES triggers(triggerID)
+      FOREIGN KEY (triggerID) REFERENCES triggers(id)
     )
   `);
 
