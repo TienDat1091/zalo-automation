@@ -2284,6 +2284,9 @@ async function sendMessage(apiState, senderId, content, userUID) {
   if (!apiState.messageStore.has(senderId)) apiState.messageStore.set(senderId, []);
   apiState.messageStore.get(senderId).push(msg);
 
+  // ✅ SAVE AUTO-REPLY MESSAGE TO DATABASE
+  messageDB.saveMessage(senderId, msg);
+
   apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_message', uid: senderId, message: msg })); } catch (e) { } });
 
   // ✅ AUTO MARK UNREAD IF ENABLED

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Message Persistence Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+    .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1 { color: #0068FF; border-bottom: 3px solid #0068FF; padding-bottom: 10px; }
+    .summary { background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    .summary h2 { margin-top: 0; color: #0068FF; }
+    .stat { font-size: 18px; margin: 8px 0; }
+    .conversation { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 20px 0; }
+    .conversation-header { background: #f5f5f5; padding: 10px; margin: -15px -15px 15px -15px; border-radius: 8px 8px 0 0; font-weight: bold; }
+    .message { padding: 10px; margin: 8px 0; border-left: 4px solid #ddd; }
+    .message.me { background: #e3f2fd; border-left-color: #2196f3; }
+    .message.them { background: #f5f5f5; border-left-color: #999; }
+    .message.auto-reply { background: #fff3e0; border-left-color: #ff9800; }
+    .message-header { font-size: 12px; color: #666; margin-bottom: 5px; }
+    .message-content { font-size: 14px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px; }
+    .badge.auto { background: #ff9800; color: white; }
+    .badge.me { background: #2196f3; color: white; }
+    .badge.them { background: #666; color: white; }
+    .success { color: #4caf50; font-weight: bold; font-size: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Message Persistence Verification Report</h1>
+    <p>Generated: 23:12:03 27/1/2026</p>
+
+    <div class="summary">
+      <h2>✅ Summary</h2>
+      <div class="stat">📁 Total Conversations: <strong>6</strong></div>
+      <div class="stat">💬 Total Messages: <strong>27</strong></div>
+      <div class="stat">🤖 Auto-Reply Messages: <strong>7</strong></div>
+      <div class="stat">👤 Incoming Messages: <strong>20</strong></div>
+      <br>
+      <div class="success">✅ MESSAGE PERSISTENCE IS WORKING!</div>
+    </div>
+  
+      <div class="conversation">
+        <div class="conversation-header">
+          Conversation #1: 2118888339358894264
+          <span style="float: right;">17 messages</span>
+        </div>
+    
+        <div class="message them">
+          <div class="message-header">
+            1. 21:58:17 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"1"</div>
+        </div>
+      
+        <div class="message auto-reply">
+          <div class="message-header">
+            2. 21:58:17 27-01 <span class="badge auto">AUTO-REPLY</span>
+          </div>
+          <div class="message-content">"Xin chào! Tin nhắn của bạn đã được ghi nhận."</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            3. 21:58:40 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"Abc"</div>
+        </div>
+      
+        <div class="message auto-reply">
+          <div class="message-header">
+            4. 21:58:40 27-01 <span class="badge auto">AUTO-REPLY</span>
+          </div>
+          <div class="message-content">"Xin chào! Tin nhắn của bạn đã được ghi nhận."</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            5. 22:02:01 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"1"</div>
+        </div>
+      
+        <div class="message auto-reply">
+          <div class="message-header">
+            6. 22:02:01 27-01 <span class="badge auto">AUTO-REPLY</span>
+          </div>
+          <div class="message-content">"Xin chào! Tin nhắn của bạn đã được ghi nhận."</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            7. 22:02:02 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"2"</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            8. 22:02:05 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"3"</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            9. 22:02:21 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"2"</div>
+        </div>
+      
+        <div class="message auto-reply">
+          <div class="message-header">
+            10. 22:02:21 27-01 <span class="badge auto">AUTO-REPLY</span>
+          </div>
+          <div class="message-content">"Xin chào! Tin nhắn của bạn đã được ghi nhận."</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            11. 22:02:23 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"3"</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            12. 22:13:26 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"Đ"</div>
+        </div>
+      
+        <div class="message auto-reply">
+          <div class="message-header">
+            13. 22:13:26 27-01 <span class="badge auto">AUTO-REPLY</span>
+          </div>
+          <div class="message-content">"Xin chào! Tin nhắn của bạn đã được ghi nhận."</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            14. 22:14:56 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"Hđ"</div>
+        </div>
+      
+        <div class="message auto-reply">
+          <div class="message-header">
+            15. 22:14:57 27-01 <span class="badge auto">AUTO-REPLY</span>
+          </div>
+          <div class="message-content">"Xin chào! Tin nhắn của bạn đã được ghi nhận."</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            16. 23:10:54 27-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"Bxn"</div>
+        </div>
+      
+        <div class="message auto-reply">
+          <div class="message-header">
+            17. 23:10:54 27-01 <span class="badge auto">AUTO-REPLY</span>
+          </div>
+          <div class="message-content">"Xin chào! Tin nhắn của bạn đã được ghi nhận."</div>
+        </div>
+      </div>
+      <div class="conversation">
+        <div class="conversation-header">
+          Conversation #2: 8554361384204006248
+          <span style="float: right;">4 messages</span>
+        </div>
+    
+        <div class="message me">
+          <div class="message-header">
+            1. 18:53:52 13-01 <span class="badge me">ME</span>
+          </div>
+          <div class="message-content">"ghj"</div>
+        </div>
+      
+        <div class="message me">
+          <div class="message-header">
+            2. 18:32:56 17-01 <span class="badge me">ME</span>
+          </div>
+          <div class="message-content">"/test"</div>
+        </div>
+      
+        <div class="message me">
+          <div class="message-header">
+            3. 23:23:03 24-01 <span class="badge me">ME</span>
+          </div>
+          <div class="message-content">"eqweqw"</div>
+        </div>
+      
+        <div class="message me">
+          <div class="message-header">
+            4. 23:32:28 24-01 <span class="badge me">ME</span>
+          </div>
+          <div class="message-content">"fvfd"</div>
+        </div>
+      </div>
+      <div class="conversation">
+        <div class="conversation-header">
+          Conversation #3: 1685864831688692786
+          <span style="float: right;">1 messages</span>
+        </div>
+    
+        <div class="message them">
+          <div class="message-header">
+            1. 17:42:32 18-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"[Tin nhắn không xác định]"</div>
+        </div>
+      </div>
+      <div class="conversation">
+        <div class="conversation-header">
+          Conversation #4: 6718312378113509227
+          <span style="float: right;">1 messages</span>
+        </div>
+    
+        <div class="message them">
+          <div class="message-header">
+            1. 17:31:48 18-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"[Hình ảnh]"</div>
+        </div>
+      </div>
+      <div class="conversation">
+        <div class="conversation-header">
+          Conversation #5: 1180620961113297973
+          <span style="float: right;">3 messages</span>
+        </div>
+    
+        <div class="message them">
+          <div class="message-header">
+            1. 17:03:09 17-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"[Sticker]"</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            2. 17:03:26 17-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"[Hình ảnh]"</div>
+        </div>
+      
+        <div class="message them">
+          <div class="message-header">
+            3. 17:03:26 17-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"[Hình ảnh]"</div>
+        </div>
+      </div>
+      <div class="conversation">
+        <div class="conversation-header">
+          Conversation #6: 8102698905959638053
+          <span style="float: right;">1 messages</span>
+        </div>
+    
+        <div class="message them">
+          <div class="message-header">
+            1. 16:52:58 17-01 <span class="badge them">THEM</span>
+          </div>
+          <div class="message-content">"[📄 File: 2602003A_HCM-HP_THS3-V2602N--- DR CNMN (BAO LOLO) DO.pdf]"</div>
+        </div>
+      </div>
+    <hr>
+    <p style="color: #666; font-size: 12px;">
+      This report proves that all messages are successfully saved to the SQLite database.
+      To verify in the browser: Close browser → Send messages → Reopen browser → Messages will load from DB!
+    </p>
+  </div>
+</body>
+</html>

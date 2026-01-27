@@ -1671,7 +1671,7 @@ module.exports = {
       const enabled = db.prepare('SELECT COUNT(*) as count FROM triggers WHERE triggerUserID = ? AND enabled = 1').get(userUID);
       const flows = db.prepare(`
         SELECT COUNT(*) as count FROM flows f 
-        JOIN triggers t ON f.triggerID = t.triggerID 
+        JOIN triggers t ON f.triggerID = t.id 
         WHERE t.triggerUserID = ?
       `).get(userUID);
       const variables = db.prepare('SELECT COUNT(*) as count FROM variables WHERE userUID = ?').get(userUID);

@@ -226,13 +226,20 @@ async function selectFriend(userId, displayName, avatar) {
   console.log(`📂 Loading from IndexedDB for ${userId}`);
   const storedMessages = await loadMessagesFromIndexedDB(userId);
 
+  // ✅ ALWAYS fetch latest from server to ensure we have all messages
+  // IndexedDB is only used as a fallback if server request fails
+  console.log(`🔄 Fetching latest messages from server DB for ${userId}...`);
+  ws.send(JSON.stringify({
+    type: 'get_conversation_history',
+    threadId: userId,
+    limit: 100
+  }));
+
+  // Show cached messages immediately while waiting for server response
   if (storedMessages.length > 0) {
-    console.log(`✅ Found ${storedMessages.length} unique messages for ${userId}`);
+    console.log(`📦 Showing ${storedMessages.length} cached messages while fetching latest...`);
     currentMessages = storedMessages.sort((a, b) => a.timestamp - b.timestamp);
     renderMessages();
-  } else {
-    console.log(`⏳ No stored messages, requesting from server for ${userId}`);
-    ws.send(JSON.stringify({ type: 'get_messages', uid: userId }));
   }
 }
 
@@ -600,3 +607,57 @@ function updateChatHeaderTyping(isTyping) {
 
 window.showTypingIndicator = showTypingIndicator;
 window.hideTypingIndicator = hideTypingIndicator;
+
+// ============================================
+// WEBSOCKET HANDLER FOR CONVERSATION HISTORY
+// ============================================
+if (typeof ws !== 'undefined' && ws) {
+  const originalOnMessage = ws.onmessage;
+
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+
+      // Handle conversation_history response
+      if (data.type === 'conversation_history') {
+        console.log(`📜 Received ${data.messages?.length || 0} historical messages from server DB`);
+
+        if (data.messages && data.messages.length > 0 && selectedFriend && selectedFriend.userId === data.threadId) {
+          // Store in currentMessages and render
+          currentMessages = data.messages.sort((a, b) => a.timestamp - b.timestamp);
+          renderMessages();
+
+          // Optionally save to IndexedDB for next time
+          if (dbInstance) {
+            const transaction = dbInstance.transaction(['messages'], 'readwrite');
+            const store = transaction.objectStore('messages');
+
+            data.messages.forEach(msg => {
+              try {
+                store.put({
+                  ...msg,
+                  uid: data.threadId,
+                  msgId: msg.msgId || msg.id || `msg_${Date.now()}_${Math.random()}`
+                });
+              } catch (err) {
+                console.warn('⚠️ Failed to save message to IndexedDB:', err.message);
+              }
+            });
+
+            console.log(`💾 Saved ${data.messages.length} messages to IndexedDB for future use`);
+          }
+        } else if (data.messages && data.messages.length === 0) {
+          console.log('📭 No historical messages found in server DB');
+          document.getElementById('messagesContainer').innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Chưa có tin nhắn nào</div></div>';
+        }
+      }
+    } catch (err) {
+      console.error('❌ Error parsing WebSocket message:', err);
+    }
+
+    // Call original handler if it exists
+    if (originalOnMessage) {
+      originalOnMessage.call(ws, event);
+    }
+  };
+}

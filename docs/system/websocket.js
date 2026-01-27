@@ -895,7 +895,43 @@ function startWebSocketServer(apiState, httpServer) {
             enabled: msg.enabled
           });
 
+
           console.log('🤖 Bot Auto Reply:', msg.enabled ? 'BẬT' : 'TẮT');
+        }
+
+        // ============================================
+        // GET CONVERSATION HISTORY FROM DATABASE
+        // ============================================
+        else if (msg.type === 'get_conversation_history') {
+          const { threadId, limit } = msg;
+
+          if (!threadId) {
+            ws.send(JSON.stringify({
+              type: 'conversation_history_error',
+              error: 'Missing threadId'
+            }));
+            return;
+          }
+
+          try {
+            // Query messageDB for historical messages
+            const messages = messageDB.getMessages(threadId, limit || 100);
+
+            console.log(`📜 Loaded ${messages.length} historical messages for thread ${threadId}`);
+
+            ws.send(JSON.stringify({
+              type: 'conversation_history',
+              threadId,
+              messages,
+              count: messages.length
+            }));
+          } catch (error) {
+            console.error('❌ Get conversation history error:', error.message);
+            ws.send(JSON.stringify({
+              type: 'conversation_history_error',
+              error: error.message
+            }));
+          }
         }
 
         // ============================================

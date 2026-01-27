@@ -95,6 +95,11 @@ function init() {
                 console.log('🔄 Auto-Migration: Adding globalMsgId column...');
                 db.exec('ALTER TABLE messages ADD COLUMN globalMsgId TEXT');
             }
+
+            if (!tableInfo.some(c => c.name === 'metadata')) {
+                console.log('🔄 Auto-Migration: Adding metadata column for image/file data...');
+                db.exec('ALTER TABLE messages ADD COLUMN metadata TEXT');
+            }
         } catch (migErr) {
             console.error('⚠️ Auto-Migration failed (might be already up to date):', migErr.message);
         }
@@ -113,10 +118,21 @@ function init() {
 function saveMessage(conversationId, message) {
     if (!db) return null;
     try {
+        // Serialize metadata for images and files
+        let metadata = null;
+        if (message.imageData || message.fileData) {
+            metadata = JSON.stringify({
+                type: message.type,
+                imageData: message.imageData || null,
+                fileData: message.fileData || null,
+                imageUrl: message.imageUrl || null
+            });
+        }
+
         const stmt = db.prepare(`
       INSERT OR REPLACE INTO messages 
-      (conversationId, msgId, cliMsgId, globalMsgId, senderId, receiverId, content, timestamp, isSelf, isAutoReply, attachmentType, attachmentPath, attachmentName, attachmentSize)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (conversationId, msgId, cliMsgId, globalMsgId, senderId, receiverId, content, timestamp, isSelf, isAutoReply, attachmentType, attachmentPath, attachmentName, attachmentSize, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
         const result = stmt.run(
             conversationId,
@@ -132,11 +148,15 @@ function saveMessage(conversationId, message) {
             message.attachmentType || null,
             message.attachmentPath || null,
             message.attachmentName || null,
-            message.attachmentSize || null
+            message.attachmentSize || null,
+            metadata
         );
+        console.log(`💾 Saved message to DB: conversation=${conversationId}, msgId=${message.msgId}, content="${message.content?.substring(0, 30)}"`);
         return result.lastInsertRowid;
     } catch (err) {
-        if (!err.message.includes('UNIQUE constraint')) {
+        if (err.message.includes('UNIQUE constraint')) {
+            console.log(`⚠️  Duplicate message skipped (UNIQUE constraint): msgId=${message.msgId}, conversation=${conversationId}`);
+        } else {
             console.error('❌ Save message error:', err.message);
         }
         return null;
@@ -210,8 +230,31 @@ function getMessages(conversationId, limit = 100, offset = 0) {
     if (!db) return [];
     try {
         const stmt = db.prepare(`SELECT * FROM messages WHERE conversationId = ? ORDER BY timestamp ASC LIMIT ? OFFSET ?`);
-        return stmt.all(conversationId, limit, offset);
-    } catch (err) { return []; }
+        const rows = stmt.all(conversationId, limit, offset);
+
+        // Parse metadata and restore imageData/fileData
+        return rows.map(row => {
+            const message = { ...row };
+
+            // Parse metadata if exists
+            if (row.metadata) {
+                try {
+                    const parsed = JSON.parse(row.metadata);
+                    message.type = parsed.type || message.type;
+                    message.imageData = parsed.imageData;
+                    message.fileData = parsed.fileData;
+                    message.imageUrl = parsed.imageUrl;
+                } catch (e) {
+                    console.error(`Failed to parse metadata for msgId ${row.msgId}:`, e.message);
+                }
+            }
+
+            return message;
+        });
+    } catch (err) {
+        console.error('getMessages error:', err.message);
+        return [];
+    }
 }
 
 function getLastMessage(conversationId) {

@@ -1,0 +1,101 @@
+
+========================================
+  MESSAGE PERSISTENCE VERIFICATION
+========================================
+
+Total conversations in database: 6
+
+
+Conversation 1: 2118888339358894264
+   Total messages: 11
+
+   Messages:
+   1. [21:58:17 27/1/2026] THEM
+      "1"
+   2. [21:58:17 27/1/2026] ME [AUTO-REPLY]
+      "Xin chào! Tin nhắn của bạn đã được ghi nhận."
+   3. [21:58:40 27/1/2026] THEM
+      "Abc"
+   4. [21:58:40 27/1/2026] ME [AUTO-REPLY]
+      "Xin chào! Tin nhắn của bạn đã được ghi nhận."
+   5. [22:02:01 27/1/2026] THEM
+      "1"
+   6. [22:02:01 27/1/2026] ME [AUTO-REPLY]
+      "Xin chào! Tin nhắn của bạn đã được ghi nhận."
+   7. [22:02:02 27/1/2026] THEM
+      "2"
+   8. [22:02:05 27/1/2026] THEM
+      "3"
+   9. [22:02:21 27/1/2026] THEM
+      "2"
+   10. [22:02:21 27/1/2026] ME [AUTO-REPLY]
+      "Xin chào! Tin nhắn của bạn đã được ghi nhận."
+   11. [22:02:23 27/1/2026] THEM
+      "3"
+
+   -------------------------------------
+
+Conversation 2: 8554361384204006248
+   Total messages: 4
+
+   Messages:
+   1. [18:53:52 13/1/2026] ME
+      "ghj"
+   2. [18:32:56 17/1/2026] ME
+      "/test"
+   3. [23:23:03 24/1/2026] ME
+      "eqweqw"
+   4. [23:32:28 24/1/2026] ME
+      "fvfd"
+
+   -------------------------------------
+
+Conversation 3: 1685864831688692786
+   Total messages: 1
+
+   Messages:
+   1. [17:42:32 18/1/2026] THEM
+      "[Tin nhắn không xác định]"
+
+   -------------------------------------
+
+Conversation 4: 6718312378113509227
+   Total messages: 1
+
+   Messages:
+   1. [17:31:48 18/1/2026] THEM
+      "[Hình ảnh]"
+
+   -------------------------------------
+
+Conversation 5: 1180620961113297973
+   Total messages: 3
+
+   Messages:
+   1. [17:03:09 17/1/2026] THEM
+      "[Sticker]"
+   2. [17:03:26 17/1/2026] THEM
+      "[Hình ảnh]"
+   3. [17:03:26 17/1/2026] THEM
+      "[Hình ảnh]"
+
+   -------------------------------------
+
+Conversation 6: 8102698905959638053
+   Total messages: 1
+
+   Messages:
+   1. [16:52:58 17/1/2026] THEM
+      "[📄 File: 2602003A_HCM-HP_THS3-V2602N--- DR CNMN ("
+
+   -------------------------------------
+
+SUMMARY:
+   - Total conversations: 6
+   - Total messages: 21
+   - Auto-reply messages: 4
+   - Incoming messages: 17
+
+MESSAGE PERSISTENCE IS WORKING CORRECTLY!
+
+========================================

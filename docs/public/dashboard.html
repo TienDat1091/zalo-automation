@@ -753,6 +753,7 @@
   <script src="/assets/unified-header.js?v=4"></script>
   <script src="chat-function/notifications.js"></script>
   <script src="chat-function/load_data.js"></script>
+  <script src="chat-function/conversation-history-handler.js"></script>
   <script src="chat-function/sort.js"></script>
   <script src="chat-function/file-handler.js"></script>
   <script src="IndexedDB.js"></script>
@@ -2145,6 +2146,211 @@
     document.addEventListener('DOMContentLoaded', () => {
       if (window.UnifiedHeader) {
         UnifiedHeader.setPageActions(UnifiedHeader.getSharedTogglesHTML());
+      }
+    });
+  </script>
+
+  <!-- 🖼️ Image Viewer Modal -->
+  <div id="imageViewerModal" class="image-viewer-modal" style="display:none;">
+    <div class="image-viewer-overlay" onclick="closeImageViewer()"></div>
+    <div class="image-viewer-content">
+      <button class="image-viewer-close" onclick="closeImageViewer()" title="Đóng (ESC)">✕</button>
+      <button class="image-viewer-download" onclick="downloadCurrentImage()" title="Tải xuống">📥</button>
+      <div class="image-viewer-controls">
+        <button onclick="zoomImage(-0.2)" title="Thu nhỏ">−</button>
+        <button onclick="resetZoom()" title="Kích thước gốc">100%</button>
+        <button onclick="zoomImage(0.2)" title="Phóng to">+</button>
+      </div>
+      <img id="viewerImage" src="" alt="Image"
+        style="max-width: 90vw; max-height: 90vh; transform-origin: center center;">
+    </div>
+  </div>
+
+  <style>
+    /* Image Viewer Modal */
+    .image-viewer-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .image-viewer-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      animation: fadeIn 0.2s ease;
+    }
+
+    .image-viewer-content {
+      position: relative;
+      z-index: 1;
+      max-width: 95vw;
+      max-height: 95vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .image-viewer-content img {
+      display: block;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      transition: transform 0.2s ease;
+      cursor: zoom-in;
+    }
+
+    .image-viewer-close,
+    .image-viewer-download {
+      position: fixed;
+      top: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      transition: all 0.2s;
+    }
+
+    .image-viewer-close {
+      right: 20px;
+      color: #333;
+    }
+
+    .image-viewer-download {
+      right: 80px;
+      color: #0068FF;
+    }
+
+    .image-viewer-close:hover,
+    .image-viewer-download:hover {
+      transform: scale(1.1);
+      background: white;
+    }
+
+    .image-viewer-controls {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      padding: 12px 16px;
+      border-radius: 30px;
+      display: flex;
+      gap: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      z-index: 2;
+    }
+
+    .image-viewer-controls button {
+      background: white;
+      border: 1px solid #e0e0e0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+
+    .image-viewer-controls button:hover {
+      background: #f5f5f5;
+      transform: scale(1.1);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+  </style>
+
+  <script>
+    let currentImageScale = 1;
+    let currentImageUrl = '';
+
+    function openImageViewer(imageUrl) {
+      currentImageUrl = imageUrl;
+      currentImageScale = 1;
+      document.getElementById('viewerImage').src = imageUrl;
+      document.getElementById('viewerImage').style.transform = 'scale(1)';
+      document.getElementById('imageViewerModal').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeImageViewer() {
+      document.getElementById('imageViewerModal').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    function zoomImage(delta) {
+      currentImageScale += delta;
+      if (currentImageScale < 0.5) currentImageScale = 0.5;
+      if (currentImageScale > 3) currentImageScale = 3;
+      document.getElementById('viewerImage').style.transform = `scale(${currentImageScale})`;
+    }
+
+    function resetZoom() {
+      currentImageScale = 1;
+      document.getElementById('viewerImage').style.transform = 'scale(1)';
+    }
+
+    async function downloadCurrentImage() {
+      if (!currentImageUrl) return;
+
+      try {
+        const response = await fetch(currentImageUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `zalo_image_${Date.now()}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (err) {
+        console.error('Download failed:', err);
+        alert('Không thể tải ảnh. Vui lòng thử lại.');
+      }
+    }
+
+    // Close on ESC key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.getElementById('imageViewerModal').style.display === 'flex') {
+        closeImageViewer();
+      }
+    });
+
+    // Add click handler to all chat images
+    document.addEventListener('click', (e) => {
+      if (e.target.tagName === 'IMG' && e.target.closest('.message')) {
+        const imageUrl = e.target.src;
+        if (imageUrl && !imageUrl.includes('avatar')) {
+          openImageViewer(imageUrl);
+        }
       }
     });
   </script>
