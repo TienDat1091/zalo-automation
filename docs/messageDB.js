@@ -298,6 +298,69 @@ function getReceivedFiles(conversationId, limit = 50) {
     try { return db.prepare(`SELECT * FROM received_files WHERE conversationId = ? ORDER BY timestamp DESC LIMIT ?`).all(conversationId, limit); } catch (e) { return []; }
 }
 
+// ============================================
+// LAST MESSAGE HELPERS (For Friend List Enrichment)
+// ============================================
+
+/**
+ * Get last message for a specific conversation
+ * @param {string} conversationId - Conversation ID (userId)
+ * @returns {object|null} Last message with content and timestamp
+ */
+function getLastMessageForConversation(conversationId) {
+    if (!db) return null;
+    try {
+        const stmt = db.prepare(`
+            SELECT content, timestamp, isSelf
+            FROM messages 
+            WHERE conversationId = ? 
+            ORDER BY timestamp DESC 
+            LIMIT 1
+        `);
+        return stmt.get(conversationId);
+    } catch (e) {
+        console.error(`Failed to get last message for ${conversationId}:`, e.message);
+        return null;
+    }
+}
+
+/**
+ * Get last messages for ALL conversations (for friend list enrichment)
+ * @returns {Map} Map of conversationId -> {lastMessage, timestamp, isSelf}
+ */
+function getAllLastMessages() {
+    if (!db) return new Map();
+    try {
+        // Get last message per conversation using subquery
+        const stmt = db.prepare(`
+            SELECT conversationId, content, timestamp, isSelf
+            FROM messages
+            WHERE (conversationId, timestamp) IN (
+                SELECT conversationId, MAX(timestamp) 
+                FROM messages 
+                GROUP BY conversationId
+            )
+        `);
+
+        const rows = stmt.all();
+        const map = new Map();
+
+        rows.forEach(row => {
+            map.set(row.conversationId, {
+                lastMessage: row.content || '',
+                timestamp: row.timestamp,
+                isSelf: row.isSelf === 1
+            });
+        });
+
+        console.log(`📊 Retrieved last messages for ${map.size} conversations`);
+        return map;
+    } catch (e) {
+        console.error('Failed to get all last messages:', e.message);
+        return new Map();
+    }
+}
+
 module.exports = {
     init,
     saveMessage,
@@ -306,7 +369,10 @@ module.exports = {
     saveReceivedFile,
     getReceivedFiles,
     getAllConversations,
-    // NEW
+    // NEW - Friend List Enrichment
+    getLastMessageForConversation,
+    getAllLastMessages,
+    // Activity Logs
     logFileActivity,
     getDashboardStats,
     getTopUsers,

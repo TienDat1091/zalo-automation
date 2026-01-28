@@ -818,6 +818,45 @@
     // ✅ Custom confirm modal
     let confirmResolve = null;
 
+    // ========== MESSAGE STORE PERSISTENCE ==========
+    /**
+     * Save messageStore to localStorage for persistence across page refreshes
+     */
+    function saveMessageStoreToLocalStorage() {
+      try {
+        const data = {};
+        messageStore.forEach((value, key) => {
+          data[key] = value;
+        });
+        localStorage.setItem('messageStore_' + (currentUserId || 'default'), JSON.stringify(data));
+        console.log(`💾 Saved messageStore to localStorage (${messageStore.size} conversations)`);
+      } catch (e) {
+        console.error('❌ Failed to save messageStore:', e.message);
+      }
+    }
+
+    /**
+     * Restore messageStore from localStorage on page load
+     */
+    function restoreMessageStoreFromLocalStorage() {
+      try {
+        const stored = localStorage.getItem('messageStore_' + (currentUserId || 'default'));
+        if (stored) {
+          const data = JSON.parse(stored);
+          messageStore.clear();
+          Object.keys(data).forEach(key => {
+            messageStore.set(key, data[key]);
+          });
+          console.log(`📖 Restored messageStore from localStorage (${messageStore.size} conversations)`);
+          return true;
+        }
+        return false;
+      } catch (e) {
+        console.error('❌ Failed to restore messageStore:', e.message);
+        return false;
+      }
+    }
+
     function showConfirm(message, title = '⚠️ Xác nhận') {
       return new Promise((resolve) => {
         confirmResolve = resolve;
@@ -1018,6 +1057,9 @@
           document.getElementById('userInfo').style.display = 'flex';
 
           initIndexedDB(newUserUID).then(async () => {
+            // 📖 Restore messageStore from localStorage FIRST
+            restoreMessageStoreFromLocalStorage();
+
             // 📊 Try to load cached friends first
             try {
               if (typeof loadFriendsFromIndexedDB === 'function') {
@@ -1134,6 +1176,7 @@
             lastMessage: content,
             timestamp: data.message.timestamp || Date.now()
           });
+          saveMessageStoreToLocalStorage(); // 💾 Persist to localStorage
 
           localStorage.setItem('lastChatWith', JSON.stringify({
             userId: uid,
@@ -1166,6 +1209,7 @@
             lastMessage: content,
             timestamp: data.message.timestamp || Date.now()
           });
+          saveMessageStoreToLocalStorage(); // 💾 Persist to localStorage
 
           const sender = friends.find(f => f.userId === uid);
           const senderName = sender?.displayName || 'Unknown';
