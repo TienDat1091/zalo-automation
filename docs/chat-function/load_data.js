@@ -72,8 +72,8 @@ function updateVisibleFriends(sortedFriends) {
         <input type="checkbox" class="friend-checkbox" 
                onclick="event.stopPropagation(); toggleFriendSelection('${f.userId}', this)"
                ${(typeof selectedForDelete !== 'undefined' && selectedForDelete && selectedForDelete.has(f.userId)) ? 'checked' : ''}>
-        <img src="${f.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="20"%3E👤%3C/text%3E%3C/svg%3E'}" 
-             onerror="this.src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="20"%3E👤%3C/text%3E%3C/svg%3E'" 
+        <img src="${f.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'}" 
+             onerror="this.src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'" 
              alt="${f.displayName || 'User'}">
         <div class="info" style="flex:1; overflow:hidden;">
           <div class="name-row" style="display:flex; justify-content:space-between; align-items:center;">
@@ -198,7 +198,7 @@ async function selectFriend(userId, displayName, avatar) {
 
   document.getElementById('chatHeader').style.display = 'flex';
   document.getElementById('inputArea').style.display = 'flex';
-  document.getElementById('chatAvatar').src = avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="20"%3E👤%3C/text%3E%3C/svg%3E';
+  document.getElementById('chatAvatar').src = avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E';
   document.getElementById('chatName').textContent = displayName || 'Người dùng Zalo';
   document.getElementById('chatUid').textContent = 'UID: ' + userId;
 
@@ -345,8 +345,8 @@ function renderMessages() {
 
     return `
       <div class="message ${isSelf ? 'self' : ''} ${isAutoReply ? 'auto-reply' : ''}">
-        <img class="avatar" src="${(isSelf ? document.getElementById('userAvatar').src : selectedFriend?.avatar) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="20"%3E👤%3C/text%3E%3C/svg%3E'}" alt="Avatar"
-          onerror="this.src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="20"%3E👤%3C/text%3E%3C/svg%3E'; this.onerror=null;">
+        <img class="avatar" src="${(isSelf ? document.getElementById('userAvatar').src : selectedFriend?.avatar) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'}" alt="Avatar"
+          onerror="this.src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'; this.onerror=null;">
           <div>
             <div class="bubble">
               ${contentText}
