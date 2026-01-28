@@ -1108,6 +1108,28 @@
 
           console.log('✅ Rendering friends list immediately...');
           friendsRendered = true;
+
+          // 📖 Restore strangers from localStorage and merge with friends
+          try {
+            const savedStrangers = JSON.parse(localStorage.getItem('strangers_' + (currentUserId || 'default')) || '[]');
+            if (savedStrangers.length > 0) {
+              console.log(`📖 Restoring ${savedStrangers.length} strangers from localStorage...`);
+
+              // Add strangers that aren't already in friends list
+              savedStrangers.forEach(stranger => {
+                if (!friends.find(f => f.userId === stranger.userId)) {
+                  friends.unshift(stranger);  // Add to top
+                  allFriends.unshift(stranger);
+                  console.log(`✅ Restored stranger: ${stranger.displayName}`);
+                }
+              });
+
+              filteredFriends = [...friends];
+            }
+          } catch (e) {
+            console.error('❌ Failed to restore strangers:', e);
+          }
+
           renderFriendsVirtual();
 
           setTimeout(() => {
@@ -1211,7 +1233,61 @@
           });
           saveMessageStoreToLocalStorage(); // 💾 Persist to localStorage
 
-          const sender = friends.find(f => f.userId === uid);
+          // ✅ AUTO-ADD STRANGER to friends list if not exists
+          let sender = friends.find(f => f.userId === uid);
+
+          if (!sender) {
+            console.log(`👤 New stranger detected: ${uid}`);
+            console.log('🔍 Message data:', data);  // Debug log
+
+            // ✅ Try multiple fields for name
+            const strangerName = data.message?.senderName ||
+              data.senderName ||
+              data.message?.displayName ||
+              data.displayName ||
+              data.message?.zaloName ||
+              data.zaloName ||
+              `Người lạ (${uid.substring(0, 8)})`;
+
+            // ✅ Try multiple fields for avatar
+            const strangerAvatar = data.message?.avatar ||
+              data.avatar ||
+              data.message?.avatarUrl ||
+              data.avatarUrl ||
+              'https://via.placeholder.com/50?text=👤';
+
+            console.log(`📝 Stranger info: name="${strangerName}", avatar="${strangerAvatar}"`);
+
+            // Create stranger friend object
+            sender = {
+              userId: uid,
+              displayName: strangerName,
+              avatar: strangerAvatar,
+              zaloName: strangerName,
+              isStranger: true
+            };
+
+            // Add to friends arrays at top
+            friends.unshift(sender);
+            allFriends.unshift(sender);
+            filteredFriends = [...friends];
+
+            // 💾 Save stranger to localStorage for persistence
+            const strangers = JSON.parse(localStorage.getItem('strangers_' + (currentUserId || 'default')) || '[]');
+            if (!strangers.find(s => s.userId === uid)) {
+              strangers.push(sender);
+              localStorage.setItem('strangers_' + (currentUserId || 'default'), JSON.stringify(strangers));
+              console.log('💾 Saved stranger to localStorage');
+            }
+
+            console.log(`✅ Added stranger: ${sender.displayName}`);
+
+            // Re-render to show stranger immediately
+            if (typeof renderFriendsVirtual === 'function') {
+              renderFriendsVirtual();
+            }
+          }
+
           const senderName = sender?.displayName || 'Unknown';
           const senderAvatar = sender?.avatar || '';
 

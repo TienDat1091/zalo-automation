@@ -77,7 +77,10 @@ function updateVisibleFriends(sortedFriends) {
              alt="${f.displayName || 'User'}">
         <div class="info" style="flex:1; overflow:hidden;">
           <div class="name-row" style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">${escapeHtml(f.displayName || 'Người dùng Zalo')}</span>
+            <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">
+              ${escapeHtml(f.displayName || 'Người dùng Zalo')}
+              ${f.isStranger ? '<span style="margin-left:4px; font-size:10px; background:#ff9800; color:white; padding:2px 6px; border-radius:10px; font-weight:500;">👤 Người lạ</span>' : ''}
+            </span>
             <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${f.userId}', '${escapeJs(f.displayName || 'User')}')" title="Xóa hội thoại">🗑️</button>
           </div>
           <div class="preview-row" style="display:flex; justify-content:space-between;">
