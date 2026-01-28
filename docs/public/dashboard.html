@@ -492,8 +492,8 @@
 
 <body>
   <!-- 📱 Mobile UI Elements -->
-  <!-- <button class="mobile-toggle" id="mobileToggle" onclick="toggleMobileSidebar()">☰</button> -->
-  <!-- <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div> -->
+  <button class="mobile-toggle" id="mobileToggle" onclick="toggleMobileSidebar()">☰</button>
+  <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
 
   <div class="container">
     <div class="sidebar" id="sidebar">
@@ -580,6 +580,19 @@
           </select>
         </div>
 
+        <!-- ✅ ACTIVITY/INTERACTION FILTER -->
+        <div class="filter-box" style="padding: 0 12px 10px 12px; display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 12px; color: #666; white-space: nowrap;">Tương tác:</label>
+          <select id="activityFilter" onchange="applyFilters()"
+            style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; background: white; cursor: pointer;">
+            <option value="all">Tất cả</option>
+            <option value="7d">Trong 7 ngày</option>
+            <option value="30d">Trong 30 ngày</option>
+            <option value="90d">Trong 90 ngày</option>
+            <option value="inactive_90d">❌ Lâu không tương tác (>90 ngày)</option>
+          </select>
+        </div>
+
         <div class="search-results-container" id="friendsResults"></div>
       </div>
 
@@ -608,7 +621,7 @@
 
     <div class="chat-area">
       <div class="chat-header" id="chatHeader" style="display:none;">
-        <button class="mobile-back-btn" onclick="closeMobileSidebar()">← Danh sách</button>
+        <button class="mobile-back-btn" onclick="toggleMobileSidebar()">← Danh sách</button>
         <img id="chatAvatar" src="" alt="Avatar">
         <div class="info">
           <div class="name" id="chatName">Chọn bạn bè</div>
@@ -1345,6 +1358,53 @@
       }
     };
 
+    // ========== FRIEND LIST REORDERING ==========
+    /**
+     * Move conversation to top of friend list when new message arrives
+     * @param {string} uid - User ID to move to top
+     */
+    function moveConversationToTop(uid) {
+      console.log(`📌 Moving conversation ${uid} to top`);
+
+      // Find friend in all three arrays
+      const friendIndex = friends.findIndex(f => f.userId === uid);
+      const allFriendIndex = allFriends.findIndex(f => f.userId === uid);
+
+      if (friendIndex === -1) {
+        console.warn(`⚠️ Friend ${uid} not found in friends list`);
+        return;
+      }
+
+      // Get message data from store
+      const msgData = messageStore.get(uid);
+      if (msgData) {
+        // Update friend object with latest message data
+        friends[friendIndex].lastMessage = msgData.lastMessage;
+        friends[friendIndex].timestamp = msgData.timestamp;
+
+        if (allFriendIndex !== -1) {
+          allFriends[allFriendIndex].lastMessage = msgData.lastMessage;
+          allFriends[allFriendIndex].timestamp = msgData.timestamp;
+        }
+      }
+
+      // Move to top of friends array
+      if (friendIndex > 0) { // Only move if not already at top
+        const [friend] = friends.splice(friendIndex, 1);
+        friends.unshift(friend);
+        console.log(`✅ Moved ${friend.displayName} to position 0`);
+      }
+
+      // Update allFriends array
+      if (allFriendIndex > 0) {
+        const [friend] = allFriends.splice(allFriendIndex, 1);
+        allFriends.unshift(friend);
+      }
+
+      // Re-apply filters and re-render
+      applyFilters();
+    }
+
     // ========== CHAT & RENDER FUNCTIONS (MOVED TO EXTERNAL FILES) ==========
     // selectFriend, renderMessages, renderFriendsVirtual, sendMessage, etc.
     // are now loaded from chat-function/*.js
@@ -1413,6 +1473,10 @@
 
       console.log(`🔍 Applying Filters: query="${query}", filter="${filterValue}"`);
 
+      const activityFilterValue = document.getElementById('activityFilter')?.value || 'all';
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+
       const sourceFriends = (typeof allFriends !== 'undefined' && allFriends) ? allFriends : (typeof friends !== 'undefined' ? friends : []);
       const lowerQuery = query.trim().toLowerCase();
 
@@ -1435,6 +1499,27 @@
           const isEnabled = !autoReplyBlacklist.has(f.userId);
           if (filterValue === 'on') return isEnabled;
           if (filterValue === 'off') return !isEnabled;
+
+          // 3. ✅ Activity filter (NEW)
+          if (activityFilterValue !== 'all') {
+            const lastTime = f.timestamp || 0;
+            const timeSinceLastMsg = now - lastTime;
+
+            switch (activityFilterValue) {
+              case '7d':
+                if (timeSinceLastMsg > 7 * dayMs) return false;
+                break;
+              case '30d':
+                if (timeSinceLastMsg > 30 * dayMs) return false;
+                break;
+              case '90d':
+                if (timeSinceLastMsg > 90 * dayMs) return false;
+                break;
+              case 'inactive_90d':
+                if (timeSinceLastMsg <= 90 * dayMs) return false;
+                break;
+            }
+          }
 
           return true;
         });

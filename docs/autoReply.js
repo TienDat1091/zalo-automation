@@ -480,8 +480,11 @@ async function processAutoReply(apiState, message) {
         }
       }
 
-      // If content is object but not handled by autoFile, return to avoid processing as text
-      return;
+      // ✅ ENHANCEMENT: Allow file/image messages to fall through to default auto-reply
+      // Previously: return early to avoid processing files as text
+      // Now: Let files/images continue to default auto-reply trigger
+      console.log('📎 File/Image received but no specific file trigger matched. Checking default auto-reply...');
+      // return; // ❌ COMMENTED OUT - Now allows auto-reply on file/image messages
     }
 
     // ========== CHECK AUTO REPLY TRIGGERS (User vs Group) ==========
@@ -538,7 +541,15 @@ async function processAutoReply(apiState, message) {
 
 
     // ========== FIND MATCHING TRIGGER ==========
-    const matchedTrigger = triggerDB.findMatchingTrigger(userUID, content, senderId, isFriend);
+    // ✅ ENHANCEMENT: Extract searchable text from file/image messages
+    let searchableContent = content;
+    if (typeof content === 'object') {
+      // For file/image, extract any text metadata for trigger matching
+      searchableContent = content.title || content.filename || content.name || '[attachment]';
+      console.log(`📎 Using searchable content for file/image: "${searchableContent}"`);
+    }
+
+    const matchedTrigger = triggerDB.findMatchingTrigger(userUID, searchableContent, senderId, isFriend);
 
     if (!matchedTrigger) {
       autoReplyState.stats.skipped++;
