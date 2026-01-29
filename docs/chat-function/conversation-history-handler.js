@@ -72,6 +72,18 @@
                         }
                     }
                 }
+
+                // ✅ Handle stranger_info events
+                if (data.type === 'stranger_info') {
+                    console.log('👤 Received stranger_info event:', data);
+
+                    // Call global handler if available
+                    if (typeof window.handleStrangerInfo === 'function') {
+                        window.handleStrangerInfo(data);
+                    } else {
+                        console.warn('⚠️ handleStrangerInfo function not found');
+                    }
+                }
             } catch (err) {
                 console.error('❌ Error parsing WebSocket message:', err);
             }
