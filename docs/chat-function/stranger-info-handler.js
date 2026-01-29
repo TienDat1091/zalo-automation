@@ -8,7 +8,7 @@
     window.handleStrangerInfo = function (data) {
         console.log('👤 Received stranger_info:', data);
 
-        const { userId, displayed, avatar, isStranger } = data;
+        const { userId, displayName, avatar, isStranger } = data;
 
         if (!userId) {
             console.warn('⚠️ Invalid stranger_info data');
