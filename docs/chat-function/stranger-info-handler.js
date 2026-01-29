@@ -26,23 +26,31 @@
 
         if (existingIndex >= 0) {
             // Update existing entry
+            // Update existing entry (MUTATE object to preserve references in filteredFriends)
             console.log(`✏️ Updating stranger info for ${userId}`);
-            friends[existingIndex] = {
-                ...friends[existingIndex],
-                displayName,
-                avatar,
-                isStranger: true
-            };
-        } else {
-            // Add new stranger to friends list
-            console.log(`➕ Adding new stranger ${userId} to friends list`);
-            friends.push({
-                userId,
+            Object.assign(friends[existingIndex], {
                 displayName,
                 avatar,
                 isStranger: true,
                 zaloName: displayName
             });
+        } else {
+            // Add new stranger to friends list
+            // Add new stranger to friends list
+            console.log(`➕ Adding new stranger ${userId} to friends list`);
+            const newStranger = {
+                userId,
+                displayName,
+                avatar,
+                isStranger: true,
+                zaloName: displayName
+            };
+            friends.push(newStranger);
+
+            // Also add to filteredFriends if it exists
+            if (typeof filteredFriends !== 'undefined' && Array.isArray(filteredFriends)) {
+                filteredFriends.push(newStranger);
+            }
         }
 
         // Re-render friends list (function defined in load_data.js)
