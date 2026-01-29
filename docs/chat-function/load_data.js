@@ -3,6 +3,20 @@
 // - Fix: RenderFriendsVirtual properly
 // - Ensure proper sorting
 
+// ✅ Helper: Escape strings for use in onclick attributes
+function escapeJs(str) {
+  if (!str) return '';
+  return str.replace(/\\/g, '\\\\').replace(/'/g, "\\''").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+// ✅ Helper: Encode avatar for safe use in onclick (base64 encode data URIs)
+function safeAvatar(avatar) {
+  if (!avatar) return '';
+  // For data URIs, they're too long and have special chars - just pass empty and let onerror handle it
+  if (avatar.startsWith('data:')) return '';
+  return escapeJs(avatar);
+}
+
 function renderFriendsVirtual() {
   const container = document.getElementById('friendsList');
 
@@ -68,7 +82,7 @@ function updateVisibleFriends(sortedFriends) {
 
     return `
       <div class="friend-item ${hasMessages ? 'has-messages' : ''} ${(typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === f.userId) ? 'active' : ''}" 
-           onclick="${(typeof isDeleteMode !== 'undefined' && isDeleteMode) ? '' : `selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${f.avatar || ''}')`}">
+           onclick="${(typeof isDeleteMode !== 'undefined' && isDeleteMode) ? '' : `selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${safeAvatar(f.avatar)}')`}">
         <input type="checkbox" class="friend-checkbox" 
                onclick="event.stopPropagation(); toggleFriendSelection('${f.userId}', this)"
                ${(typeof selectedForDelete !== 'undefined' && selectedForDelete && selectedForDelete.has(f.userId)) ? 'checked' : ''}>
