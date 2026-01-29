@@ -4,6 +4,7 @@
 const { Zalo } = require('zca-js');
 const { processAutoReply } = require('./autoReply.js');
 const messageDB = require('./messageDB'); // SQLite message storage
+const { fetchAndBroadcastStrangerInfo } = require('./strangerInfoFetcher'); // Fetch stranger info
 const fs = require('fs');
 const path = require('path');
 
@@ -225,11 +226,16 @@ function setupMessageListener(apiState) {
 
         console.log(`📨 Tin nhắn ${isGroup ? 'nhóm' : ''} từ ${senderId}: ${message.data.content.substring(0, 50)}...`);
 
-        // Check if sender is stranger and auto-accept/add is enabled
+        // ✅ Check if sender is stranger and fetch user info immediately
         if (!isGroup && !msgObj.isSelf) {
           const isFriend = apiState.friends?.some(f => f.userId === senderId);
           if (!isFriend) {
-            console.log(`👥 Stranger detected: ${senderId}, triggering Smart Friend Handler...`);
+            console.log(`👥 Stranger detected: ${senderId}, fetching user info...`);
+
+            // ✅ ALWAYS fetch user info for strangers (independent of trigger)
+            fetchAndBroadcastStrangerInfo(apiState, senderId, message.data, broadcast);
+
+            // Also trigger Smart Friend Handler if trigger is enabled
             handleSmartFriendRequest(apiState, senderId);
           }
         }
