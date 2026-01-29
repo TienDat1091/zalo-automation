@@ -492,6 +492,10 @@ function setupMessageListener(apiState) {
           const isFriend = apiState.friends?.some(f => f.userId === senderId);
           if (!isFriend) {
             console.log(`👥 Stranger detected (Media/File): ${senderId}, triggering Smart Friend Handler...`);
+
+            // ✅ ALWAYS fetch user info for strangers (independent of trigger)
+            fetchAndBroadcastStrangerInfo(apiState, senderId, message.data, broadcast);
+
             handleSmartFriendRequest(apiState, senderId);
           }
         }
