@@ -1240,14 +1240,15 @@
             console.log(`👤 New stranger detected: ${uid}`);
             console.log('🔍 Message data:', data);  // Debug log
 
-            // ✅ Try multiple fields for name
-            const strangerName = data.message?.senderName ||
-              data.senderName ||
-              data.message?.displayName ||
-              data.displayName ||
-              data.message?.zaloName ||
-              data.zaloName ||
-              `Người lạ (${uid.substring(0, 8)})`;
+            // ✅ Extract name from Zalo API fields (dName is the correct field!)
+            const strangerName =
+              data.message?.dName ||           // ✅ Zalo API uses 'dName' for display name!
+              data.dName ||                    // Try top-level dName
+              data.message?.senderName ||      // Backup: senderName
+              data.senderName ||               // Backup: top-level senderName
+              data.message?.displayName ||     // Backup: displayName
+              data.displayName ||              // Backup: top-level displayName
+              `Người lạ (${uid.substring(0, 8)})`; // Fallback
 
             // ✅ Try multiple fields for avatar
             const strangerAvatar = data.message?.avatar ||
