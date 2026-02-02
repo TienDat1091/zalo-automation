@@ -196,7 +196,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1><i class="fas fa-chart-line"></i> Bảng Thống Kê Hoạt Động</h1>
+      <h1><i class="fas fa-chart-line"></i> Quản Lý Dữ Liệu Zalo</h1>
       <button class="btn-refresh" onclick="refreshData()">
         <i class="fas fa-sync-alt"></i> Làm mới
       </button>
@@ -205,31 +205,31 @@
     <!-- Stats Overview -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon bg-blue"><i class="fas fa-comment-dots"></i></div>
+        <div class="stat-icon bg-blue"><i class="fas fa-paper-plane"></i></div>
         <div class="stat-info">
-          <div class="stat-value" id="total-messages">...</div>
-          <div class="stat-label">Tổng Tin Nhắn</div>
+          <div class="stat-value" id="sent-messages">...</div>
+          <div class="stat-label">Tin Nhắn Đã Gửi</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon bg-orange"><i class="fas fa-file-alt"></i></div>
+        <div class="stat-icon bg-green"><i class="fas fa-inbox"></i></div>
         <div class="stat-info">
-          <div class="stat-value" id="total-files">...</div>
+          <div class="stat-value" id="received-messages">...</div>
+          <div class="stat-label">Tin Nhắn Đã Nhận</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-orange"><i class="fas fa-file-export"></i></div>
+        <div class="stat-info">
+          <div class="stat-value" id="sent-files">...</div>
+          <div class="stat-label">File Đã Gửi</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-red"><i class="fas fa-file-import"></i></div>
+        <div class="stat-info">
+          <div class="stat-value" id="received-files">...</div>
           <div class="stat-label">File Đã Nhận</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon bg-green"><i class="fas fa-print"></i></div>
-        <div class="stat-info">
-          <div class="stat-value" id="print-success">...</div>
-          <div class="stat-label">In Thành Công</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon bg-red"><i class="fas fa-exclamation-triangle"></i></div>
-        <div class="stat-info">
-          <div class="stat-value" id="print-fail">...</div>
-          <div class="stat-label">In Thất Bại</div>
         </div>
       </div>
     </div>
@@ -323,22 +323,20 @@
 
     <!-- File Logs -->
     <div class="card-container">
-      <div class="card-title">📝 Nhật Ký Hoạt Động File (Gần đây)</div>
+      <div class="card-title">📝 Nhật Ký File (Gần đây)</div>
       <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
               <th>Thời gian</th>
-              <th>Người gửi (UID)</th>
-              <th>File</th>
+              <th>Người gửi/nhận</th>
               <th>Hành động</th>
-              <th>Trạng thái</th>
-              <th>Chi tiết</th>
+              <th>File</th>
             </tr>
           </thead>
           <tbody id="file-logs-body">
             <tr>
-              <td colspan="6">Đang tải...</td>
+              <td colspan="4">Đang tải...</td>
             </tr>
           </tbody>
         </table>
@@ -375,27 +373,21 @@
     }
 
     function renderStats(stats) {
-      document.getElementById('total-messages').textContent = stats.msgCount.toLocaleString();
-      document.getElementById('total-files').textContent = stats.fileCount.toLocaleString();
-      document.getElementById('print-success').textContent = stats.printSuccess.toLocaleString();
-      document.getElementById('print-fail').textContent = stats.printFail.toLocaleString();
+      document.getElementById('sent-messages').textContent = (stats.sentMessages || 0).toLocaleString();
+      document.getElementById('received-messages').textContent = (stats.receivedMessages || 0).toLocaleString();
+      document.getElementById('sent-files').textContent = (stats.sentFiles || 0).toLocaleString();
+      document.getElementById('received-files').textContent = (stats.receivedFiles || 0).toLocaleString();
     }
 
     function renderTopUsers(top) {
       const msgBody = document.getElementById('top-users-body');
-      msgBody.innerHTML = top.topMsg.length ? top.topMsg.map(u => `
-                <tr>
-                    <td>
-                        <span style="font-weight:500;">${u.senderId}</span>
-                    </td>
-                    <td><b>${u.count}</b></td>
-                </tr>`).join('') : '<tr><td colspan="2" style="text-align:center;color:#999;">Chưa có dữ liệu</td></tr>';
+      // Fix: topUsers object structure might vary, handle array safely
+      const users = top.topMsg || [];
 
-      const fileBody = document.getElementById('top-files-body');
-      fileBody.innerHTML = top.topFiles.length ? top.topFiles.map(u => `
+      msgBody.innerHTML = users.length ? users.map(u => `
                 <tr>
                     <td>
-                        <span style="font-weight:500;">${u.senderId}</span>
+                        <div style="font-weight:500;">${u.senderId}</div>
                     </td>
                     <td><b>${u.count}</b></td>
                 </tr>`).join('') : '<tr><td colspan="2" style="text-align:center;color:#999;">Chưa có dữ liệu</td></tr>';
@@ -404,21 +396,25 @@
     function renderFileLogs(logs) {
       const body = document.getElementById('file-logs-body');
       if (!logs || logs.length === 0) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">Chưa có log nào</td></tr>';
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">Chưa có log nào</td></tr>';
         return;
       }
       body.innerHTML = logs.map(l => {
-        const statusClass = l.status === 'SUCCESS' ? 'status-success' : 'status-fail';
+        const isSent = l.action === 'SENT';
+        const actionBadge = isSent
+          ? '<span class="status-badge bg-orange">Gửi đi</span>'
+          : '<span class="status-badge bg-green">Nhận về</span>';
+
+        const user = isSent ? (l.receiverId || 'Partner') : (l.senderId || 'Unknown');
+
         return `
                  <tr>
                     <td style="color:#666;font-size:13px;">${new Date(l.timestamp).toLocaleString()}</td>
-                    <td>${l.senderId.substring(0, 15)}...</td>
+                    <td>${user}</td>
+                    <td>${actionBadge}</td>
                     <td title="${l.fileName}" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         ${l.fileType === 'image' ? '🖼️' : '📄'} ${l.fileName}
                     </td>
-                    <td><b>${l.action}</b></td>
-                    <td><span class="status-badge ${statusClass}">${l.status}</span></td>
-                    <td style="font-size:12px;color:#888;">${l.details || ''}</td>
                  </tr>
              `}).join('');
     }

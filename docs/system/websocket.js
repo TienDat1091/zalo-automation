@@ -1218,6 +1218,32 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
+        // GET DASHBOARD STATS (RESTORED)
+        // ============================================
+        else if (msg.type === 'get_dashboard_stats') {
+          const stats = messageDB.getDashboardStats();
+          // Also get Top Users
+          const topStats = messageDB.getTopUsers(10);
+
+          ws.send(JSON.stringify({
+            type: 'dashboard_stats_response',
+            stats: stats,
+            topUsers: topStats
+          }));
+        }
+
+        // ============================================
+        // GET FILE LOGS (RESTORED)
+        // ============================================
+        else if (msg.type === 'get_file_logs') {
+          const logs = messageDB.getFileLogs(50);
+          ws.send(JSON.stringify({
+            type: 'file_logs_response',
+            logs: logs
+          }));
+        }
+
+        // ============================================
         // SEND CHAT ACTION (TYPING, ETC)
         // ============================================
         else if (msg.type === 'send_chat_action') {

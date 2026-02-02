@@ -182,17 +182,30 @@ function logFileActivity(senderId, fileName, fileType, action, status, details =
 // ============================================
 // DASHBOARD STATS (NEW)
 // ============================================
+// ============================================
+// DASHBOARD STATS (UPDATED)
+// ============================================
 function getDashboardStats() {
-    if (!db) return { msgCount: 0, fileCount: 0, printSuccess: 0, printFail: 0 };
+    if (!db) return { sentMessages: 0, receivedMessages: 0, sentFiles: 0, receivedFiles: 0 };
     try {
-        const msgCount = db.prepare('SELECT COUNT(*) as c FROM messages').get().c;
-        const fileCount = db.prepare("SELECT COUNT(*) as c FROM file_activity_logs WHERE action='RECEIVED'").get().c;
-        const printSuccess = db.prepare("SELECT COUNT(*) as c FROM file_activity_logs WHERE action='PRINTED' AND status='SUCCESS'").get().c;
-        const printFail = db.prepare("SELECT COUNT(*) as c FROM file_activity_logs WHERE action='PRINTED' AND status='FAIL'").get().c;
+        const sentMessages = db.prepare('SELECT COUNT(*) as c FROM messages WHERE isSelf=1').get().c;
+        const receivedMessages = db.prepare('SELECT COUNT(*) as c FROM messages WHERE isSelf=0').get().c;
 
-        return { msgCount, fileCount, printSuccess, printFail };
+        // Count files (images, files, videos, audio)
+        const sentFiles = db.prepare(`
+            SELECT COUNT(*) as c FROM messages 
+            WHERE isSelf=1 AND attachmentType IN ('image', 'file', 'video', 'audio')
+        `).get().c;
+
+        const receivedFiles = db.prepare(`
+            SELECT COUNT(*) as c FROM messages 
+            WHERE isSelf=0 AND attachmentType IN ('image', 'file', 'video', 'audio')
+        `).get().c;
+
+        return { sentMessages, receivedMessages, sentFiles, receivedFiles };
     } catch (e) {
-        return { msgCount: 0, fileCount: 0, printSuccess: 0, printFail: 0 };
+        console.error('getDashboardStats error:', e.message);
+        return { sentMessages: 0, receivedMessages: 0, sentFiles: 0, receivedFiles: 0 };
     }
 }
 
@@ -210,8 +223,21 @@ function getTopUsers(limit = 10) {
 function getFileLogs(limit = 100) {
     if (!db) return [];
     try {
-        return db.prepare('SELECT * FROM file_activity_logs ORDER BY timestamp DESC LIMIT ?').all(limit);
-    } catch (e) { return []; }
+        // Fetch files from messages table directly (more reliable)
+        // UNION SENT and RECEIVED files
+        const query = `
+            SELECT msgId, timestamp, senderId, receiverId, isSelf, attachmentName as fileName, attachmentType as fileType, 
+            CASE WHEN isSelf=1 THEN 'SENT' ELSE 'RECEIVED' END as action
+            FROM messages
+            WHERE attachmentType IN ('image', 'file', 'video', 'audio')
+            ORDER BY timestamp DESC
+            LIMIT ?
+        `;
+        return db.prepare(query).all(limit);
+    } catch (e) {
+        console.error('getFileLogs error:', e.message);
+        return [];
+    }
 }
 
 function deleteConversation(conversationId) {
