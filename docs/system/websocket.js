@@ -1355,6 +1355,83 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
+        // DELETE ORIGIN CHAT (ZALO SERVER DELETE)
+        // ============================================
+        else if (msg.type === 'delete_origin_chat') {
+          (async () => {
+            const threadId = msg.threadId;
+            const threadType = msg.threadType || 0; // 0 = User, 1 = Group
+
+            try {
+              if (!apiState.api) {
+                ws.send(JSON.stringify({
+                  type: 'delete_origin_chat_error',
+                  error: 'Chưa đăng nhập Zalo'
+                }));
+                return;
+              }
+
+              console.log(`🗑️ Deleting ORIGIN chat for ${threadId} (type: ${threadType})`);
+
+              // Get last message to construct deleteChat payload
+              const lastMsg = messageDB.getLastMessage(threadId);
+
+              if (!lastMsg) {
+                ws.send(JSON.stringify({
+                  type: 'delete_origin_chat_error',
+                  error: 'Không tìm thấy tin nhắn để xóa'
+                }));
+                return;
+              }
+
+              // Construct payload with real IDs as required by zca-js
+              const deletePayload = {
+                ownerId: lastMsg.senderId || apiState.currentUser?.uid,
+                cliMsgId: lastMsg.cliMsgId || lastMsg.msgId || Date.now().toString(),
+                globalMsgId: lastMsg.globalMsgId || lastMsg.msgId || Date.now().toString()
+              };
+
+              console.log('📋 Delete payload:', JSON.stringify(deletePayload));
+              console.log('📍 ThreadId:', threadId);
+              console.log('📍 ThreadType:', threadType === 1 ? 'Group' : 'User');
+
+              // Call Zalo API - with ThreadType
+              const { ThreadType } = require('zca-js');
+              await apiState.api.deleteChat(
+                deletePayload,
+                threadId,
+                threadType === 1 ? ThreadType.Group : ThreadType.User
+              );
+
+              console.log('✅ Origin chat deleted successfully on Zalo server');
+
+              // Also delete local data
+              apiState.messageStore.delete(threadId);
+              messageDB.deleteConversation(threadId);
+
+              // Broadcast success
+              broadcast(apiState, {
+                type: 'delete_origin_chat_success',
+                threadId: threadId
+              });
+
+              ws.send(JSON.stringify({
+                type: 'delete_origin_chat_success',
+                threadId: threadId,
+                message: 'Đã xóa tin nhắn gốc thành công!'
+              }));
+
+            } catch (err) {
+              console.error('❌ Delete origin chat error:', err.message);
+              ws.send(JSON.stringify({
+                type: 'delete_origin_chat_error',
+                error: err.message
+              }));
+            }
+          })();
+        }
+
+        // ============================================
         // SEND CHAT IMAGE
         // ============================================
         else if (msg.type === 'send_chat_image') {

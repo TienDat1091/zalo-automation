@@ -680,6 +680,13 @@
               </div>
             </div>
           </div>
+          <!-- ✅ Xóa tin nhắn gốc Button -->
+          <button onclick="deleteOriginChat()" class="action-btn"
+            title="Xóa toàn bộ tin nhắn trên Zalo (không thể hoàn tác)"
+            style="background: linear-gradient(135deg, #ff6b6b, #ee5a24); color:white; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:6px; font-weight:500; transition: all 0.2s;">
+            <span>🗑️</span>
+            <span style="font-size:12px;">Xóa tin nhắn gốc</span>
+          </button>
         </div>
       </div>
 
@@ -2233,6 +2240,33 @@
 
       setAutoDeleteChat(ttl);
       input.value = ''; // Clear input
+    }
+
+    // ✅ XÓA TIN NHẮN GỐC - Delete chat on Zalo server
+    async function deleteOriginChat() {
+      if (!selectedFriend || !selectedFriend.userId) {
+        showToast('❌ Vui lòng chọn một cuộc trò chuyện', 'error');
+        return;
+      }
+
+      const confirmed = await showConfirm(
+        `⚠️ BẠN CÓ CHẮC CHẮN?\n\nHành động này sẽ XÓA VĨNH VIỄN toàn bộ tin nhắn với "${selectedFriend.displayName || 'User'}" trên Zalo.\n\n❗ KHÔNG THỂ HOÀN TÁC!`,
+        '🗑️ Xóa tin nhắn gốc'
+      );
+
+      if (!confirmed) return;
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        showToast('🗑️ Đang xóa tin nhắn trên Zalo...', 'info');
+
+        ws.send(JSON.stringify({
+          type: 'delete_origin_chat',
+          threadId: selectedFriend.userId,
+          threadType: selectedFriend.isGroup ? 1 : 0 // 0 = User, 1 = Group
+        }));
+      } else {
+        showToast('❌ Mất kết nối WebSocket', 'error');
+      }
     }
 
     // ========== GROUP FUNCTIONS ==========

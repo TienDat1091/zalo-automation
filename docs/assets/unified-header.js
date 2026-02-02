@@ -180,7 +180,8 @@
             const notifyTypes = [
                 'trigger_created', 'trigger_updated', 'trigger_deleted',
                 'scheduled_task_created', 'scheduled_task_updated', 'scheduled_task_deleted',
-                'conversation_deleted'
+                'conversation_deleted',
+                'delete_origin_chat_success', 'delete_origin_chat_error'
             ];
 
             if (notifyTypes.includes(data.type)) {
@@ -285,6 +286,8 @@
                 case 'trigger_deleted': text = 'Đã xóa trigger'; icon = '🗑️'; break;
                 case 'scheduled_task_created': text = 'Đã tạo lịch gửi mới'; icon = '📅'; break;
                 case 'conversation_deleted': text = 'Đã xóa hội thoại'; icon = '❌'; break;
+                case 'delete_origin_chat_success': text = 'Đã xóa tin nhắn gốc trên Zalo'; icon = '🗑️'; break;
+                case 'delete_origin_chat_error': text = data.error || 'Lỗi xóa tin nhắn gốc'; icon = '⚠️'; break;
                 default: text = 'Thông báo mới';
             }
 
