@@ -216,6 +216,11 @@
                     </label>
                 </div>
             </div>
+            
+            <a href="storage-info.html" class="uh-btn-nav" title="Quản lý dữ liệu" style="display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.1); padding: 6px 12px; border-radius: 6px; color: white; text-decoration: none; margin-left: 15px; font-size: 14px; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s;">
+                <i class="fas fa-database"></i> 
+                <span>Dữ liệu</span>
+            </a>
         `;
         }
 
