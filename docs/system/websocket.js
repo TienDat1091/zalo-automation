@@ -1244,6 +1244,61 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
+        // REMOVE FRIENDS BATCH (BULK DELETE)
+        // ============================================
+        else if (msg.type === 'remove_friends_batch') {
+          const { friendIds } = msg;
+          console.log(`🗑️ Batch remove friends request: ${friendIds?.length} friends`);
+
+          if (!apiState.api) {
+            ws.send(JSON.stringify({
+              type: 'batch_remove_result',
+              success: [],
+              failed: friendIds || [],
+              error: 'Chưa đăng nhập Zalo'
+            }));
+            return;
+          }
+
+          if (!friendIds || !Array.isArray(friendIds) || friendIds.length === 0) {
+            ws.send(JSON.stringify({
+              type: 'batch_remove_result',
+              success: [],
+              failed: [],
+              error: 'Danh sách bạn bè trống'
+            }));
+            return;
+          }
+
+          const successIds = [];
+          const failedIds = [];
+
+          for (const friendId of friendIds) {
+            try {
+              // Use Zalo API to remove friend
+              await apiState.api.removeFriend(friendId);
+              successIds.push(friendId);
+              console.log(`✅ Removed friend: ${friendId}`);
+
+              // Also delete local conversation data
+              messageDB.deleteConversation(friendId);
+              apiState.messageStore.delete(friendId);
+            } catch (err) {
+              failedIds.push(friendId);
+              console.error(`❌ Failed to remove friend ${friendId}:`, err.message);
+            }
+          }
+
+          ws.send(JSON.stringify({
+            type: 'batch_remove_result',
+            success: successIds,
+            failed: failedIds
+          }));
+
+          console.log(`📊 Batch remove result: ${successIds.length} success, ${failedIds.length} failed`);
+        }
+
+        // ============================================
         // SEND CHAT ACTION (TYPING, ETC)
         // ============================================
         else if (msg.type === 'send_chat_action') {

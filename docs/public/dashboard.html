@@ -555,8 +555,14 @@
 
       <!-- ✅ DELETE SELECTION BAR -->
       <div class="delete-selection-bar" id="deleteSelectionBar">
-        <span id="selectedCount">0 đã chọn</span>
-        <div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+            <input type="checkbox" id="selectAllCheckbox" onchange="selectAllFriends(this.checked)">
+            <span>Chọn tất cả</span>
+          </label>
+          <span id="selectedCount" style="color:#666;">0 đã chọn</span>
+        </div>
+        <div style="display:flex; gap:8px;">
           <button class="cancel-btn" onclick="cancelDeleteMode()">Hủy</button>
           <button class="delete-btn" onclick="deleteSelectedFriends()">🗑️ Xóa</button>
         </div>
@@ -718,7 +724,8 @@
           title="Đính kèm file/ảnh">📎</button>
         <input type="file" id="fileInput" style="display:none;"
           accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt" onchange="handleFileSelect(event)">
-        <textarea id="messageInput" placeholder="Nhập tin nhắn..." rows="1"></textarea>
+        <textarea id="messageInput" class="var-autocomplete-enabled" placeholder="Nhập tin nhắn... (gõ { để gợi ý biến)"
+          rows="1"></textarea>
         <button type="button" id="sendBtn" onclick="sendMessage()">Gửi</button>
       </div>
     </div>
@@ -779,6 +786,7 @@
   <script src="IndexedDB.js"></script>
   <script src="chat-function/logout.js"></script>
   <script src="chat-function/search.js"></script>
+  <script src="chat-function/variable-autocomplete.js"></script>
 
   <script>
     // ========== 🔒 CLEAN URL - Ẩn thông tin nhạy cảm ==========
@@ -1431,6 +1439,31 @@
           alert('❌ Lỗi xóa bạn bè: ' + data.error);
         }
 
+        // ✅ XỬ LÝ BATCH REMOVE RESULT (from remove_friends_batch handler)
+        if (data.type === 'batch_remove_result') {
+          console.log('✅ Batch remove result:', data);
+          if (data.success && data.success.length > 0) {
+            // Remove from local arrays
+            const removedSet = new Set(data.success);
+            friends = friends.filter(f => !removedSet.has(f.userId));
+            allFriends = allFriends.filter(f => !removedSet.has(f.userId));
+            filteredFriends = filteredFriends.filter(f => !removedSet.has(f.userId));
+            selectedForDelete.clear();
+            updateSelectedCount();
+            if (typeof renderFriendsVirtual === 'function') {
+              renderFriendsVirtual();
+            }
+            showToast(`✅ Đã xóa ${data.success.length} bạn bè thành công!`, 'success');
+            cancelDeleteMode();
+          }
+          if (data.failed && data.failed.length > 0) {
+            showToast(`⚠️ Có ${data.failed.length} bạn bè không xóa được`, 'warning');
+          }
+          if (data.error) {
+            showToast('❌ ' + data.error, 'error');
+          }
+        }
+
         // ✅ XỬ LÝ LỜI MỜI ĐÃ GỬI
         if (data.type === 'sent_friend_requests_response') {
           renderSentFriendRequests(data.requests);
@@ -1959,6 +1992,26 @@
 
     function updateSelectedCount() {
       document.getElementById('selectedCount').textContent = `${selectedForDelete.size} đã chọn`;
+      // Sync "Select All" checkbox state
+      const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+      if (selectAllCheckbox) {
+        selectAllCheckbox.checked = filteredFriends.length > 0 && selectedForDelete.size === filteredFriends.length;
+      }
+    }
+
+    function selectAllFriends(checked) {
+      if (checked) {
+        // Add all visible friends to selection
+        filteredFriends.forEach(f => selectedForDelete.add(f.userId));
+      } else {
+        // Clear selection
+        selectedForDelete.clear();
+      }
+      updateSelectedCount();
+      // Re-render to update checkbox states
+      if (typeof renderFriendsVirtual === 'function') {
+        renderFriendsVirtual();
+      }
     }
 
     async function deleteSelectedFriends() {
