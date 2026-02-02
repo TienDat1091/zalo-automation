@@ -724,8 +724,7 @@
           title="Đính kèm file/ảnh">📎</button>
         <input type="file" id="fileInput" style="display:none;"
           accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt" onchange="handleFileSelect(event)">
-        <textarea id="messageInput" class="var-autocomplete-enabled" placeholder="Nhập tin nhắn... (gõ { để gợi ý biến)"
-          rows="1"></textarea>
+        <textarea id="messageInput" placeholder="Nhập tin nhắn..." rows="1"></textarea>
         <button type="button" id="sendBtn" onclick="sendMessage()">Gửi</button>
       </div>
     </div>
@@ -786,7 +785,6 @@
   <script src="IndexedDB.js"></script>
   <script src="chat-function/logout.js"></script>
   <script src="chat-function/search.js"></script>
-  <script src="chat-function/variable-autocomplete.js"></script>
 
   <script>
     // ========== 🔒 CLEAN URL - Ẩn thông tin nhạy cảm ==========
