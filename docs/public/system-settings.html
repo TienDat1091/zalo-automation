@@ -574,7 +574,16 @@
             <div class="modal-body">
                 <div class="info-box orange">
                     <strong>📌 Chức năng:</strong> Cho phép Bot phản hồi khi chính bạn gõ tin nhắn (VD: /test sẽ trigger
-                    flow).
+                    flow). Khi bật, tin nhắn từ UID của bạn cũng sẽ được xử lý như tin nhắn người lạ.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">🔑 Prefix lệnh (tùy chọn)</label>
+                    <input type="text" class="form-input" id="selfTriggerPrefix"
+                        placeholder="VD: /test hoặc để trống để trigger tất cả">
+                    <div style="font-size:11px; color:#999; margin-top:4px;">
+                        💡 Để trống nếu muốn trigger tất cả tin nhắn của bạn, hoặc nhập prefix (VD: /test) để chỉ
+                        trigger các tin nhắn bắt đầu bằng prefix đó.
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">
@@ -684,6 +693,7 @@
                 description: 'Bot phản hồi khi bạn tự gõ lệnh',
                 icon: '⚡',
                 enabled: false,
+                prefix: '',
                 section: 'advanced'
             },
             aiConversation: {
@@ -967,6 +977,7 @@
         }
 
         function showSelfTriggerModal() {
+            document.getElementById('selfTriggerPrefix').value = builtInTriggers.selfTrigger.prefix || '';
             document.getElementById('selfTriggerEnabled').checked = builtInTriggers.selfTrigger.enabled;
             document.getElementById('selfTriggerModal').classList.add('show');
         }
@@ -976,6 +987,7 @@
         }
 
         function saveSelfTriggerSetup() {
+            builtInTriggers.selfTrigger.prefix = document.getElementById('selfTriggerPrefix').value.trim();
             builtInTriggers.selfTrigger.enabled = document.getElementById('selfTriggerEnabled').checked;
 
             ws.send(JSON.stringify({

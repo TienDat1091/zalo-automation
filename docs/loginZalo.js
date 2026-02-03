@@ -837,21 +837,10 @@ async function handleSmartFriendRequest(apiState, userId) {
   // Debug Log
   console.log(`🔍 Smart Friend: Handling ${userId}`);
 
-  // Prevent spamming requests/accepts in same session? 
-  // Disable cache for testing "bất kì tin nhắn"
-  // if (apiState.processedSmartFriend.has(userId)) {
-  //   console.log(`ℹ️ Smart Friend: Already processed ${userId}`);
-  //   return;
-  // }
+  // ✅ Get auto-friend settings from builtin_triggers_state table (system-settings.html)
+  const autoFriendSettings = triggerDB.getBuiltInTriggerState(apiState.currentUser.uid, 'builtin_auto_friend');
 
-  // Get auto-friend trigger
-  const allTriggers = triggerDB.getTriggersByUser(apiState.currentUser.uid);
-  const autoFriendTrigger = allTriggers.find(t =>
-    t.triggerKey === '__builtin_auto_friend__' &&
-    t.enabled === true
-  );
-
-  if (!autoFriendTrigger) {
+  if (!autoFriendSettings || !autoFriendSettings.enabled) {
     console.log('ℹ️ Smart Friend: Trigger disabled or not found');
     return;
   }
@@ -895,25 +884,30 @@ async function handleSmartFriendRequest(apiState, userId) {
       // Broadcast
       broadcast(apiState, { type: 'friend_accepted', userId: userId, timestamp: Date.now() });
 
-      // ✅ AUTO DELETE (1 day) IF ENABLED
-      const autoDeleteTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_delete_messages__' && t.enabled === true);
-      if (autoDeleteTrigger && apiState.api.updateAutoDeleteChat) {
-        let ttl = parseInt(autoDeleteTrigger.triggerContent) || 86400000;
+      // ✅ AUTO DELETE IF ENABLED - Read from builtin_triggers_state
+      const autoDeleteSettings = triggerDB.getBuiltInTriggerState(apiState.currentUser.uid, 'builtin_auto_delete_messages');
+      if (autoDeleteSettings && autoDeleteSettings.enabled && apiState.api.updateAutoDeleteChat) {
+        let ttl = parseInt(autoDeleteSettings.response) || 86400000;
         if (ttl > 0) {
           console.log(`🗑️ Auto-Delete: Enabling ${ttl}ms timer for ${userId}`);
           try { await apiState.api.updateAutoDeleteChat(ttl, userId); } catch (e) { }
         }
       }
 
-      // Send Welcome Message
-      const welcomeMsg = autoFriendTrigger.triggerContent?.trim();
+      // Send Welcome Message - Use user's custom message if set
+      const welcomeMsg = autoFriendSettings.welcomeMessage?.trim();
       if (welcomeMsg) {
         await new Promise(resolve => setTimeout(resolve, 2000));
         const friend = apiState.friends?.find(f => f.userId === userId);
         const friendName = friend?.displayName || 'bạn';
         const currentTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
         const msg = welcomeMsg.replace(/{name}/g, friendName).replace(/{time}/g, currentTime);
-        try { await apiState.api.sendMessage(msg, userId); } catch (e) { }
+        try {
+          await apiState.api.sendMessage(msg, userId);
+          console.log(`✅ Welcome message sent to ${userId}: ${msg}`);
+        } catch (e) {
+          console.warn(`⚠️ Failed to send welcome message: ${e.message}`);
+        }
       }
       return;
     } else {
@@ -943,16 +937,17 @@ async function handleSmartFriendRequest(apiState, userId) {
     console.log(`➕ Sending friend request to ${userId}...`);
 
     let success = false;
-    const msg = autoFriendTrigger.triggerContent || "Chào bạn, mình kết bạn nhé!";
+    // For friend request message, use simple message (not welcome message - that's for after accept)
+    const friendRequestMsg = "Chào bạn, mình kết bạn nhé!";
 
     // Define potential methods - THỨ TỰ ĐÚNG: (msg, userId) như trong autoReply.js
     const strategies = [
       { name: 'acceptFriend(uid)', fn: 'acceptFriend', args: [userId] },
       { name: 'acceptFriendRequest(uid)', fn: 'acceptFriendRequest', args: [userId] },
-      { name: 'sendFriendRequest(msg, uid)', fn: 'sendFriendRequest', args: [msg, userId] },
-      { name: 'addFriend(msg, uid)', fn: 'addFriend', args: [msg, userId] },
-      { name: 'sendFriendRequest(uid, msg)', fn: 'sendFriendRequest', args: [userId, msg] },
-      { name: 'addFriend(uid, msg)', fn: 'addFriend', args: [userId, msg] }
+      { name: 'sendFriendRequest(msg, uid)', fn: 'sendFriendRequest', args: [friendRequestMsg, userId] },
+      { name: 'addFriend(msg, uid)', fn: 'addFriend', args: [friendRequestMsg, userId] },
+      { name: 'sendFriendRequest(uid, msg)', fn: 'sendFriendRequest', args: [userId, friendRequestMsg] },
+      { name: 'addFriend(uid, msg)', fn: 'addFriend', args: [userId, friendRequestMsg] }
     ];
 
     for (const strategy of strategies) {
@@ -965,10 +960,10 @@ async function handleSmartFriendRequest(apiState, userId) {
           apiState.processedSmartFriend.add(userId);
           success = true;
 
-          // ✅ AUTO DELETE IF ENABLED
-          const autoDeleteTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_delete_messages__' && t.enabled === true);
-          if (autoDeleteTrigger && apiState.api.updateAutoDeleteChat) {
-            let ttl = parseInt(autoDeleteTrigger.triggerContent) || 86400000;
+          // ✅ AUTO DELETE IF ENABLED - Read from builtin_triggers_state
+          const autoDeleteSettings = triggerDB.getBuiltInTriggerState(apiState.currentUser.uid, 'builtin_auto_delete_messages');
+          if (autoDeleteSettings && autoDeleteSettings.enabled && apiState.api.updateAutoDeleteChat) {
+            let ttl = parseInt(autoDeleteSettings.response) || 86400000;
             if (ttl > 0) {
               console.log(`🗑️ Auto-Delete: Enabling ${ttl}ms timer for ${userId}`);
               try { await apiState.api.updateAutoDeleteChat(ttl, userId); } catch (e) { }
@@ -982,17 +977,8 @@ async function handleSmartFriendRequest(apiState, userId) {
       }
     }
 
-    // ✅ SEND WELCOME MESSAGE IF SUCCESS
-    if (success && msg && msg.length > 0) {
-      console.log(`📨 Sending welcome message to new friend...`);
-      try {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
-        await apiState.api.sendMessage(msg, userId);
-        console.log(`✅ Welcome message sent to ${userId}`);
-      } catch (e) {
-        console.warn(`⚠️ Failed to send welcome message: ${e.message}`);
-      }
-    }
+    // NOTE: Welcome message only sent after ACCEPT, not on sending friend request
+    // This is by user request - welcome message is set in "tin nhắn chào mừng"
 
     if (!success) {
       console.error('❌ All friend request methods failed. Please check zca-js version or API support.');
