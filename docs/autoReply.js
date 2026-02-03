@@ -453,37 +453,27 @@ async function processAutoReply(apiState, message) {
         }
 
         if (fileExt || fileType === 'image') {
-          // Parse response rules from settings (format: "pdf: Message for PDF\nxlsx: Message for Excel\ndefault: Default message")
-          let responseMessage = autoFileSettings.response || 'Đã nhận file của bạn!';
+          // ✅ RESTORED: Use batch processing for confirm_print support
+          const fInfo = {
+            url: content.fileUrl || content.url || content.href,
+            type: fileType,
+            ext: fileExt,
+            name: content.title || content.filename || 'unknown',
+            triggerContent: autoFileSettings.response || '' // Config for response rules with {confirm_print}
+          };
 
-          // Try to find specific response for this file extension
-          if (autoFileSettings.response) {
-            const lines = autoFileSettings.response.split('\n');
-            let specificResponse = null;
-            let defaultResponse = responseMessage;
+          // Add to batch (debounce multiple files)
+          let batch = fileBatchMap.get(senderId) || { files: [], timer: null };
+          batch.files.push(fInfo);
 
-            for (const line of lines) {
-              const match = line.match(/^(\w+):\s*(.+)$/);
-              if (match) {
-                const ext = match[1].toLowerCase();
-                const msg = match[2].trim();
-                if (ext === fileExt) {
-                  specificResponse = msg;
-                  break;
-                }
-                if (ext === 'default') {
-                  defaultResponse = msg;
-                }
-              }
-            }
-            responseMessage = specificResponse || defaultResponse;
-          }
+          if (batch.timer) clearTimeout(batch.timer);
+          batch.timer = setTimeout(() => {
+            processFileBatch(apiState, senderId, userUID, fileBatchMap.get(senderId).files);
+            fileBatchMap.delete(senderId);
+          }, 3000); // Wait 3s debounce
 
-          console.log(`📂 File detected: ${fileType}, ext: ${fileExt}`);
-          console.log(`📤 Response: ${responseMessage}`);
-
-          await sendMessage(apiState, senderId, responseMessage, userUID);
-          return; // Handled
+          fileBatchMap.set(senderId, batch);
+          return; // Skip immediate reply - will be handled by batch processor
         }
       }
 
@@ -2309,9 +2299,9 @@ async function sendMessage(apiState, senderId, content, userUID) {
 // Check if Auto Mark Unread trigger is enabled
 function shouldMarkUnread(userUID) {
   try {
-    const raw = triggerDB.getTriggersByUser(userUID);
-    const t = raw.find(r => r.triggerKey === '__builtin_auto_unread__');
-    return t && t.enabled === true;
+    // ✅ Read from builtin_triggers_state table (system-settings.html)
+    const settings = triggerDB.getBuiltInTriggerState(userUID, 'builtin_auto_unread');
+    return settings && settings.enabled === true;
   } catch (e) { return false; }
 }
 
@@ -2515,12 +2505,28 @@ async function processSelfTrigger(apiState, message, senderId) {
     const content = message.data.content;
     if (typeof content !== 'string') return;
 
-    // Get trigger from DB
+    // ✅ Get trigger settings from builtin_triggers_state table (system-settings.html)
+    const selfTriggerSettings = triggerDB.getBuiltInTriggerState(userUID, 'builtin_self_trigger');
+
+    if (!selfTriggerSettings || !selfTriggerSettings.enabled) {
+      // log('🚫 Self Trigger disabled or not found'); // Too noisy
+      return;
+    }
+
+    // ✅ Check prefix if set
+    const prefix = selfTriggerSettings.prefix?.trim() || '';
+    if (prefix && !content.toLowerCase().startsWith(prefix.toLowerCase())) {
+      // Prefix is set but message doesn't start with it - skip
+      return;
+    }
+
+    // ✅ FALLBACK: Still try to get rules from triggers table for backward compatibility
     const triggers = triggerDB.getTriggersByUser(userUID);
     const selfTrigger = triggers.find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*');
 
-    if (!selfTrigger || !selfTrigger.enabled) {
-      // log('🚫 Self Trigger disabled or not found'); // Too noisy for every message
+    if (!selfTrigger) {
+      // No rules configured in triggers table
+      log('ℹ️ Self Trigger enabled but no rules found in triggers table');
       return;
     }
 
