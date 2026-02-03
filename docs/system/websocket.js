@@ -708,6 +708,47 @@ function startWebSocketServer(apiState, httpServer) {
           return;
         }
 
+
+        // ============================================
+        // GET DASHBOARD STATS
+        // ============================================
+        if (msg.type === 'get_dashboard_stats') {
+          // IP Gating
+          if (apiState.authorizedIP && ws.clientIP !== apiState.authorizedIP) {
+            ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false }));
+            return;
+          }
+
+          const userUID = msg.userUID || (apiState.currentUser ? apiState.currentUser.uid : null);
+          const stats = messageDB.getDashboardStats(userUID);
+          const topUsers = messageDB.getTopUsers(10); // Limit 10
+
+          ws.send(JSON.stringify({
+            type: 'dashboard_stats',
+            data: { ...stats, topUsers }
+          }));
+        }
+
+        // ============================================
+        // GET FILE LOGS
+        // ============================================
+        if (msg.type === 'get_file_logs') {
+          // IP Gating
+          if (apiState.authorizedIP && ws.clientIP !== apiState.authorizedIP) {
+            ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false }));
+            return;
+          }
+
+          const userUID = msg.userUID || (apiState.currentUser ? apiState.currentUser.uid : null);
+          const limit = msg.limit || 100;
+          const logs = messageDB.getFileLogs(limit, userUID);
+
+          ws.send(JSON.stringify({
+            type: 'file_logs',
+            data: logs
+          }));
+        }
+
         // ============================================
         // USER INFO
         // ============================================
@@ -4198,6 +4239,82 @@ function startWebSocketServer(apiState, httpServer) {
           if (success) {
             const routines = triggerDB.getAutomationRoutines(userUID);
             broadcast(apiState, { type: 'automation_routines_list', routines });
+          }
+        }
+
+        // ================================================
+        // BUILTIN TRIGGERS (System Settings page)
+        // ================================================
+        else if (msg.type === 'get_builtin_triggers') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'builtin_triggers', triggers: {} }));
+            return;
+          }
+
+          // Load all builtin trigger states from database
+          const builtinKeys = [
+            'builtin_auto_reply_user',
+            'builtin_auto_reply_group',
+            'builtin_auto_friend',
+            'builtin_auto_file',
+            'builtin_auto_unread',
+            'builtin_auto_delete_messages',
+            'builtin_self_trigger',
+            'builtin_ai_conversation'
+          ];
+
+          const triggers = {};
+          const keyToName = {
+            'builtin_auto_reply_user': 'autoReplyUser',
+            'builtin_auto_reply_group': 'autoReplyGroup',
+            'builtin_auto_friend': 'autoAcceptFriend',
+            'builtin_auto_file': 'autoFile',
+            'builtin_auto_unread': 'autoUnread',
+            'builtin_auto_delete_messages': 'autoDelete',
+            'builtin_self_trigger': 'selfTrigger',
+            'builtin_ai_conversation': 'aiConversation'
+          };
+
+          for (const key of builtinKeys) {
+            try {
+              const state = triggerDB.getBuiltInTriggerState(userUID, key) || { enabled: false };
+              const name = keyToName[key];
+              if (name) {
+                triggers[name] = state;
+              }
+            } catch (e) {
+              console.error(`Error loading builtin trigger ${key}:`, e);
+            }
+          }
+
+          console.log('📤 Sending builtin triggers:', Object.keys(triggers));
+          ws.send(JSON.stringify({ type: 'builtin_triggers', triggers }));
+        }
+
+        else if (msg.type === 'update_builtin_trigger') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Not logged in' }));
+            return;
+          }
+
+          const { triggerId, data } = msg;
+          if (!triggerId || !data) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Missing triggerId or data' }));
+            return;
+          }
+
+          try {
+            // Save to database
+            triggerDB.saveBuiltInTriggerState(userUID, triggerId, data);
+            console.log(`✅ Saved builtin trigger ${triggerId}:`, data.enabled);
+
+            // Broadcast update to all clients
+            broadcast(apiState, { type: 'builtin_trigger_updated', triggerId, data });
+          } catch (e) {
+            console.error(`Error saving builtin trigger ${triggerId}:`, e);
+            ws.send(JSON.stringify({ type: 'error', message: e.message }));
           }
         }
 
