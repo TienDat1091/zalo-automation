@@ -16,9 +16,25 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .settings-grid .settings-section:first-child {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 768px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .page-header {
@@ -331,33 +347,36 @@
             <h1>⚙️ Cài đặt Hệ thống</h1>
         </div>
 
-        <!-- AUTO REPLY SECTION -->
-        <div class="settings-section">
-            <div class="section-header">
-                <span>💬</span> Tự động Trả lời
+        <!-- SETTINGS GRID -->
+        <div class="settings-grid">
+            <!-- AUTO REPLY SECTION -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <span>💬</span> Tự động Trả lời
+                </div>
+                <div class="settings-list" id="autoReplySettings">
+                    <div class="loading">Đang tải...</div>
+                </div>
             </div>
-            <div class="settings-list" id="autoReplySettings">
-                <div class="loading">Đang tải...</div>
-            </div>
-        </div>
 
-        <!-- AUTOMATION SECTION -->
-        <div class="settings-section">
-            <div class="section-header">
-                <span>🤖</span> Tự động hóa
+            <!-- AUTOMATION SECTION -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <span>🤖</span> Tự động hóa
+                </div>
+                <div class="settings-list" id="automationSettings">
+                    <div class="loading">Đang tải...</div>
+                </div>
             </div>
-            <div class="settings-list" id="automationSettings">
-                <div class="loading">Đang tải...</div>
-            </div>
-        </div>
 
-        <!-- ADVANCED SECTION -->
-        <div class="settings-section">
-            <div class="section-header">
-                <span>⚡</span> Nâng cao
-            </div>
-            <div class="settings-list" id="advancedSettings">
-                <div class="loading">Đang tải...</div>
+            <!-- ADVANCED SECTION -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <span>⚡</span> Nâng cao
+                </div>
+                <div class="settings-list" id="advancedSettings">
+                    <div class="loading">Đang tải...</div>
+                </div>
             </div>
         </div>
     </div>
