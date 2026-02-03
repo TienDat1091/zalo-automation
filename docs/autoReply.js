@@ -433,16 +433,14 @@ async function processAutoReply(apiState, message) {
         return;
       }
 
-      // Builtin Auto File Trigger (fallback)
-      const allTriggers = triggerDB.getTriggersByUser(userUID);
-      const autoFileTrigger = allTriggers.find(t => t.triggerKey === '__builtin_auto_file__' && t.enabled === true);
+      // ✅ Builtin Auto File Trigger - Read from builtin_triggers_state
+      const autoFileSettings = triggerDB.getBuiltInTriggerState(userUID, 'builtin_auto_file');
 
-      if (autoFileTrigger) {
-        console.log('📂 Checking Auto File trigger...');
+      if (autoFileSettings && autoFileSettings.enabled) {
+        console.log('📂 Auto File trigger enabled, processing...');
         let fileType = 'unknown';
         let fileExt = '';
 
-        // Phân tích loại file
         // Phân tích loại file
         if (message.type === 'Image' || (content.href && (content.href.indexOf('photo') > -1 || /\.(jpg|jpeg|png|gif|webp)/i.test(content.href) || content.href.includes('/jpg/') || content.href.includes('/png/')))) {
           fileType = 'image';
@@ -455,28 +453,37 @@ async function processAutoReply(apiState, message) {
         }
 
         if (fileExt || fileType === 'image') {
-          // GOM BATCH
-          // 1. Prepare file info
-          const fInfo = {
-            url: content.fileUrl || content.url || content.href,
-            type: fileType,
-            ext: fileExt,
-            name: content.title || content.filename || 'unknown',
-            triggerContent: autoFileTrigger.triggerContent || autoFileTrigger.response || '' // Keep config for later check
-          };
+          // Parse response rules from settings (format: "pdf: Message for PDF\nxlsx: Message for Excel\ndefault: Default message")
+          let responseMessage = autoFileSettings.response || 'Đã nhận file của bạn!';
 
-          // 2. Add to batch
-          let batch = fileBatchMap.get(senderId) || { files: [], timer: null };
-          batch.files.push(fInfo);
+          // Try to find specific response for this file extension
+          if (autoFileSettings.response) {
+            const lines = autoFileSettings.response.split('\n');
+            let specificResponse = null;
+            let defaultResponse = responseMessage;
 
-          if (batch.timer) clearTimeout(batch.timer);
-          batch.timer = setTimeout(() => {
-            processFileBatch(apiState, senderId, userUID, fileBatchMap.get(senderId).files);
-            fileBatchMap.delete(senderId);
-          }, 3000); // Wait 3s debounce
+            for (const line of lines) {
+              const match = line.match(/^(\w+):\s*(.+)$/);
+              if (match) {
+                const ext = match[1].toLowerCase();
+                const msg = match[2].trim();
+                if (ext === fileExt) {
+                  specificResponse = msg;
+                  break;
+                }
+                if (ext === 'default') {
+                  defaultResponse = msg;
+                }
+              }
+            }
+            responseMessage = specificResponse || defaultResponse;
+          }
 
-          fileBatchMap.set(senderId, batch);
-          return; // Skip immediate reply
+          console.log(`📂 File detected: ${fileType}, ext: ${fileExt}`);
+          console.log(`📤 Response: ${responseMessage}`);
+
+          await sendMessage(apiState, senderId, responseMessage, userUID);
+          return; // Handled
         }
       }
 
