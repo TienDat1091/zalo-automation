@@ -488,31 +488,22 @@ async function processAutoReply(apiState, message) {
     }
 
     // ========== CHECK AUTO REPLY TRIGGERS (User vs Group) ==========
-    const allTriggers = triggerDB.getTriggersByUser(userUID);
+    // ✅ NEW: Read from builtin_triggers_state table (system-settings.html)
+    const builtinKey = isGroup ? 'builtin_auto_reply_group' : 'builtin_auto_reply_user';
+    const autoReplySettings = triggerDB.getBuiltInTriggerState(userUID, builtinKey);
 
-    // Determine which key to look for
-    const targetKey = isGroup ? '__builtin_auto_reply_group__' : '__builtin_auto_reply_user__';
-    const autoReplyTrigger = allTriggers.find(t =>
-      t.triggerKey === targetKey &&
-      t.enabled === true
-    );
-
-    // Also check old key for backward compatibility or migration if needed, but prioritize new keys
-    // If no specific trigger found, checking generic one might be risky if we want strict separation.
-    // So we stick to specific keys.
-
-    // If auto-message is enabled, reply immediately
-    if (autoReplyTrigger) {
-      const cooldownKey = `${senderId}_${autoReplyTrigger.triggerID}`;
+    // If auto-reply is enabled via system settings, reply immediately
+    if (autoReplySettings && autoReplySettings.enabled) {
+      const cooldownKey = `${senderId}_${builtinKey}`;
       const lastReplyTime = autoReplyState.cooldowns.get(cooldownKey);
       const now = Date.now();
-      const cooldownMs = autoReplyTrigger.cooldown || 30000;
+      const cooldownMs = autoReplySettings.cooldown || 30000;
       const elapsed = lastReplyTime ? (now - lastReplyTime) : cooldownMs + 1; // First time = always pass
 
       console.log(`🔄 Auto-reply (${isGroup ? 'Group' : 'User'}) check: lastReply=${lastReplyTime ? new Date(lastReplyTime).toLocaleTimeString() : 'never'}, elapsed=${Math.floor(elapsed / 1000)}s, cooldown=${Math.floor(cooldownMs / 1000)}s`);
 
       if (elapsed >= cooldownMs) {
-        let replyContent = autoReplyTrigger.triggerContent || 'Xin chào!';
+        let replyContent = autoReplySettings.response || 'Xin chào!';
 
         // Build Context
         const context = {
@@ -533,9 +524,6 @@ async function processAutoReply(apiState, message) {
       } else {
         const waitTime = Math.ceil((cooldownMs - elapsed) / 1000);
         console.log(`⏳ Auto-reply cooldown active: wait ${waitTime}s more`);
-        // Don't return here, continue to check other triggers? 
-        // Usually if auto-reply is on, we might not want to check keyword triggers unless designed so.
-        // But the previous logic allowed falling through (lines 278).
       }
     }
 
