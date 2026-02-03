@@ -20,6 +20,9 @@
             <a href="dashboard.html" class="uh-nav-link" id="nav-dashboard">
                 <span>🏠</span> <span class="uh-nav-text">Dashboard</span>
             </a>
+            <a href="storage-info.html" class="uh-nav-link" id="nav-storage">
+                <span>💾</span> <span class="uh-nav-text">Lưu trữ</span>
+            </a>
             <a href="trigger-manager.html" class="uh-nav-link" id="nav-triggers">
                 <span>⚡</span> <span class="uh-nav-text">Kịch bản</span>
             </a>
@@ -214,13 +217,8 @@
                         <input type="checkbox" id="uh-bot-auto-reply-toggle" onchange="UnifiedHeader.toggleBotAutoReply(this)">
                         <span class="uh-toggle-slider"></span>
                     </label>
-                </div>
             </div>
-            
-            <a href="storage-info.html" class="uh-btn-nav" title="Quản lý dữ liệu" style="display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.1); padding: 6px 12px; border-radius: 6px; color: white; text-decoration: none; margin-left: 15px; font-size: 14px; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s;">
-                <i class="fas fa-database"></i> 
-                <span>Dữ liệu</span>
-            </a>
+            </div>
         `;
         }
 
@@ -388,7 +386,7 @@
         }
 
         showSettings() {
-            alert('Tính năng Cài đặt hệ thống đang được phát triển.');
+            window.location.href = '/system-settings.html';
             document.getElementById('uh-user-dropdown').classList.remove('show');
         }
 

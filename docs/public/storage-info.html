@@ -6,11 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Thống Kê Hoạt Động Zalo</title>
   <link rel="stylesheet" href="assets/style_dashboard.css">
+  <link rel="stylesheet" href="/assets/unified-header.css?v=4">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body {
       background: #f0f2f5;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding-top: 64px;
+      /* Space for unified header */
     }
 
     .container {
@@ -195,12 +198,9 @@
 
 <body>
   <div class="container">
-    <div class="header">
-      <div style="display:flex;align-items:center;gap:15px;">
-        <a href="dashboard.html" style="text-decoration:none;color:#555;font-size:24px;"><i
-            class="fas fa-arrow-left"></i></a>
-        <h1><i class="fas fa-chart-line"></i> Quản Lý Dữ Liệu Zalo</h1>
-      </div>
+    <!-- Page title - unified header provides navigation -->
+    <div class="header" style="justify-content: space-between;">
+      <h1 style="margin:0; font-size: 24px; color: #333;">📊 Quản Lý Dữ Liệu Zalo</h1>
       <button class="btn-refresh" onclick="refreshData()">
         <i class="fas fa-sync-alt"></i> Làm mới
       </button>
@@ -350,31 +350,93 @@
 
   <script>
     const ws = new WebSocket('ws://localhost:3000');
+    let currentUserUID = null;
 
     ws.onopen = () => {
       console.log('✅ Connected to WebSocket');
+      // Request current user info first
+      ws.send(JSON.stringify({ type: 'get_current_user' }));
       refreshData();
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'dashboard_stats_response') {
-          renderStats(data.stats);
-          renderTopUsers(data.topUsers);
+
+        // Handle current user info
+        if (data.type === 'current_user_info' && data.userUID) {
+          currentUserUID = data.userUID;
+          localStorage.setItem('currentUserUID', data.userUID);
+          console.log('✅ Got user UID:', currentUserUID);
+          // Refresh stats with correct UID
+          refreshData();
+          initAndLoadStats();
         }
-        if (data.type === 'file_logs_response') {
-          renderFileLogs(data.logs);
+
+        if (data.type === 'dashboard_stats') {
+          renderStats(data.data);
+          if (data.data.topUsers) renderTopUsers(data.data.topUsers);
         }
-      } catch (e) { console.error(e); }
+        if (data.type === 'file_logs') {
+          renderFileLogs(data.data);
+        }
+      } catch (e) {
+        console.error('WebSocket message error:', e);
+      }
     };
 
     function refreshData() {
       if (ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'get_dashboard_stats' }));
-        ws.send(JSON.stringify({ type: 'get_file_logs' }));
+        // Get current user UID from variable or localStorage
+        const userUID = currentUserUID || localStorage.getItem('currentUserUID');
+        console.log('🔄 Refreshing data for UID:', userUID);
+        ws.send(JSON.stringify({ type: 'get_dashboard_stats', userUID }));
+        ws.send(JSON.stringify({ type: 'get_file_logs', userUID }));
       }
     }
+
+    // ✅ Fetch current user UID from API
+    async function fetchCurrentUser() {
+      try {
+        const response = await fetch('/api/current-user', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.userUID) {
+            currentUserUID = data.userUID;
+            localStorage.setItem('currentUserUID', data.userUID);
+            console.log('✅ Fetched user UID from API:', currentUserUID);
+            return currentUserUID;
+          }
+        }
+        // Fallback: check localStorage
+        const stored = localStorage.getItem('currentUserUID');
+        if (stored) {
+          currentUserUID = stored;
+          console.log('✅ Using stored UID:', currentUserUID);
+          return stored;
+        }
+        console.warn('⚠️ No user UID found');
+        return null;
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+        return localStorage.getItem('currentUserUID');
+      }
+    }
+
+    // Initialize on page load
+    (async () => {
+      await fetchCurrentUser();
+      if (currentUserUID) {
+        refreshData();
+        initAndLoadStats();
+      } else {
+        console.error('❌ Cannot load data: No user UID');
+        document.getElementById('dbMessages').textContent = '0';
+        document.getElementById('dbFriends').textContent = '0';
+        document.getElementById('dbSize').textContent = 'Error';
+      }
+    })();
+
 
     function renderStats(stats) {
       document.getElementById('sent-messages').textContent = (stats.sentMessages || 0).toLocaleString();
@@ -425,17 +487,133 @@
 
     // Auto refresh every 10s
     setInterval(refreshData, 10000);
+  </script>
 
+  <!-- Load IndexedDB.js BEFORE calling its functions -->
+  <script src="IndexedDB.js"></script>
+
+  <script>
     // ========== 💾 DATA BACKUP FUNCTIONS ==========
 
-    // Load data stats on page load
-    async function loadDataStats() {
-      if (typeof getDataStats === 'function') {
-        const stats = await getDataStats();
-        document.getElementById('dbMessages').textContent = stats.messages.toLocaleString();
-        document.getElementById('dbFriends').textContent = stats.friends.toLocaleString();
-        document.getElementById('dbSize').textContent = stats.dbSize;
+    // Get current user UID from localStorage or URL params
+    function getCurrentUserUID() {
+      // Try URL params first
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUID = urlParams.get('userUID') || urlParams.get('uid');
+      if (urlUID) return urlUID;
+
+      // Try localStorage
+      const storedUID = localStorage.getItem('currentUserUID');
+      if (storedUID) return storedUID;
+
+      return null;
+    }
+
+    // Initialize IndexedDB with user UID before loading stats
+    async function initAndLoadStats() {
+      const userUID = getCurrentUserUID();
+
+      if (!userUID) {
+        console.warn('⚠️ No user UID found, cannot load data');
+        document.getElementById('dbMessages').textContent = 'Chưa đăng nhập';
+        document.getElementById('dbFriends').textContent = '-';
+        document.getElementById('dbSize').textContent = '-';
+        return;
       }
+
+      console.log(`🔐 Loading data for user: ${userUID}`);
+
+      // Initialize IndexedDB with correct UID
+      if (typeof initIndexedDB === 'function') {
+        try {
+          await initIndexedDB(userUID);
+        } catch (e) {
+          console.error('Failed to init IndexedDB:', e);
+        }
+      }
+
+      await loadDataStats();
+    }
+
+    // Load data stats - now called AFTER IndexedDB.js is loaded
+    async function loadDataStats() {
+      try {
+        // Use getDataStats from IndexedDB.js
+        if (typeof getDataStats === 'function') {
+          const stats = await getDataStats();
+          document.getElementById('dbMessages').textContent = (stats.messages || 0).toLocaleString();
+          document.getElementById('dbFriends').textContent = (stats.friends || 0).toLocaleString();
+          document.getElementById('dbSize').textContent = stats.dbSize || '0 KB';
+        } else {
+          // Fallback: manually query IndexedDB
+          console.log('⚠️ getDataStats not found, using fallback...');
+          await loadDataStatsFallback();
+        }
+      } catch (e) {
+        console.error('Error loading data stats:', e);
+        document.getElementById('dbMessages').textContent = '?';
+        document.getElementById('dbFriends').textContent = '?';
+        document.getElementById('dbSize').textContent = '?';
+      }
+    }
+
+    // Fallback function - now uses per-user DB name
+    async function loadDataStatsFallback() {
+      const userUID = getCurrentUserUID();
+      const DB_NAME = userUID ? `ZaloChat_${userUID}` : 'ZaloChatDB';
+      console.log(`📊 Fallback loading from: ${DB_NAME}`);
+
+      return new Promise((resolve) => {
+        const request = indexedDB.open(DB_NAME);
+        request.onsuccess = (e) => {
+          const db = e.target.result;
+          let msgCount = 0, friendCount = 0;
+
+          // Count messages
+          if (db.objectStoreNames.contains('messages')) {
+            const msgTx = db.transaction('messages', 'readonly');
+            const msgStore = msgTx.objectStore('messages');
+            const countReq = msgStore.count();
+            countReq.onsuccess = () => {
+              msgCount = countReq.result || 0;
+              document.getElementById('dbMessages').textContent = msgCount.toLocaleString();
+            };
+          } else {
+            document.getElementById('dbMessages').textContent = '0';
+          }
+
+          // Count friends
+          if (db.objectStoreNames.contains('friends')) {
+            const frTx = db.transaction('friends', 'readonly');
+            const frStore = frTx.objectStore('friends');
+            const frCountReq = frStore.count();
+            frCountReq.onsuccess = () => {
+              friendCount = frCountReq.result || 0;
+              document.getElementById('dbFriends').textContent = friendCount.toLocaleString();
+            };
+          } else {
+            document.getElementById('dbFriends').textContent = '0';
+          }
+
+          // Estimate size
+          if (navigator.storage && navigator.storage.estimate) {
+            navigator.storage.estimate().then(est => {
+              const usedMB = (est.usage / (1024 * 1024)).toFixed(2);
+              document.getElementById('dbSize').textContent = usedMB + ' MB';
+            });
+          } else {
+            document.getElementById('dbSize').textContent = 'N/A';
+          }
+
+          resolve();
+        };
+        request.onerror = () => {
+          document.getElementById('dbMessages').textContent = '?';
+          document.getElementById('dbFriends').textContent = '?';
+          document.getElementById('dbSize').textContent = '?';
+          resolve();
+        };
+      });
     }
 
     // Export data
@@ -483,12 +661,14 @@
       }
     }
 
-    // Load stats when page loads
-    setTimeout(loadDataStats, 1000);
+    // Load stats when IndexedDB.js is ready - USING UID-AWARE INIT
+    setTimeout(initAndLoadStats, 500);
     // Refresh stats every 30s
     setInterval(loadDataStats, 30000);
   </script>
-  <script src="../IndexedDB.js"></script>
+
+  <!-- Unified Header for consistent navigation -->
+  <script src="/assets/unified-header.js?v=4"></script>
 </body>
 
 </html>

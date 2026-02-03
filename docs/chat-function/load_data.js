@@ -3,6 +3,10 @@
 // - Fix: RenderFriendsVirtual properly
 // - Ensure proper sorting
 
+// ✅ Global Map to track unread message COUNT per conversation (survives virtual scroll re-renders)
+// Key: userId, Value: count of unread messages
+window.unreadConversations = window.unreadConversations || new Map();
+
 // ✅ Helper: Escape strings for use in onclick attributes
 function escapeJs(str) {
   if (!str) return '';
@@ -72,6 +76,8 @@ function updateVisibleFriends(sortedFriends) {
   content.innerHTML = visibleFriends.map(f => {
     const msgInfo = messageStore.get(f.userId);
     const hasMessages = !!msgInfo;
+    const unreadCount = window.unreadConversations ? (window.unreadConversations.get(f.userId) || 0) : 0;
+    const isUnread = unreadCount > 0;
     const preview = hasMessages
       ? `<span class="has-message">${escapeHtml(msgInfo.lastMessage.substring(0, 30))}${msgInfo.lastMessage.length > 30 ? '...' : ''}</span>`
       : 'Nhấn để chat • UID: ' + f.userId;
@@ -80,8 +86,15 @@ function updateVisibleFriends(sortedFriends) {
       ? `<span class="message-time">${formatTime(msgInfo.timestamp)}</span>`
       : '';
 
+    // ✅ Show unread count badge with number
+    const unreadBadge = isUnread
+      ? `<span class="unread-count-badge" style="background:#0068FF; color:white; font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:6px; min-width:18px; text-align:center;">${unreadCount > 99 ? '99+' : unreadCount}</span>`
+      : '';
+
     return `
-      <div class="friend-item ${hasMessages ? 'has-messages' : ''} ${(typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === f.userId) ? 'active' : ''}" 
+      <div class="friend-item ${hasMessages ? 'has-messages' : ''} ${isUnread ? 'unread' : ''} ${(typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === f.userId) ? 'active' : ''}" 
+           data-userid="${f.userId}"
+           style="${isUnread ? 'background: linear-gradient(90deg, rgba(0,104,255,0.1) 0%, transparent 100%); border-left: 3px solid #0068FF;' : ''}"
            onclick="${(typeof isDeleteMode !== 'undefined' && isDeleteMode) ? '' : `selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${safeAvatar(f.avatar)}')`}">
         <input type="checkbox" class="friend-checkbox" 
                onclick="event.stopPropagation(); toggleFriendSelection('${f.userId}', this)"
@@ -91,14 +104,15 @@ function updateVisibleFriends(sortedFriends) {
              alt="${f.displayName || 'User'}">
         <div class="info" style="flex:1; overflow:hidden;">
           <div class="name-row" style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">
+            <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;">
               ${escapeHtml(f.displayName || 'Người dùng Zalo')}
               ${f.isStranger ? '<span style="margin-left:4px; font-size:10px; background:#ff9800; color:white; padding:2px 6px; border-radius:10px; font-weight:500;">👤 Người lạ</span>' : ''}
             </span>
+            ${unreadBadge}
             <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${f.userId}', '${escapeJs(f.displayName || 'User')}')" title="Xóa hội thoại">🗑️</button>
           </div>
           <div class="preview-row" style="display:flex; justify-content:space-between;">
-             <div class="preview" style="flex:1;">${preview}</div>
+             <div class="preview" style="flex:1; ${isUnread ? 'font-weight:600; color:#0068FF;' : ''}">${preview}</div>
              ${timeStr ? `<div class="time-tiny" style="font-size:10px; color:#888;">${timeStr}</div>` : ''}
           </div>
         </div>
@@ -207,8 +221,54 @@ async function deleteConversationFromIndexedDB(uid) {
 
 async function selectFriend(userId, displayName, avatar) {
   selectedFriend = { userId, displayName, avatar };
+  console.log(`🔵 selectFriend called for: ${userId}`);
 
   document.querySelectorAll('.friend-item').forEach(el => el.classList.remove('active'));
+
+  // ✅ Mark conversation as read by removing from unreadConversations Map
+  const hadUnread = window.unreadConversations && window.unreadConversations.has(userId);
+  if (hadUnread) {
+    const count = window.unreadConversations.get(userId);
+    window.unreadConversations.delete(userId);
+    console.log(`✅ Marked conversation as read: ${userId} (had ${count} unread messages)`);
+    console.log(`📊 Remaining unread conversations:`, Array.from(window.unreadConversations.keys()));
+
+    // Trigger re-render of friend list to update UI
+    if (typeof renderFriendsVirtual === 'function') {
+      console.log('🔄 Triggering renderFriendsVirtual...');
+      renderFriendsVirtual();
+    } else {
+      console.warn('⚠️ renderFriendsVirtual not found!');
+    }
+  } else {
+    console.log(`ℹ️ No unread messages for ${userId}`);
+  }
+
+  // Wait for render to complete, then manually clear DOM styling
+  setTimeout(() => {
+    const friendItem = document.querySelector(`.friend-item[data-userid="${userId}"]`);
+    if (friendItem) {
+      console.log(`🎨 Clearing DOM styling for ${userId}`);
+      const countBadge = friendItem.querySelector('.unread-count-badge');
+      if (countBadge) {
+        console.log('  - Removing count badge');
+        countBadge.remove();
+      }
+      const oldBadge = friendItem.querySelector('.new-message-badge');
+      if (oldBadge) {
+        console.log('  - Removing old badge');
+        oldBadge.remove();
+      }
+      // Clear unread styling
+      friendItem.style.background = '';
+      friendItem.style.borderLeft = '';
+      friendItem.classList.remove('unread');
+      friendItem.classList.add('active');
+      console.log('  ✅ Styling cleared');
+    } else {
+      console.warn(`⚠️ Could not find friend-item for ${userId}`);
+    }
+  }, 100);
 
   document.getElementById('chatHeader').style.display = 'flex';
   document.getElementById('inputArea').style.display = 'flex';
@@ -320,8 +380,9 @@ function renderMessages() {
       attachmentHtml = `
       <div class="message-attachment" style="margin-top:8px;">
         <img src="${escapeHtml(msg.imageUrl || 'https://via.placeholder.com/200')}" alt="Ảnh"
+          class="message-image-preview"
+          data-image-url="${escapeHtml(msg.imageUrl || '#')}"
           style="max-width:200px;max-height:200px;border-radius:8px;cursor:pointer;"
-          onclick="window.open('${escapeHtml(msg.imageUrl || '#')}', '_blank')"
           onerror="this.src='https://via.placeholder.com/200'; this.onerror=null;">
         </div>
     `;
@@ -458,6 +519,280 @@ function scrollToBottom() {
     if (container) container.scrollTop = container.scrollHeight;
   }, 50);
 }
+
+// ✅ IMAGE LIGHTBOX - Display images in modal with zoom controls
+let currentZoom = 1;
+
+function showImageLightbox(imageUrl) {
+  currentZoom = 1;
+
+  // Remove existing lightbox if any
+  const existing = document.getElementById('imageLightbox');
+  if (existing) existing.remove();
+
+  // Create lightbox overlay
+  const lightbox = document.createElement('div');
+  lightbox.id = 'imageLightbox';
+  lightbox.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    cursor: default;
+  `;
+
+  // Close when clicking background
+  lightbox.onclick = (e) => {
+    console.log('🖱️ Lightbox clicked, target:', e.target.id || e.target.tagName);
+    if (e.target === lightbox) {
+      console.log('➡️ Background clicked, closing lightbox');
+      lightbox.remove();
+    }
+  };
+
+  // Set image content with zoom controls
+  lightbox.innerHTML = `
+    <div style="position:relative; display:flex; flex-direction:column; align-items:center; max-width:95%; max-height:95%;">
+      <!-- Toolbar -->
+      <div id="zoomToolbar" style="position:absolute; top:-50px; left:50%; transform:translateX(-50%); display:flex; gap:10px; background:rgba(0,0,0,0.7); padding:8px 16px; border-radius:25px; z-index:10001;">
+        <button id="zoomOutBtn" style="width:36px; height:36px; border-radius:50%; background:#333; color:white; border:none; font-size:18px; cursor:pointer;">−</button>
+        <span id="zoomLevel" style="color:white; font-size:14px; min-width:50px; text-align:center; line-height:36px;">100%</span>
+        <button id="zoomInBtn" style="width:36px; height:36px; border-radius:50%; background:#333; color:white; border:none; font-size:18px; cursor:pointer;">+</button>
+        <button id="resetZoomBtn" style="padding:0 12px; height:36px; border-radius:18px; background:#333; color:white; border:none; font-size:13px; cursor:pointer;">Reset</button>
+      </div>
+      
+      <!-- Image container with scroll support -->
+      <div id="imageContainer" style="overflow:auto; max-width:90vw; max-height:85vh; border:2px solid rgba(255,255,255,0.1); border-radius:8px; position:relative;">
+        <div id="imageWrapper" style="display:inline-block; min-width:100%; min-height:100%; text-align:center;">
+          <img id="lightboxImage" src="${imageUrl}" alt="Ảnh" 
+            style="display:inline-block; max-width:90vw; max-height:85vh; border-radius:8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transition: transform 0.3s ease; transform: scale(1); transform-origin: center center; cursor:grab;">
+        </div>
+      </div>
+      
+      <!-- Close button -->
+      <button id="closeLightboxBtn" style="position:absolute; top:-50px; right:0; width:40px; height:40px; border-radius:50%; background:#e74c3c; color:white; border:none; font-size:20px; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,0.3);">✕</button>
+      
+      <!-- Download button -->
+      <button id="downloadImageBtn" style="position:absolute; bottom:10px; right:10px; background:#0068FF; color:white; padding:10px 20px; border-radius:8px; border:none; font-size:14px; font-weight:500; cursor:pointer;">
+        ⬇️ Tải về
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(lightbox);
+  console.log('✅ Lightbox added to DOM');
+
+  // Attach event listeners AFTER adding to DOM
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const resetBtn = document.getElementById('resetZoomBtn');
+  const closeBtn = document.getElementById('closeLightboxBtn');
+  const downloadBtn = document.getElementById('downloadImageBtn');
+
+  console.log('🔍 Button elements found:', {
+    zoomOutBtn: !!zoomOutBtn,
+    zoomInBtn: !!zoomInBtn,
+    resetBtn: !!resetBtn,
+    closeBtn: !!closeBtn,
+    downloadBtn: !!downloadBtn
+  });
+
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Inline zoom out logic
+      currentZoom = Math.max(0.25, currentZoom - 0.25);
+      const img = document.getElementById('lightboxImage');
+      const label = document.getElementById('zoomLevel');
+      const container = document.getElementById('imageContainer');
+      if (img) img.style.transform = `scale(${currentZoom})`;
+      if (label) label.textContent = `${Math.round(currentZoom * 100)}%`;
+      if (container) container.style.cursor = currentZoom > 1 ? 'grab' : 'default';
+      console.log(`🔍 Zoomed OUT to ${Math.round(currentZoom * 100)}%`);
+    });
+  }
+
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Inline zoom in logic
+      currentZoom = Math.min(3, currentZoom + 0.25);
+      const img = document.getElementById('lightboxImage');
+      const label = document.getElementById('zoomLevel');
+      const container = document.getElementById('imageContainer');
+      if (img) img.style.transform = `scale(${currentZoom})`;
+      if (label) label.textContent = `${Math.round(currentZoom * 100)}%`;
+      if (container) container.style.cursor = currentZoom > 1 ? 'grab' : 'default';
+      console.log(`🔍 Zoomed IN to ${Math.round(currentZoom * 100)}%`);
+    });
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Inline reset logic
+      currentZoom = 1;
+      const img = document.getElementById('lightboxImage');
+      const label = document.getElementById('zoomLevel');
+      const container = document.getElementById('imageContainer');
+      if (img) img.style.transform = 'scale(1)';
+      if (label) label.textContent = '100%';
+      if (container) container.style.cursor = 'default';
+      console.log('🔄 Reset zoom to 100%');
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      console.log('🔘 Close clicked');
+      e.stopPropagation();
+      lightbox.remove();
+    });
+  }
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', async (e) => {
+      console.log('🔘 Download clicked');
+      e.stopPropagation();
+      try {
+        // Fetch image as blob to handle cross-origin downloads
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = imageUrl.split('/').pop() || 'image.jpg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        console.log('✅ Image downloaded');
+      } catch (err) {
+        console.error('❌ Download failed:', err);
+        // Fallback: open in new tab
+        window.open(imageUrl, '_blank');
+      }
+    });
+  }
+
+  // Close on Escape key
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('imageLightbox')?.remove();
+      document.removeEventListener('keydown', handleEscape);
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
+
+  // Mouse wheel zoom - INLINE logic
+  const imageContainer = lightbox.querySelector('#imageContainer');
+  if (imageContainer) {
+    imageContainer.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Inline zoom logic for wheel
+      const delta = e.deltaY < 0 ? 0.1 : -0.1;
+      currentZoom = Math.max(0.25, Math.min(3, currentZoom + delta));
+
+      const img = document.getElementById('lightboxImage');
+      const label = document.getElementById('zoomLevel');
+      if (img) img.style.transform = `scale(${currentZoom})`;
+      if (label) label.textContent = `${Math.round(currentZoom * 100)}%`;
+      console.log(`🖱️ Wheel zoom to ${Math.round(currentZoom * 100)}%`);
+    }, { passive: false });
+  }
+
+  // ✅ Drag to pan when zoomed
+  let isDragging = false;
+  let startX, startY, scrollLeft, scrollTop;
+
+  if (imageContainer) {
+    imageContainer.addEventListener('mousedown', (e) => {
+      if (currentZoom <= 1) return; // Only drag when zoomed
+      isDragging = true;
+      imageContainer.style.cursor = 'grabbing';
+      startX = e.pageX - imageContainer.offsetLeft;
+      startY = e.pageY - imageContainer.offsetTop;
+      scrollLeft = imageContainer.scrollLeft;
+      scrollTop = imageContainer.scrollTop;
+    });
+
+    imageContainer.addEventListener('mouseleave', () => {
+      isDragging = false;
+      if (currentZoom > 1) imageContainer.style.cursor = 'grab';
+    });
+
+    imageContainer.addEventListener('mouseup', () => {
+      isDragging = false;
+      if (currentZoom > 1) imageContainer.style.cursor = 'grab';
+    });
+
+    imageContainer.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - imageContainer.offsetLeft;
+      const y = e.pageY - imageContainer.offsetTop;
+      const walkX = (x - startX) * 1.5; // Scroll speed
+      const walkY = (y - startY) * 1.5;
+      imageContainer.scrollLeft = scrollLeft - walkX;
+      imageContainer.scrollTop = scrollTop - walkY;
+    });
+  }
+
+  console.log('🖼️ Opened lightbox for:', imageUrl);
+}
+
+function zoomImage(delta) {
+  const oldZoom = currentZoom;
+  currentZoom = Math.max(0.25, Math.min(3, currentZoom + delta));
+  console.log(`🔍 Zoom: ${oldZoom.toFixed(2)} → ${currentZoom.toFixed(2)} (delta: ${delta})`);
+
+  const img = document.getElementById('lightboxImage');
+  const zoomLabel = document.getElementById('zoomLevel');
+
+  if (img) {
+    img.style.transform = `scale(${currentZoom})`;
+    console.log(`✅ Applied transform: scale(${currentZoom})`, img.style.transform);
+  } else {
+    console.error('❌ Image element not found!');
+  }
+
+  if (zoomLabel) {
+    zoomLabel.textContent = `${Math.round(currentZoom * 100)}%`;
+  }
+}
+
+function resetZoom() {
+  console.log('🔄 Resetting zoom to 100%');
+  currentZoom = 1;
+  const img = document.getElementById('lightboxImage');
+  const zoomLabel = document.getElementById('zoomLevel');
+  if (img) img.style.transform = 'scale(1)';
+  if (zoomLabel) zoomLabel.textContent = '100%';
+}
+
+window.showImageLightbox = showImageLightbox;
+window.zoomImage = zoomImage;
+window.resetZoom = resetZoom;
+
+// ✅ Event delegation for image clicks (using data attribute instead of inline onclick)
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('message-image-preview')) {
+    e.preventDefault();
+    const imageUrl = e.target.dataset.imageUrl;
+    if (imageUrl && imageUrl !== '#') {
+      console.log('🖼️ Opening image lightbox:', imageUrl);
+      showImageLightbox(imageUrl);
+    }
+  }
+});
 
 document.getElementById('messageInput')?.addEventListener('keypress', e => {
   if (e.key === 'Enter' && !e.shiftKey) {

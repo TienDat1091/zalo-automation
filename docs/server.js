@@ -231,6 +231,15 @@ app.get('/api/session-status', (req, res) => {
   });
 });
 
+// 👤 API to get current user UID
+app.get('/api/current-user', (req, res) => {
+  if (apiState.currentUser && apiState.currentUser.uid) {
+    res.json({ userUID: apiState.currentUser.uid });
+  } else {
+    res.status(404).json({ error: 'No user logged in' });
+  }
+});
+
 
 
 

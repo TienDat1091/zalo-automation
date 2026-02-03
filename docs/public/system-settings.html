@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cài đặt Hệ thống - Zalo Automation</title>
+    <link rel="stylesheet" href="assets/style_dashboard.css">
+    <link rel="stylesheet" href="/assets/unified-header.css?v=4">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-top: 64px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .page-header h1 {
+            color: #333;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+        }
+
+        .settings-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .settings-list {
+            padding: 16px;
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #eee;
+        }
+
+        .setting-item:hover {
+            background: #f8f9ff;
+            border-color: #667eea;
+        }
+
+        .setting-item.enabled {
+            background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+            border-color: #4caf50;
+        }
+
+        .setting-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .setting-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .setting-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .setting-desc {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .setting-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-badge {
+            font-size: 11px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.on {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-badge.off {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .config-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .config-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* Modal styles */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+
+        .modal-close:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .info-box {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .info-box.blue {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            color: #1565c0;
+        }
+
+        .info-box.orange {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            color: #e65100;
+        }
+
+        .ttl-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+
+        .ttl-option:hover {
+            background: #f5f5f5;
+        }
+
+        .ttl-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1>⚙️ Cài đặt Hệ thống</h1>
+        </div>
+
+        <!-- AUTO REPLY SECTION -->
+        <div class="settings-section">
+            <div class="section-header">
+                <span>💬</span> Tự động Trả lời
+            </div>
+            <div class="settings-list" id="autoReplySettings">
+                <div class="loading">Đang tải...</div>
+            </div>
+        </div>
+
+        <!-- AUTOMATION SECTION -->
+        <div class="settings-section">
+            <div class="section-header">
+                <span>🤖</span> Tự động hóa
+            </div>
+            <div class="settings-list" id="automationSettings">
+                <div class="loading">Đang tải...</div>
+            </div>
+        </div>
+
+        <!-- ADVANCED SECTION -->
+        <div class="settings-section">
+            <div class="section-header">
+                <span>⚡</span> Nâng cao
+            </div>
+            <div class="settings-list" id="advancedSettings">
+                <div class="loading">Đang tải...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTO MESSAGE MODAL -->
+    <div class="modal-backdrop" id="autoMessageModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 id="autoMessageModalTitle"><span>💬</span> Cài đặt Tự động trả lời</h2>
+                <button class="modal-close" onclick="hideAutoMessageModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box blue" id="autoMessageDesc">
+                    <strong>📌 Chức năng:</strong> Tự động trả lời tin nhắn đến.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">💬 Nội dung tự động trả lời *</label>
+                    <textarea class="form-input" id="autoMessageResponse" rows="5"
+                        placeholder="VD: Xin chào! Hiện tại tôi đang bận..."></textarea>
+                    <div style="font-size:11px; color:#999; margin-top:4px;">
+                        💡 Có thể dùng biến: <code>{name}</code>, <code>{time}</code>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">⏱️ Cooldown (giây)</label>
+                    <input type="number" class="form-input" id="autoMessageCooldown" min="0" value="30">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="autoMessageEnabled" style="margin-right:6px;">
+                        Kích hoạt tính năng này
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAutoMessageModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveAutoMessageSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTO FRIEND MODAL -->
+    <div class="modal-backdrop" id="autoFriendModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><span>👥</span> Cài đặt Chấp nhận kết bạn</h2>
+                <button class="modal-close" onclick="hideAutoFriendModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box blue">
+                    <strong>📌 Chức năng:</strong> Tự động chấp nhận lời mời kết bạn và gửi tin nhắn chào mừng.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">💬 Tin nhắn chào mừng (tùy chọn)</label>
+                    <textarea class="form-input" id="autoFriendMessage" rows="4"
+                        placeholder="VD: Chào {name}! Cảm ơn bạn đã kết bạn..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="autoFriendEnabled" style="margin-right:6px;">
+                        Kích hoạt tính năng này
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAutoFriendModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveAutoFriendSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTO UNREAD MODAL -->
+    <div class="modal-backdrop" id="autoUnreadModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><span>🔖</span> Cài đặt Đánh dấu chưa đọc</h2>
+                <button class="modal-close" onclick="hideAutoUnreadModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box orange">
+                    <strong>📌 Chức năng:</strong> Tự động đánh dấu hội thoại là <strong>Chưa đọc</strong> sau khi Bot
+                    gửi tin
+                    nhắn. Giúp bạn không bỏ lỡ tin nhắn khách hàng.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="autoUnreadEnabled" style="margin-right:6px;">
+                        Kích hoạt tính năng này
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAutoUnreadModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveAutoUnreadSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTO DELETE MODAL -->
+    <div class="modal-backdrop" id="autoDeleteModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><span>🗑️</span> Cài đặt Tự động xóa tin nhắn</h2>
+                <button class="modal-close" onclick="hideAutoDeleteModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box blue">
+                    <strong>📌 Chức năng:</strong> Tự động bật <strong>Tin nhắn tự xóa</strong> sau khi kết bạn thành
+                    công.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">⏰ Thời gian tự xóa</label>
+                    <label class="ttl-option">
+                        <input type="radio" name="autoDeleteTTL" value="0">
+                        <span>❌</span> <span>Không tự xóa</span>
+                    </label>
+                    <label class="ttl-option">
+                        <input type="radio" name="autoDeleteTTL" value="86400000" checked>
+                        <span>🗓️</span> <span>Sau 1 ngày</span>
+                    </label>
+                    <label class="ttl-option">
+                        <input type="radio" name="autoDeleteTTL" value="604800000">
+                        <span>📅</span> <span>Sau 7 ngày</span>
+                    </label>
+                    <label class="ttl-option">
+                        <input type="radio" name="autoDeleteTTL" value="1209600000">
+                        <span>📅</span> <span>Sau 14 ngày</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="autoDeleteEnabled" style="margin-right:6px;">
+                        Kích hoạt tính năng này
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAutoDeleteModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveAutoDeleteSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI CONVERSATION MODAL -->
+    <div class="modal-backdrop" id="aiConversationModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><span>🤖</span> Cài đặt AI Conversation</h2>
+                <button class="modal-close" onclick="hideAiConversationModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box blue">
+                    <strong>📌 Chức năng:</strong> Cho phép trò chuyện liên tục với AI. Người dùng gõ lệnh bật/tắt.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">🚀 Lệnh bật AI</label>
+                    <input type="text" class="form-input" id="aiCommandOn" value="/ai">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">⏹️ Lệnh tắt AI</label>
+                    <input type="text" class="form-input" id="aiCommandOff" value="/ai-off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">📝 System Prompt</label>
+                    <textarea class="form-input" id="aiSystemPrompt"
+                        rows="3">Bạn là trợ lý AI thân thiện. Trả lời ngắn gọn và hữu ích.</textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">⏱️ Timeout (phút)</label>
+                    <input type="number" class="form-input" id="aiTimeout" value="30" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="aiEnabled" style="margin-right:6px;">
+                        Kích hoạt tính năng này
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAiConversationModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveAiConversationSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SELF TRIGGER MODAL -->
+    <div class="modal-backdrop" id="selfTriggerModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><span>⚡</span> Cài đặt Self-Trigger</h2>
+                <button class="modal-close" onclick="hideSelfTriggerModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box orange">
+                    <strong>📌 Chức năng:</strong> Cho phép Bot phản hồi khi chính bạn gõ tin nhắn (VD: /test sẽ trigger
+                    flow).
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="selfTriggerEnabled" style="margin-right:6px;">
+                        Kích hoạt tính năng này
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideSelfTriggerModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveSelfTriggerSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTO FILE MODAL -->
+    <div class="modal-backdrop" id="autoFileModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><span>📂</span> Cài đặt Nhận diện File</h2>
+                <button class="modal-close" onclick="hideAutoFileModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box blue">
+                    <strong>📌 Chức năng:</strong> Tự động phản hồi khi nhận được file/ảnh theo định dạng.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">📝 Quy tắc phản hồi (format: extension: message)</label>
+                    <textarea class="form-input" id="autoFileResponse" rows="5"
+                        placeholder="xlsx: Bạn đã gửi file Excel&#10;pdf: Bạn đã gửi file PDF&#10;default: Đã nhận file của bạn"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="autoFileEnabled" style="margin-right:6px;">
+                        Kích hoạt tính năng này
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAutoFileModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveAutoFileSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Built-in triggers state
+        const builtInTriggers = {
+            autoReplyUser: {
+                id: 'builtin_auto_reply_user',
+                name: 'Tự động trả lời (Cá nhân)',
+                description: 'Tự động trả lời tin nhắn 1-1',
+                icon: '👤',
+                enabled: false,
+                response: '',
+                cooldown: 30000,
+                section: 'autoReply'
+            },
+            autoReplyGroup: {
+                id: 'builtin_auto_reply_group',
+                name: 'Tự động trả lời (Nhóm)',
+                description: 'Tự động trả lời tin nhắn nhóm',
+                icon: '👨‍👩‍👧‍👦',
+                enabled: false,
+                response: '',
+                cooldown: 30000,
+                section: 'autoReply'
+            },
+            autoAcceptFriend: {
+                id: 'builtin_auto_friend',
+                name: 'Chấp nhận kết bạn',
+                description: 'Tự động đồng ý lời mời kết bạn',
+                icon: '👥',
+                enabled: false,
+                welcomeMessage: '',
+                section: 'automation'
+            },
+            autoFile: {
+                id: 'builtin_auto_file',
+                name: 'Nhận diện file',
+                description: 'Tự động trả lời khi nhận file/ảnh',
+                icon: '📂',
+                enabled: false,
+                response: '',
+                section: 'automation'
+            },
+            autoUnread: {
+                id: 'builtin_auto_unread',
+                name: 'Đánh dấu chưa đọc',
+                description: 'Đánh dấu chưa đọc sau khi Bot phản hồi',
+                icon: '🔖',
+                enabled: false,
+                section: 'automation'
+            },
+            autoDelete: {
+                id: 'builtin_auto_delete_messages',
+                name: 'Tự động xóa tin nhắn',
+                description: 'Bật tin nhắn tự xóa sau khi kết bạn',
+                icon: '🗑️',
+                enabled: false,
+                response: '86400000',
+                section: 'automation'
+            },
+            selfTrigger: {
+                id: 'builtin_self_trigger',
+                name: 'Self-Trigger',
+                description: 'Bot phản hồi khi bạn tự gõ lệnh',
+                icon: '⚡',
+                enabled: false,
+                section: 'advanced'
+            },
+            aiConversation: {
+                id: 'builtin_ai_conversation',
+                name: 'AI Conversation',
+                description: 'Trò chuyện liên tục với AI',
+                icon: '🤖',
+                enabled: false,
+                commandOn: '/ai',
+                commandOff: '/ai-off',
+                systemPrompt: 'Bạn là trợ lý AI thân thiện.',
+                timeoutMinutes: 30,
+                section: 'advanced'
+            }
+        };
+
+        let ws = null;
+        let currentUser = null;
+
+        // WebSocket connection
+        function connectWebSocket() {
+            ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
+            ws.onopen = () => {
+                console.log('✅ WebSocket connected');
+                ws.send(JSON.stringify({ type: 'get_current_user' }));
+                ws.send(JSON.stringify({ type: 'get_builtin_triggers' }));
+            };
+            ws.onclose = () => setTimeout(connectWebSocket, 3000);
+            ws.onmessage = (e) => {
+                try {
+                    handleMessage(JSON.parse(e.data));
+                } catch (err) {
+                    console.error(err);
+                }
+            };
+        }
+
+        function handleMessage(data) {
+            if (data.type === 'current_user' && data.user) {
+                currentUser = data.user;
+            }
+            if (data.type === 'builtin_triggers' && data.triggers) {
+                // Update local state from server
+                for (const [key, value] of Object.entries(data.triggers)) {
+                    if (builtInTriggers[key]) {
+                        Object.assign(builtInTriggers[key], value);
+                    }
+                }
+                renderSettings();
+            }
+            if (data.type === 'builtin_trigger_updated') {
+                showToast('✅ Đã cập nhật cài đặt!', 'success');
+                // Refresh triggers
+                ws.send(JSON.stringify({ type: 'get_builtin_triggers' }));
+            }
+        }
+
+        function renderSettings() {
+            // Auto Reply section
+            const autoReplyTriggers = Object.values(builtInTriggers).filter(t => t.section === 'autoReply');
+            document.getElementById('autoReplySettings').innerHTML = autoReplyTriggers.map(renderSettingItem).join('');
+
+            // Automation section
+            const automationTriggers = Object.values(builtInTriggers).filter(t => t.section === 'automation');
+            document.getElementById('automationSettings').innerHTML = automationTriggers.map(renderSettingItem).join('');
+
+            // Advanced section
+            const advancedTriggers = Object.values(builtInTriggers).filter(t => t.section === 'advanced');
+            document.getElementById('advancedSettings').innerHTML = advancedTriggers.map(renderSettingItem).join('');
+        }
+
+        function renderSettingItem(trigger) {
+            return `
+        <div class="setting-item ${trigger.enabled ? 'enabled' : ''}" onclick="toggleSetting('${trigger.id}')">
+          <div class="setting-icon">${trigger.icon}</div>
+          <div class="setting-info">
+            <div class="setting-name">${trigger.name}</div>
+            <div class="setting-desc">${trigger.description}</div>
+          </div>
+          <div class="setting-actions">
+            <span class="status-badge ${trigger.enabled ? 'on' : 'off'}">${trigger.enabled ? 'BẬT' : 'TẮT'}</span>
+            <button class="config-btn" onclick="event.stopPropagation(); openConfig('${trigger.id}')" title="Cài đặt">⚙️</button>
+          </div>
+        </div>
+      `;
+        }
+
+        function toggleSetting(triggerId) {
+            const trigger = Object.values(builtInTriggers).find(t => t.id === triggerId);
+            if (!trigger) return;
+
+            trigger.enabled = !trigger.enabled;
+            renderSettings();
+
+            // Save to server
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: triggerId,
+                data: trigger
+            }));
+        }
+
+        function openConfig(triggerId) {
+            switch (triggerId) {
+                case 'builtin_auto_reply_user':
+                case 'builtin_auto_reply_group':
+                    showAutoMessageSetup(triggerId);
+                    break;
+                case 'builtin_auto_friend':
+                    showAutoFriendModal();
+                    break;
+                case 'builtin_auto_unread':
+                    showAutoUnreadModal();
+                    break;
+                case 'builtin_auto_delete_messages':
+                    showAutoDeleteModal();
+                    break;
+                case 'builtin_ai_conversation':
+                    showAiConversationModal();
+                    break;
+                case 'builtin_self_trigger':
+                    showSelfTriggerModal();
+                    break;
+                case 'builtin_auto_file':
+                    showAutoFileModal();
+                    break;
+            }
+        }
+
+        // Modal handlers
+        function showAutoMessageSetup(triggerId) {
+            const trigger = triggerId === 'builtin_auto_reply_user' ?
+                builtInTriggers.autoReplyUser : builtInTriggers.autoReplyGroup;
+            const isUser = triggerId === 'builtin_auto_reply_user';
+
+            document.getElementById('autoMessageModalTitle').innerHTML =
+                `<span>${isUser ? '👤' : '👨‍👩‍👧‍👦'}</span> Cài đặt Trả lời tự động (${isUser ? 'Cá nhân' : 'Nhóm'})`;
+            document.getElementById('autoMessageDesc').innerHTML =
+                `<strong>📌 Chức năng:</strong> Tự động trả lời tin nhắn ${isUser ? '1-1' : 'từ nhóm'}.`;
+            document.getElementById('autoMessageResponse').value = trigger.response || '';
+            document.getElementById('autoMessageCooldown').value = Math.floor((trigger.cooldown || 30000) / 1000);
+            document.getElementById('autoMessageEnabled').checked = trigger.enabled;
+            document.getElementById('autoMessageModal').dataset.triggerId = triggerId;
+            document.getElementById('autoMessageModal').classList.add('show');
+        }
+
+        function hideAutoMessageModal() {
+            document.getElementById('autoMessageModal').classList.remove('show');
+        }
+
+        function saveAutoMessageSetup() {
+            const triggerId = document.getElementById('autoMessageModal').dataset.triggerId;
+            const trigger = triggerId === 'builtin_auto_reply_user' ?
+                builtInTriggers.autoReplyUser : builtInTriggers.autoReplyGroup;
+
+            trigger.response = document.getElementById('autoMessageResponse').value.trim();
+            trigger.cooldown = parseInt(document.getElementById('autoMessageCooldown').value) * 1000;
+            trigger.enabled = document.getElementById('autoMessageEnabled').checked;
+
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: triggerId,
+                data: trigger
+            }));
+
+            hideAutoMessageModal();
+            renderSettings();
+        }
+
+        function showAutoFriendModal() {
+            const trigger = builtInTriggers.autoAcceptFriend;
+            document.getElementById('autoFriendMessage').value = trigger.welcomeMessage || '';
+            document.getElementById('autoFriendEnabled').checked = trigger.enabled;
+            document.getElementById('autoFriendModal').classList.add('show');
+        }
+
+        function hideAutoFriendModal() {
+            document.getElementById('autoFriendModal').classList.remove('show');
+        }
+
+        function saveAutoFriendSetup() {
+            const trigger = builtInTriggers.autoAcceptFriend;
+            trigger.welcomeMessage = document.getElementById('autoFriendMessage').value.trim();
+            trigger.enabled = document.getElementById('autoFriendEnabled').checked;
+
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: 'builtin_auto_friend',
+                data: trigger
+            }));
+
+            hideAutoFriendModal();
+            renderSettings();
+        }
+
+        function showAutoUnreadModal() {
+            document.getElementById('autoUnreadEnabled').checked = builtInTriggers.autoUnread.enabled;
+            document.getElementById('autoUnreadModal').classList.add('show');
+        }
+
+        function hideAutoUnreadModal() {
+            document.getElementById('autoUnreadModal').classList.remove('show');
+        }
+
+        function saveAutoUnreadSetup() {
+            builtInTriggers.autoUnread.enabled = document.getElementById('autoUnreadEnabled').checked;
+
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: 'builtin_auto_unread',
+                data: builtInTriggers.autoUnread
+            }));
+
+            hideAutoUnreadModal();
+            renderSettings();
+        }
+
+        function showAutoDeleteModal() {
+            const trigger = builtInTriggers.autoDelete;
+            const radios = document.getElementsByName('autoDeleteTTL');
+            for (const r of radios) {
+                r.checked = r.value === (trigger.response || '86400000');
+            }
+            document.getElementById('autoDeleteEnabled').checked = trigger.enabled;
+            document.getElementById('autoDeleteModal').classList.add('show');
+        }
+
+        function hideAutoDeleteModal() {
+            document.getElementById('autoDeleteModal').classList.remove('show');
+        }
+
+        function saveAutoDeleteSetup() {
+            const radios = document.getElementsByName('autoDeleteTTL');
+            let ttl = '86400000';
+            for (const r of radios) {
+                if (r.checked) { ttl = r.value; break; }
+            }
+            builtInTriggers.autoDelete.response = ttl;
+            builtInTriggers.autoDelete.enabled = document.getElementById('autoDeleteEnabled').checked;
+
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: 'builtin_auto_delete_messages',
+                data: builtInTriggers.autoDelete
+            }));
+
+            hideAutoDeleteModal();
+            renderSettings();
+        }
+
+        function showAiConversationModal() {
+            const trigger = builtInTriggers.aiConversation;
+            document.getElementById('aiCommandOn').value = trigger.commandOn || '/ai';
+            document.getElementById('aiCommandOff').value = trigger.commandOff || '/ai-off';
+            document.getElementById('aiSystemPrompt').value = trigger.systemPrompt || '';
+            document.getElementById('aiTimeout').value = trigger.timeoutMinutes || 30;
+            document.getElementById('aiEnabled').checked = trigger.enabled;
+            document.getElementById('aiConversationModal').classList.add('show');
+        }
+
+        function hideAiConversationModal() {
+            document.getElementById('aiConversationModal').classList.remove('show');
+        }
+
+        function saveAiConversationSetup() {
+            const trigger = builtInTriggers.aiConversation;
+            trigger.commandOn = document.getElementById('aiCommandOn').value.trim();
+            trigger.commandOff = document.getElementById('aiCommandOff').value.trim();
+            trigger.systemPrompt = document.getElementById('aiSystemPrompt').value.trim();
+            trigger.timeoutMinutes = parseInt(document.getElementById('aiTimeout').value) || 30;
+            trigger.enabled = document.getElementById('aiEnabled').checked;
+
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: 'builtin_ai_conversation',
+                data: trigger
+            }));
+
+            hideAiConversationModal();
+            renderSettings();
+        }
+
+        function showSelfTriggerModal() {
+            document.getElementById('selfTriggerEnabled').checked = builtInTriggers.selfTrigger.enabled;
+            document.getElementById('selfTriggerModal').classList.add('show');
+        }
+
+        function hideSelfTriggerModal() {
+            document.getElementById('selfTriggerModal').classList.remove('show');
+        }
+
+        function saveSelfTriggerSetup() {
+            builtInTriggers.selfTrigger.enabled = document.getElementById('selfTriggerEnabled').checked;
+
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: 'builtin_self_trigger',
+                data: builtInTriggers.selfTrigger
+            }));
+
+            hideSelfTriggerModal();
+            renderSettings();
+        }
+
+        function showAutoFileModal() {
+            const trigger = builtInTriggers.autoFile;
+            document.getElementById('autoFileResponse').value = trigger.response || '';
+            document.getElementById('autoFileEnabled').checked = trigger.enabled;
+            document.getElementById('autoFileModal').classList.add('show');
+        }
+
+        function hideAutoFileModal() {
+            document.getElementById('autoFileModal').classList.remove('show');
+        }
+
+        function saveAutoFileSetup() {
+            builtInTriggers.autoFile.response = document.getElementById('autoFileResponse').value.trim();
+            builtInTriggers.autoFile.enabled = document.getElementById('autoFileEnabled').checked;
+
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: 'builtin_auto_file',
+                data: builtInTriggers.autoFile
+            }));
+
+            hideAutoFileModal();
+            renderSettings();
+        }
+
+        // Toast notification
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px; padding: 12px 24px;
+        background: ${type === 'success' ? '#4caf50' : '#f44336'}; color: white;
+        border-radius: 8px; z-index: 9999; animation: fadeIn 0.3s;
+      `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Initialize
+        connectWebSocket();
+        renderSettings();
+    </script>
+
+    <!-- Unified Header -->
+    <script src="/assets/unified-header.js?v=4"></script>
+</body>
+
+</html>

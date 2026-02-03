@@ -678,16 +678,6 @@
       background: #f5f7fa;
     }
 
-    /* RIGHT SIDEBAR */
-    .sidebar-right {
-      width: 300px;
-      background: #fff;
-      border-left: 1px solid #e0e0e0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
 
     /* INFO GRID */
     .info-grid {
@@ -741,16 +731,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ✅ RIGHT SIDEBAR (Default Triggers) -->
-    <div class="sidebar-right">
-      <div class="sidebar-header">
-        <h3>Trigger Mặc định</h3>
-      </div>
-      <div class="trigger-list" id="defaultTriggerList" style="flex:1; overflow-y:auto; padding:0;">
-        <!-- Built-in triggers rendered here -->
-      </div>
-    </div>
   </div>
 
   <!-- TRIGGER MODAL -->
@@ -792,7 +772,8 @@
         <div class="form-group" id="responseGroup">
           <label class="form-label">💬 Nội dung trả lời *</label>
           <div class="response-input-wrapper">
-            <textarea class="form-input" id="triggerResponse" rows="4" placeholder="Nội dung auto-reply"></textarea>
+            <textarea class="form-input var-autocomplete-enabled" id="triggerResponse" rows="4"
+              placeholder="Nội dung auto-reply (gõ { để chèn biến)"></textarea>
             <button type="button" class="emoji-btn" onclick="toggleEmojiPicker(event)">😊</button>
             <div class="emoji-picker-container" id="emojiPickerContainer">
               <div class="emoji-tabs" id="emojiTabs"></div>
@@ -1714,11 +1695,6 @@
     // ================================================
     function renderTriggerList() {
       const c = document.getElementById('triggerList');
-      const d = document.getElementById('defaultTriggerList'); // New Right Sidebar
-
-      // ===== BUILT-IN TRIGGERS (Special section) =====
-      // Render to Right Sidebar instead
-      d.innerHTML = renderBuiltInTriggers();
 
       // ===== USER TRIGGERS =====
       let html = '';
@@ -3025,6 +3001,9 @@
     </div>
   </div>
 
+  <!-- Variable Autocomplete for response textareas -->
+  <script src="/assets/websocket-helper.js"></script>
+  <script src="/chat-function/variable-autocomplete.js"></script>
   <script src="/assets/unified-header.js?v=4"></script>
 </body>
 
