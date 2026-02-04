@@ -103,13 +103,17 @@ function updateVisibleFriends(sortedFriends) {
              onerror="this.src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'" 
              alt="${f.displayName || 'User'}">
         <div class="info" style="flex:1; overflow:hidden; min-width:0;">
-          <div class="name-row" style="display:flex; align-items:center; gap:4px; flex-wrap:nowrap;">
-            <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:1; min-width:0; max-width:100px;">
-              ${escapeHtml(f.displayName || 'Người dùng Zalo')}
-            </span>
-            ${f.isStranger ? '<span style="flex-shrink:0; font-size:9px; background:#ff9800; color:white; padding:1px 5px; border-radius:8px; font-weight:500; white-space:nowrap;">👤 Người lạ</span>' : ''}
-            ${unreadBadge}
-            <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${f.userId}', '${escapeJs(f.displayName || 'User')}')" title="Xóa hội thoại">🗑️</button>
+          <div class="name-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:6px; overflow:hidden; flex:1; min-width:0;">
+              <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; display:inline-block;">
+                ${escapeHtml(f.displayName || 'Người dùng Zalo')}
+              </span>
+              ${f.isStranger ? '<span style="display:inline-block; font-size:10px; background:#ff9800; color:white; padding:2px 8px; border-radius:10px; font-weight:500; white-space:nowrap; flex-shrink:0;">👤 Người lạ</span>' : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+              ${unreadBadge}
+              <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${f.userId}', '${escapeJs(f.displayName || 'User')}')" title="Xóa hội thoại">🗑️</button>
+            </div>
           </div>
           <div class="preview-row" style="display:flex; justify-content:space-between;">
              <div class="preview" style="flex:1; ${isUnread ? 'font-weight:600; color:#0068FF;' : ''}">${preview}</div>
