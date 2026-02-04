@@ -2513,71 +2513,54 @@ async function processSelfTrigger(apiState, message, senderId) {
       return;
     }
 
-    // ✅ Check prefix if set
-    const prefix = selfTriggerSettings.prefix?.trim() || '';
-    if (prefix && !content.toLowerCase().startsWith(prefix.toLowerCase())) {
-      // Prefix is set but message doesn't start with it - skip
-      return;
-    }
+    // ✅ Parse rules from selfTriggerSettings.rules
+    // Format: "/command: response" per line
+    const rulesText = selfTriggerSettings.rules || '';
+    const rules = [];
 
-    // ✅ FALLBACK: Still try to get rules from triggers table for backward compatibility
-    const triggers = triggerDB.getTriggersByUser(userUID);
-    const selfTrigger = triggers.find(t => t.triggerKey === '__builtin_self_trigger__' || t.keyword_pattern === '/.*');
+    for (const line of rulesText.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
 
-    if (!selfTrigger) {
-      // No rules configured in triggers table
-      log('ℹ️ Self Trigger enabled but no rules found in triggers table');
-      return;
-    }
-
-    // RULE MATCHING LOGIC
-    let rules = [];
-    let legacyCommand = '';
-    let legacyResponse = '';
-
-    try {
-      const json = JSON.parse(selfTrigger.triggerContent || '{}');
-      log(`📄 Config parsed: ${JSON.stringify(json)}`);
-
-      if (json.rules && Array.isArray(json.rules)) {
-        rules = json.rules;
-      } else if (json.command) {
-        legacyCommand = json.command;
-        legacyResponse = json.response;
+      // Match format: /command: response
+      const colonIndex = trimmed.indexOf(':');
+      if (colonIndex > 0) {
+        const command = trimmed.substring(0, colonIndex).trim();
+        const response = trimmed.substring(colonIndex + 1).trim();
+        if (command && response) {
+          rules.push({ command, response });
+        }
       }
-    } catch (e) {
-      legacyCommand = selfTrigger.triggerContent;
-      log(`⚠️ Config match error, using legacy content: ${legacyCommand}`);
     }
+
+    if (rules.length === 0) {
+      log('ℹ️ Self Trigger enabled but no rules configured');
+      return;
+    }
+
+    log(`📋 Loaded ${rules.length} rules from settings`);
 
     // Sort rules by length DESC
     rules.sort((a, b) => (b.command?.length || 0) - (a.command?.length || 0));
 
     let matchedRule = null;
-    let matchedLegacy = false;
 
     const contentLower = content.toLowerCase();
 
-    // 1. Check Rules
+    // Check Rules - match if content starts with command
     for (const r of rules) {
       const cmd = (r.command || '').trim().toLowerCase();
       if (cmd && contentLower.startsWith(cmd)) {
         matchedRule = r;
-        log(`🎯 Rule Matched: ${r.command}`);
+        log(`🎯 Rule Matched: ${r.command} → Response: ${r.response}`);
         break;
       }
     }
 
-    // 2. Check Legacy
     if (!matchedRule) {
-      const cmd = (legacyCommand || '').trim().toLowerCase();
-      if (cmd && contentLower.startsWith(cmd)) {
-        matchedLegacy = true;
-        log(`🎯 Legacy Matched: ${legacyCommand}`);
-      }
+      log('ℹ️ No matching rule found for content');
+      return;
     }
-
-    if (!matchedRule && !matchedLegacy) return;
 
     const targetId = message.threadId;
     log(`📨 Trigger TargetID: ${targetId}`);
@@ -2587,71 +2570,26 @@ async function processSelfTrigger(apiState, message, senderId) {
       return;
     }
 
-    // EXECUTE
-    if (matchedRule) {
-      if (matchedRule.type === 'flow') {
-        const flowId = matchedRule.value;
-        log(`🔄 Attempting to run Flow ID: ${flowId}`);
-        if (flowId) {
-          const flow = triggerDB.getFlowById(flowId);
-          if (flow) {
-            log(`🚀 Executing Flow: ${flow.flowName}`);
-            await executeFlow(apiState, targetId, selfTrigger, message, userUID, flow);
-            log(`✅ Flow Execution initiated.`);
-          } else {
-            log(`⚠️ Flow ID ${flowId} not found in DB`);
-          }
-        } else {
-          log(`⚠️ Rule has no Flow ID value`);
-        }
-      } else {
-        const response = matchedRule.value || '✅ Command executed.';
-        await apiState.api.sendMessage(response, targetId);
-        log(`📤 Sent Text Response: ${response}`);
+    // EXECUTE - Send the matched response to the conversation
+    const response = matchedRule.response;
+    await apiState.api.sendMessage(response, targetId);
+    log(`📤 Sent Response: ${response}`);
 
-        // ✅ Broadcast to Dashboard
-        const sentMsg = {
-          msgId: `self_${Date.now()}`,
-          content: response,
-          timestamp: Date.now(),
-          senderId: userUID,
-          isSelf: true
-        };
-        if (apiState.messageStore) {
-          if (!apiState.messageStore.has(targetId)) apiState.messageStore.set(targetId, []);
-          apiState.messageStore.get(targetId).push(sentMsg);
-        }
-        if (apiState.clients && apiState.clients.forEach) {
-          const json = JSON.stringify({ type: 'new_message', uid: targetId, message: sentMsg });
-          apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(json); } catch (e) { } });
-        }
-      }
-    } else if (matchedLegacy) {
-      if (selfTrigger.setMode === 1) {
-        log(`🔄 Executing Legacy Flow Mode`);
-        await executeFlow(apiState, targetId, selfTrigger, message, userUID);
-      } else {
-        const response = legacyResponse || '✅ Command executed.';
-        await apiState.api.sendMessage(response, targetId);
-        log(`📤 Sent Legacy Text Response: ${response}`);
-
-        // ✅ Broadcast to Dashboard
-        const sentMsg = {
-          msgId: `self_${Date.now()}`,
-          content: response,
-          timestamp: Date.now(),
-          senderId: userUID,
-          isSelf: true
-        };
-        if (apiState.messageStore) {
-          if (!apiState.messageStore.has(targetId)) apiState.messageStore.set(targetId, []);
-          apiState.messageStore.get(targetId).push(sentMsg);
-        }
-        if (apiState.clients && apiState.clients.forEach) {
-          const json = JSON.stringify({ type: 'new_message', uid: targetId, message: sentMsg });
-          apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(json); } catch (e) { } });
-        }
-      }
+    // ✅ Broadcast to Dashboard
+    const sentMsg = {
+      msgId: `self_${Date.now()}`,
+      content: response,
+      timestamp: Date.now(),
+      senderId: userUID,
+      isSelf: true
+    };
+    if (apiState.messageStore) {
+      if (!apiState.messageStore.has(targetId)) apiState.messageStore.set(targetId, []);
+      apiState.messageStore.get(targetId).push(sentMsg);
+    }
+    if (apiState.clients && apiState.clients.forEach) {
+      const json = JSON.stringify({ type: 'new_message', uid: targetId, message: sentMsg });
+      apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(json); } catch (e) { } });
     }
 
   } catch (error) {
