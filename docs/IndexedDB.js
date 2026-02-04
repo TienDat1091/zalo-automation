@@ -189,15 +189,9 @@ async function exportAllDataAsJSON() {
       messagesRequest.onerror = () => reject(messagesRequest.error);
     });
 
-    // Get all friends
-    const friendsTransaction = dbInstance.transaction(['friends'], 'readonly');
-    const friendsStore = friendsTransaction.objectStore('friends');
-    const friendsRequest = friendsStore.getAll();
-
-    const friends = await new Promise((resolve, reject) => {
-      friendsRequest.onsuccess = () => resolve(friendsRequest.result);
-      friendsRequest.onerror = () => reject(friendsRequest.error);
-    });
+    // Count unique conversations
+    const uniqueUids = new Set();
+    messages.forEach(m => { if (m.uid) uniqueUids.add(m.uid); });
 
     // Create backup object
     const backup = {
@@ -207,11 +201,11 @@ async function exportAllDataAsJSON() {
       dbName: `ZaloChat_${currentUserUID}`,
       data: {
         messages: messages,
-        friends: friends
+        friends: [] // Empty as we no longer store friends separately
       },
       stats: {
         totalMessages: messages.length,
-        totalFriends: friends.length
+        totalFriends: uniqueUids.size
       }
     };
 
@@ -228,8 +222,8 @@ async function exportAllDataAsJSON() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    console.log(`✅ Exported ${backup.stats.totalMessages} messages and ${backup.stats.totalFriends} friends`);
-    alert(`✅ Backup successfully exported!\n\nMessages: ${backup.stats.totalMessages}\nFriends: ${backup.stats.totalFriends}`);
+    console.log(`✅ Exported ${backup.stats.totalMessages} messages`);
+    alert(`✅ Backup successfully exported!\n\nMessages: ${backup.stats.totalMessages}\nConversations: ${backup.stats.totalFriends}`);
 
     return backup;
   } catch (err) {
@@ -251,18 +245,17 @@ async function importDataFromJSON(file) {
       try {
         const backup = JSON.parse(e.target.result);
 
-        // Validate backup structure
-        if (!backup.version || !backup.data || !backup.data.messages || !backup.data.friends) {
+        // Validate backup structure (friends is optional now)
+        if (!backup.version || !backup.data || !backup.data.messages) {
           throw new Error('Invalid backup file format');
         }
 
         console.log('📥 Importing backup...');
         console.log(`User: ${backup.userUID}`);
         console.log(`Messages: ${backup.data.messages.length}`);
-        console.log(`Friends: ${backup.data.friends.length}`);
 
         // Confirm with user
-        const confirmMsg = `Import backup?\n\nUser: ${backup.userUID}\nMessages: ${backup.data.messages.length}\nFriends: ${backup.data.friends.length}\nDate: ${new Date(backup.timestamp).toLocaleString()}\n\n⚠️ This will REPLACE all existing data!`;
+        const confirmMsg = `Import backup?\n\nUser: ${backup.userUID}\nMessages: ${backup.data.messages.length}\nDate: ${new Date(backup.timestamp).toLocaleString()}\n\n⚠️ This will REPLACE all existing data!`;
 
         if (!confirm(confirmMsg)) {
           console.log('❌ Import cancelled by user');
@@ -286,21 +279,8 @@ async function importDataFromJSON(file) {
           messagesTransaction.onerror = () => reject(messagesTransaction.error);
         });
 
-        // Import friends
-        const friendsTransaction = dbInstance.transaction(['friends'], 'readwrite');
-        const friendsStore = friendsTransaction.objectStore('friends');
-
-        for (const friend of backup.data.friends) {
-          friendsStore.add(friend);
-        }
-
-        await new Promise((resolve, reject) => {
-          friendsTransaction.oncomplete = resolve;
-          friendsTransaction.onerror = () => reject(friendsTransaction.error);
-        });
-
         console.log('✅ Import complete!');
-        alert(`✅ Import successful!\n\nMessages: ${backup.data.messages.length}\nFriends: ${backup.data.friends.length}\n\nPlease reload the page.`);
+        alert(`✅ Import successful!\n\nMessages: ${backup.data.messages.length}\n\nPlease reload the page.`);
 
         resolve(backup);
       } catch (err) {
@@ -322,29 +302,55 @@ async function importDataFromJSON(file) {
 
 async function getDataStats() {
   if (!isDBReady()) {
-    return { messages: 0, friends: 0, dbSize: 'Unknown' };
+    return { messages: 0, friends: 0, dbSize: 'N/A' };
   }
 
   try {
-    const messagesTransaction = dbInstance.transaction(['messages'], 'readonly');
-    const messagesStore = messagesTransaction.objectStore('messages');
-    const messagesCount = await new Promise((resolve) => {
-      const request = messagesStore.count();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => resolve(0);
-    });
+    // Count messages
+    let messagesCount = 0;
+    try {
+      const messagesTransaction = dbInstance.transaction(['messages'], 'readonly');
+      const messagesStore = messagesTransaction.objectStore('messages');
+      messagesCount = await new Promise((resolve) => {
+        const request = messagesStore.count();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(0);
+      });
+    } catch (e) {
+      console.log('⚠️ Could not count messages:', e.message);
+    }
 
-    const friendsTransaction = dbInstance.transaction(['friends'], 'readonly');
-    const friendsStore = friendsTransaction.objectStore('friends');
-    const friendsCount = await new Promise((resolve) => {
-      const request = friendsStore.count();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => resolve(0);
-    });
+    // Count unique conversations (as proxy for "friends")
+    let friendsCount = 0;
+    try {
+      const tx = dbInstance.transaction(['messages'], 'readonly');
+      const store = tx.objectStore('messages');
+      const allRequest = store.getAll();
+
+      const uniqueUids = await new Promise((resolve) => {
+        allRequest.onsuccess = () => {
+          const msgs = allRequest.result || [];
+          const uids = new Set();
+          msgs.forEach(m => { if (m.uid) uids.add(m.uid); });
+          resolve(uids.size);
+        };
+        allRequest.onerror = () => resolve(0);
+      });
+      friendsCount = uniqueUids;
+    } catch (e) {
+      console.log('⚠️ Could not count friends:', e.message);
+    }
 
     // Estimate size
-    const estimate = await navigator.storage?.estimate?.();
-    const dbSize = estimate ? `${(estimate.usage / 1024 / 1024).toFixed(2)} MB` : 'Unknown';
+    let dbSize = 'N/A';
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const estimate = await navigator.storage.estimate();
+        dbSize = estimate ? `${(estimate.usage / 1024 / 1024).toFixed(2)} MB` : 'N/A';
+      }
+    } catch (e) {
+      console.log('⚠️ Could not estimate storage:', e.message);
+    }
 
     return {
       messages: messagesCount,
