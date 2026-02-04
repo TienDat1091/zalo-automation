@@ -475,10 +475,11 @@ async function processAutoReply(apiState, message) {
           batch.files.push(fInfo);
 
           if (batch.timer) clearTimeout(batch.timer);
+          const debounceMs = autoFileSettings.debounceTime || 15000; // Default 15 seconds
           batch.timer = setTimeout(() => {
             processFileBatch(apiState, senderId, userUID, fileBatchMap.get(senderId).files);
             fileBatchMap.delete(senderId);
-          }, 3000); // Wait 3s debounce
+          }, debounceMs);
 
           fileBatchMap.set(senderId, batch);
           return; // Skip immediate reply - will be handled by batch processor

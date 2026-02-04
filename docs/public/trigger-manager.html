@@ -1190,6 +1190,7 @@
         enabled: false,
         response: 'xlsx: Bạn đã gửi file Excel\npdf: Bạn đã gửi file PDF\ndefault: Đã nhận file của bạn',
         cooldown: 0,
+        debounceTime: 15000,
         triggerID: null
       },
       selfTrigger: {
@@ -2056,6 +2057,7 @@
 
       // Populate form
       document.getElementById('autoFileResponse').value = trigger.response || '';
+      document.getElementById('autoFileDebounce').value = Math.floor((trigger.debounceTime || 15000) / 1000);
       document.getElementById('autoFileEnabled').checked = trigger.enabled;
 
       document.getElementById('autoFileModal').style.display = 'flex';
@@ -2068,6 +2070,8 @@
     function saveAutoFileSetup() {
       const response = document.getElementById('autoFileResponse').value.trim();
       const enabled = document.getElementById('autoFileEnabled').checked;
+      const debounceSeconds = parseInt(document.getElementById('autoFileDebounce')?.value) || 15;
+      const debounceTime = debounceSeconds * 1000;
 
       if (!response && enabled) {
         showToast('⚠️ Bạn nên nhập nội dung trả lời để trigger hoạt động hiệu quả', 'info');
@@ -2081,6 +2085,7 @@
       // Update state
       builtInTriggers.autoFile.response = response;
       builtInTriggers.autoFile.enabled = enabled;
+      builtInTriggers.autoFile.debounceTime = debounceTime;
       builtInTriggers.autoFile.cooldown = 2000;
 
       // Save to database
@@ -2559,6 +2564,15 @@
             placeholder="xlsx: Bạn đã gửi file Excel...&#10;pdf: Bạn đã gửi file PDF...&#10;default: Đã nhận được file"></textarea>
           <div class="trigger-keywords-preview" style="margin-top:6px;">Trả lời khác nhau tùy theo đuôi file nhận
             được.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">⏱️ Thời gian chờ file cuối cùng (giây)</label>
+          <input type="number" class="form-input" id="autoFileDebounce" min="1" value="15" placeholder="15"
+            style="max-width:150px;">
+          <div style="font-size:11px; color:#888; margin-top:4px;">
+            💡 Sau khi nhận file cuối cùng, bot sẽ chờ khoảng thời gian này rồi mới phản hồi. Mặc định: 15 giây.
           </div>
         </div>
       </div>

@@ -640,6 +640,13 @@
                         placeholder="xlsx: Bạn đã gửi file Excel&#10;pdf: Bạn đã gửi file PDF&#10;default: Đã nhận file của bạn"></textarea>
                 </div>
                 <div class="form-group">
+                    <label class="form-label">⏱️ Thời gian chờ file cuối cùng (giây)</label>
+                    <input type="number" class="form-input" id="autoFileDebounce" min="1" value="15" placeholder="15">
+                    <div style="font-size:11px; color:#999; margin-top:4px;">
+                        💡 Sau khi nhận file cuối cùng, bot sẽ chờ khoảng thời gian này rồi mới phản hồi.
+                    </div>
+                </div>
+                <div class="form-group">
                     <label class="form-label">
                         <input type="checkbox" id="autoFileEnabled" style="margin-right:6px;">
                         Kích hoạt tính năng này
@@ -692,6 +699,7 @@
                 icon: '📂',
                 enabled: false,
                 response: '',
+                debounceTime: 15000,
                 section: 'automation'
             },
             autoUnread: {
@@ -1074,6 +1082,7 @@
         function showAutoFileModal() {
             const trigger = builtInTriggers.autoFile;
             document.getElementById('autoFileResponse').value = trigger.response || '';
+            document.getElementById('autoFileDebounce').value = Math.floor((trigger.debounceTime || 15000) / 1000);
             document.getElementById('autoFileEnabled').checked = trigger.enabled;
             document.getElementById('autoFileModal').classList.add('show');
         }
@@ -1084,6 +1093,7 @@
 
         function saveAutoFileSetup() {
             builtInTriggers.autoFile.response = document.getElementById('autoFileResponse').value.trim();
+            builtInTriggers.autoFile.debounceTime = parseInt(document.getElementById('autoFileDebounce').value) * 1000 || 15000;
             builtInTriggers.autoFile.enabled = document.getElementById('autoFileEnabled').checked;
 
             ws.send(JSON.stringify({
