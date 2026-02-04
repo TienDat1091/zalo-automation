@@ -138,6 +138,14 @@ async function processAutoReply(apiState, message) {
     const userUID = apiState.currentUser?.uid;
     if (!userUID) return;
 
+    // ✅ CHECK BLACKLIST (PER-USER TOGGLE)
+    const isEnabledForUser = triggerDB.getUserSetting(userUID, senderId, 'auto_reply_enabled');
+    if (isEnabledForUser === 'false') {
+      console.log(`🚫 Auto Reply disabled for ${senderId} (Blacklist)`);
+      autoReplyState.stats.skipped++;
+      return;
+    }
+
     // ========== CHECK AI CONVERSATION MODE COMMANDS & ACTIVE SESSION ==========
     if (typeof content === 'string') {
       // Get built-in trigger settings

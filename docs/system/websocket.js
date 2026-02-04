@@ -649,6 +649,31 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
+        // TOGGLE AUTO REPLY PER USER
+        // ============================================
+        if (msg.type === 'toggle_user_auto_reply') {
+          const { targetId, enabled } = msg;
+          const userUID = apiState.currentUser?.uid;
+          if (userUID && targetId) {
+            triggerDB.setUserSetting(userUID, targetId, 'auto_reply_enabled', enabled);
+            console.log(`🔄 Updated auto-reply setting for ${targetId}: ${enabled}`);
+          }
+          return;
+        }
+
+        if (msg.type === 'get_auto_reply_blacklist') {
+          const userUID = apiState.currentUser?.uid;
+          if (userUID) {
+            const blacklist = triggerDB.getAutoReplyBlacklist(userUID);
+            ws.send(JSON.stringify({
+              type: 'auto_reply_blacklist',
+              blacklist: blacklist
+            }));
+          }
+          return;
+        }
+
+        // ============================================
         // UPDATE AUTO DELETE CHAT (New Feature)
         // ============================================
         if (msg.type === 'update_auto_delete_chat') {

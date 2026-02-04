@@ -1153,6 +1153,25 @@
           }, 300);
         }
 
+        // ✅ AUTO REPLY BLACKLIST HANDLER
+        if (data.type === 'auto_reply_blacklist') {
+          console.log('🚫 Loaded Auto Reply Blacklist:', data.blacklist?.length);
+          autoReplyBlacklist.clear();
+          (data.blacklist || []).forEach(uid => autoReplyBlacklist.add(uid));
+
+          if (friendsRendered) {
+            renderFriendsVirtual();
+          }
+
+          // If a friend is selected, update the header toggle specifically
+          if (selectedFriend) {
+            const headerToggle = document.getElementById('headerAutoReplyToggle');
+            if (headerToggle) {
+              headerToggle.checked = !autoReplyBlacklist.has(selectedFriend.userId);
+            }
+          }
+        }
+
         // ✅ GROUPS LIST HANDLER
         if (data.type === 'groups_list') {
           console.log('👪 Groups:', data.groups?.length);
@@ -2315,6 +2334,11 @@
           threadId: selectedFriend.userId,
           threadType: selectedFriend.isGroup ? 1 : 0 // 0 = User, 1 = Group
         }));
+
+        // Show success after a short delay (server will process deletion)
+        setTimeout(() => {
+          showToast('✅ Đã gửi lệnh xóa tin nhắn gốc!', 'success');
+        }, 1000);
       } else {
         showToast('❌ Mất kết nối WebSocket', 'error');
       }
@@ -2635,15 +2659,8 @@
       }
     });
 
-    // Add click handler to all chat images
-    document.addEventListener('click', (e) => {
-      if (e.target.tagName === 'IMG' && e.target.closest('.message')) {
-        const imageUrl = e.target.src;
-        if (imageUrl && !imageUrl.includes('avatar')) {
-          openImageViewer(imageUrl);
-        }
-      }
-    });
+    // ✅ Global image click handler removed - now using onclick="showImageLightbox()" in load_data.js
+    // This prevents double modal from opening
   </script>
 </body>
 
