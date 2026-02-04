@@ -2,7 +2,7 @@
 const WebSocket = require('ws');
 const { handleAutoReplyMessage } = require('../autoReply.js');
 const { loadFriends, loadGroups } = require('../chat-function/friends');
-const { ThreadType } = require('zca-js');
+const { ThreadType, Reactions } = require('zca-js');
 const triggerDB = require('../triggerDB');
 const messageDB = require('../messageDB'); // SQLite message storage
 const backup = require('./backup');
@@ -668,6 +668,56 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({
               type: 'auto_reply_blacklist',
               blacklist: blacklist
+            }));
+          }
+          return;
+        }
+
+        // ============================================
+        // ADD REACTION TO MESSAGE
+        // ============================================
+        if (msg.type === 'add_reaction') {
+          if (!apiState.api || !apiState.isLoggedIn) {
+            ws.send(JSON.stringify({
+              type: 'reaction_error',
+              error: 'Chưa đăng nhập Zalo!'
+            }));
+            return;
+          }
+
+          const { icon, msgId, cliMsgId, threadId, threadType } = msg;
+
+          if (!msgId || !threadId) {
+            ws.send(JSON.stringify({
+              type: 'reaction_error',
+              error: 'Thiếu thông tin tin nhắn!'
+            }));
+            return;
+          }
+
+          try {
+            console.log(`😊 Adding reaction: ${icon} to message ${msgId} in thread ${threadId}`);
+
+            const destination = {
+              data: { msgId: msgId.toString(), cliMsgId: (cliMsgId || msgId).toString() },
+              threadId: threadId.toString(),
+              type: threadType === 1 ? ThreadType.Group : ThreadType.User
+            };
+
+            const result = await apiState.api.addReaction(icon, destination);
+            console.log('✅ Reaction added:', result);
+
+            ws.send(JSON.stringify({
+              type: 'reaction_added',
+              msgId,
+              icon,
+              result
+            }));
+          } catch (err) {
+            console.error('❌ Add reaction error:', err.message);
+            ws.send(JSON.stringify({
+              type: 'reaction_error',
+              error: err.message || 'Không thể thả cảm xúc'
             }));
           }
           return;

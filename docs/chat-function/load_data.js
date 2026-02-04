@@ -422,15 +422,22 @@ function renderMessages() {
     // Nội dung text (ẩn nếu có attachment và content chỉ là placeholder)
     const contentText = (msgType !== 'text' && attachmentHtml) ? '' : escapeHtml(msg.content || msg.msg || '');
 
+    // Reaction data for this message
+    const msgIdSafe = escapeJs(msg.msgId || msg.id || '');
+    const cliMsgIdSafe = escapeJs(msg.cliMsgId || msg.msgId || '');
+
     return `
-      <div class="message ${isSelf ? 'self' : ''} ${isAutoReply ? 'auto-reply' : ''}">
+      <div class="message ${isSelf ? 'self' : ''} ${isAutoReply ? 'auto-reply' : ''}" data-msg-id="${msgIdSafe}">
         <img class="avatar" src="${(isSelf ? document.getElementById('userAvatar').src : selectedFriend?.avatar) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'}" alt="Avatar"
           onerror="this.src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'; this.onerror=null;">
-          <div>
+          <div class="message-content-wrapper">
             <div class="bubble">
               ${contentText}
               ${attachmentHtml}
               ${isAutoReply ? '<span class="auto-reply-badge" style="display:inline-block;background:#2196f3;color:white;font-size:9px;padding:2px 6px;border-radius:10px;margin-left:5px;">🤖 Auto</span>' : ''}
+            </div>
+            <div class="message-actions">
+              <button class="reaction-trigger-btn" onclick="toggleReactionPicker(event, '${msgIdSafe}', '${cliMsgIdSafe}')" title="Thả cảm xúc">😊</button>
             </div>
             <div class="time">${time}</div>
           </div>
@@ -438,6 +445,84 @@ function renderMessages() {
   }).join('');
 
   scrollToBottom();
+}
+
+// ============================================
+// REACTION PICKER FUNCTIONS
+// ============================================
+const REACTION_ICONS = [
+  { icon: '/-heart', emoji: '❤️', name: 'Tim' },
+  { icon: '/-strong', emoji: '👍', name: 'Thích' },
+  { icon: ':>', emoji: '😆', name: 'Haha' },
+  { icon: ':o', emoji: '😮', name: 'Wow' },
+  { icon: ':-(', emoji: '😢', name: 'Buồn' },
+  { icon: ':-(', emoji: '😠', name: 'Phẫn nộ' }
+];
+
+let activeReactionPicker = null;
+
+function toggleReactionPicker(event, msgId, cliMsgId) {
+  event.stopPropagation();
+
+  // Close any existing picker
+  closeReactionPicker();
+
+  const btn = event.currentTarget;
+  const rect = btn.getBoundingClientRect();
+
+  // Create picker
+  const picker = document.createElement('div');
+  picker.className = 'reaction-picker';
+  picker.innerHTML = REACTION_ICONS.map(r =>
+    `<button class="reaction-emoji-btn" onclick="sendReaction(event, '${r.icon}', '${msgId}', '${cliMsgId}')" title="${r.name}">${r.emoji}</button>`
+  ).join('');
+
+  // Position picker
+  picker.style.position = 'fixed';
+  picker.style.left = `${rect.left}px`;
+  picker.style.top = `${rect.top - 45}px`;
+  picker.style.zIndex = '10000';
+
+  document.body.appendChild(picker);
+  activeReactionPicker = picker;
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', closeReactionPicker, { once: true });
+  }, 10);
+}
+
+function closeReactionPicker() {
+  if (activeReactionPicker) {
+    activeReactionPicker.remove();
+    activeReactionPicker = null;
+  }
+}
+
+function sendReaction(event, icon, msgId, cliMsgId) {
+  event.stopPropagation();
+  closeReactionPicker();
+
+  if (!selectedFriend) {
+    showNotification('❌ Chưa chọn cuộc trò chuyện!', 'error');
+    return;
+  }
+
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    showNotification('❌ Chưa kết nối server!', 'error');
+    return;
+  }
+
+  ws.send(JSON.stringify({
+    type: 'add_reaction',
+    icon: icon,
+    msgId: msgId,
+    cliMsgId: cliMsgId,
+    threadId: selectedFriend.odId || selectedFriend.odId || selectedFriend.id,
+    threadType: selectedFriend.isGroup ? 1 : 0
+  }));
+
+  showNotification('😊 Đang gửi cảm xúc...', 'info');
 }
 
 function formatFileSizeLD(bytes) {
@@ -1006,6 +1091,18 @@ if (typeof ws !== 'undefined' && ws) {
           console.log('📭 No historical messages found in server DB');
           document.getElementById('messagesContainer').innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Chưa có tin nhắn nào</div></div>';
         }
+      }
+
+      // Handle reaction_added response
+      if (data.type === 'reaction_added') {
+        console.log('✅ Reaction added successfully:', data.icon);
+        showNotification('✅ Đã thả cảm xúc!', 'success');
+      }
+
+      // Handle reaction_error
+      if (data.type === 'reaction_error') {
+        console.error('❌ Reaction error:', data.error);
+        showNotification('❌ ' + data.error, 'error');
       }
     } catch (err) {
       console.error('❌ Error parsing WebSocket message:', err);
