@@ -340,6 +340,32 @@
             padding: 40px;
             color: #999;
         }
+
+        /* Reaction option buttons */
+        .reaction-option {
+            font-size: 24px;
+            width: 44px;
+            height: 44px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reaction-option:hover {
+            border-color: #667eea;
+            transform: scale(1.1);
+        }
+
+        .reaction-option.selected {
+            border-color: #667eea;
+            background: #e8f0fe;
+            transform: scale(1.1);
+        }
     </style>
 </head>
 
@@ -660,6 +686,63 @@
         </div>
     </div>
 
+    <!-- AUTO REACTION MODAL -->
+    <div class="modal-backdrop" id="autoReactionModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><span>❤️</span> Cài đặt Tự động thả cảm xúc</h2>
+                <button class="modal-close" onclick="hideAutoReactionModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box blue">
+                    <strong>📌 Chức năng:</strong> Tự động thả cảm xúc vào tin nhắn đầu tiên và cuối cùng khi user gửi
+                    tin đến.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">💝 Chọn cảm xúc</label>
+                    <div id="reactionSelector" style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="reaction-option" data-icon="/-heart"
+                            onclick="selectReaction(this)">❤️</button>
+                        <button type="button" class="reaction-option" data-icon="/-strong"
+                            onclick="selectReaction(this)">👍</button>
+                        <button type="button" class="reaction-option" data-icon=":>"
+                            onclick="selectReaction(this)">😆</button>
+                        <button type="button" class="reaction-option" data-icon=":o"
+                            onclick="selectReaction(this)">😮</button>
+                        <button type="button" class="reaction-option" data-icon=":-("
+                            onclick="selectReaction(this)">😢</button>
+                    </div>
+                    <input type="hidden" id="autoReactionIcon" value="/-heart">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">⏱️ Thời gian chờ giữa các lần thả (giây)</label>
+                    <input type="number" class="form-input" id="autoReactionCooldown" min="5" value="30"
+                        placeholder="30">
+                    <div style="font-size:11px; color:#999; margin-top:4px;">
+                        💡 Tránh spam reaction, mỗi user chỉ được thả 1 lần trong khoảng thời gian này.
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">⏳ Thời gian chờ tin nhắn cuối (giây)</label>
+                    <input type="number" class="form-input" id="autoReactionDebounce" min="1" value="3" placeholder="3">
+                    <div style="font-size:11px; color:#999; margin-top:4px;">
+                        💡 Chờ user gửi xong tin nhắn cuối rồi mới thả cảm xúc.
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="autoReactionEnabled" style="margin-right:6px;">
+                        Kích hoạt tính năng này
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAutoReactionModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveAutoReactionSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Built-in triggers state
         const builtInTriggers = {
@@ -742,6 +825,17 @@
                 systemPrompt: 'Bạn là trợ lý AI thân thiện.',
                 timeoutMinutes: 30,
                 section: 'advanced'
+            },
+            autoReaction: {
+                id: 'builtin_auto_reaction',
+                name: 'Tự động thả cảm xúc',
+                description: 'Tự động thả cảm xúc khi nhận tin nhắn',
+                icon: '❤️',
+                enabled: false,
+                reactionIcon: '/-heart',
+                cooldown: 30000,
+                debounceTime: 3000,
+                section: 'automation'
             }
         };
 
@@ -873,6 +967,9 @@
                     break;
                 case 'builtin_auto_file':
                     showAutoFileModal();
+                    break;
+                case 'builtin_auto_reaction':
+                    showAutoReactionModal();
                     break;
             }
         }
@@ -1103,6 +1200,51 @@
             }));
 
             hideAutoFileModal();
+            renderSettings();
+        }
+
+        // ============================================
+        // AUTO REACTION MODAL
+        // ============================================
+        function showAutoReactionModal() {
+            const trigger = builtInTriggers.autoReaction;
+            document.getElementById('autoReactionIcon').value = trigger.reactionIcon || '/-heart';
+            document.getElementById('autoReactionCooldown').value = Math.floor((trigger.cooldown || 30000) / 1000);
+            document.getElementById('autoReactionDebounce').value = Math.floor((trigger.debounceTime || 3000) / 1000);
+            document.getElementById('autoReactionEnabled').checked = trigger.enabled;
+
+            // Highlight selected reaction
+            const buttons = document.querySelectorAll('.reaction-option');
+            buttons.forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.icon === trigger.reactionIcon);
+            });
+
+            document.getElementById('autoReactionModal').classList.add('show');
+        }
+
+        function hideAutoReactionModal() {
+            document.getElementById('autoReactionModal').classList.remove('show');
+        }
+
+        function selectReaction(btn) {
+            document.querySelectorAll('.reaction-option').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            document.getElementById('autoReactionIcon').value = btn.dataset.icon;
+        }
+
+        function saveAutoReactionSetup() {
+            builtInTriggers.autoReaction.reactionIcon = document.getElementById('autoReactionIcon').value;
+            builtInTriggers.autoReaction.cooldown = parseInt(document.getElementById('autoReactionCooldown').value) * 1000 || 30000;
+            builtInTriggers.autoReaction.debounceTime = parseInt(document.getElementById('autoReactionDebounce').value) * 1000 || 3000;
+            builtInTriggers.autoReaction.enabled = document.getElementById('autoReactionEnabled').checked;
+
+            ws.send(JSON.stringify({
+                type: 'update_builtin_trigger',
+                triggerId: 'builtin_auto_reaction',
+                data: builtInTriggers.autoReaction
+            }));
+
+            hideAutoReactionModal();
             renderSettings();
         }
 

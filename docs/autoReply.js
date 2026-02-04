@@ -6,6 +6,7 @@ const printer = require('./printer');
 const messageDB = require('./messageDB');
 
 const fileBatchMap = new Map(); // senderId -> { files: [], timer: null }
+const autoReactionBatchMap = new Map(); // senderId -> { firstMsg: {}, lastMsg: {}, timer: null, cooldownUntil: 0 }
 
 const autoReplyState = {
   enabled: false,
@@ -144,6 +145,78 @@ async function processAutoReply(apiState, message) {
       console.log(`🚫 Auto Reply disabled for ${senderId} (Blacklist)`);
       autoReplyState.stats.skipped++;
       return;
+    }
+
+    // ========== AUTO REACTION (FIRST & LAST MESSAGE) ==========
+    const autoReactionSettings = triggerDB.getBuiltInTriggerState(userUID, 'builtin_auto_reaction');
+    if (autoReactionSettings && autoReactionSettings.enabled && message.data.msgId) {
+      const now = Date.now();
+      let batch = autoReactionBatchMap.get(senderId);
+
+      // Check cooldown
+      if (batch && batch.cooldownUntil > now) {
+        console.log(`⏳ Auto Reaction cooldown for ${senderId}, skipping`);
+      } else {
+        // Initialize or update batch
+        if (!batch || batch.cooldownUntil <= now) {
+          batch = {
+            firstMsg: { msgId: message.data.msgId, cliMsgId: message.data.cliMsgId },
+            lastMsg: { msgId: message.data.msgId, cliMsgId: message.data.cliMsgId },
+            timer: null,
+            cooldownUntil: 0
+          };
+        } else {
+          // Update last message
+          batch.lastMsg = { msgId: message.data.msgId, cliMsgId: message.data.cliMsgId };
+        }
+
+        // Clear previous timer
+        if (batch.timer) clearTimeout(batch.timer);
+
+        // Set debounce timer to react after user stops sending
+        const debounceMs = autoReactionSettings.debounceTime || 3000;
+        batch.timer = setTimeout(async () => {
+          try {
+            const reactionIcon = autoReactionSettings.reactionIcon || '/-heart';
+            const { ThreadType } = require('zca-js');
+            const threadType = isGroup ? ThreadType.Group : ThreadType.User;
+
+            console.log(`❤️ Auto Reaction: Reacting to first & last message from ${senderId}`);
+
+            // React to first message
+            if (batch.firstMsg.msgId) {
+              const destFirst = {
+                data: { msgId: batch.firstMsg.msgId.toString(), cliMsgId: (batch.firstMsg.cliMsgId || batch.firstMsg.msgId).toString() },
+                threadId: senderId.toString(),
+                type: threadType
+              };
+              await apiState.api.addReaction(reactionIcon, destFirst);
+              console.log(`  ✅ Reacted to first message: ${batch.firstMsg.msgId}`);
+            }
+
+            // React to last message (if different from first)
+            if (batch.lastMsg.msgId && batch.lastMsg.msgId !== batch.firstMsg.msgId) {
+              const destLast = {
+                data: { msgId: batch.lastMsg.msgId.toString(), cliMsgId: (batch.lastMsg.cliMsgId || batch.lastMsg.msgId).toString() },
+                threadId: senderId.toString(),
+                type: threadType
+              };
+              await apiState.api.addReaction(reactionIcon, destLast);
+              console.log(`  ✅ Reacted to last message: ${batch.lastMsg.msgId}`);
+            }
+
+            // Set cooldown
+            const cooldownMs = autoReactionSettings.cooldown || 30000;
+            batch.cooldownUntil = Date.now() + cooldownMs;
+            autoReactionBatchMap.set(senderId, batch);
+
+          } catch (err) {
+            console.error(`❌ Auto Reaction error:`, err.message);
+          }
+        }, debounceMs);
+
+        autoReactionBatchMap.set(senderId, batch);
+      }
     }
 
     // ========== CHECK AI CONVERSATION MODE COMMANDS & ACTIVE SESSION ==========
