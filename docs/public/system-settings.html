@@ -573,18 +573,42 @@
             </div>
             <div class="modal-body">
                 <div class="info-box orange">
-                    <strong>📌 Chức năng:</strong> Khi bạn gõ lệnh (VD: /hi), Bot sẽ tự động gửi tin nhắn được cấu hình
-                    cho user đó.
+                    <strong>📌 Chức năng:</strong> Khi bạn gõ lệnh (VD: /hi), Bot sẽ tự động gửi tin nhắn hoặc chạy kịch
+                    bản cho user đó.
                 </div>
+
                 <div class="form-group">
-                    <label class="form-label">📝 Cấu hình rules (mỗi dòng: lệnh: tin nhắn)</label>
-                    <textarea class="form-input" id="selfTriggerRules" rows="6"
-                        placeholder="/hi: Chào buổi sáng!&#10;/bye: Tạm biệt, hẹn gặp lại!&#10;/info: Thông tin liên hệ: 0123456789"></textarea>
+                    <label class="form-label">🔑 Lệnh kích hoạt</label>
+                    <input type="text" class="form-input" id="selfTriggerCommand" placeholder="VD: /hi hoặc /info">
                     <div style="font-size:11px; color:#999; margin-top:4px;">
-                        💡 Format: <code>/lệnh: tin nhắn</code><br>
-                        VD: <code>/hi: Chào buổi sáng!</code> → Khi bạn gõ /hi sẽ tự gửi "Chào buổi sáng!"
+                        Khi bạn gõ lệnh này, Bot sẽ tự động phản hồi theo cấu hình bên dưới.
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">📋 Loại phản hồi</label>
+                    <select class="form-input" id="selfTriggerType" onchange="toggleSelfTriggerType()">
+                        <option value="text">💬 Tin nhắn văn bản</option>
+                        <option value="flow">🔄 Chạy kịch bản (Flow)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="selfTriggerTextGroup">
+                    <label class="form-label">💬 Nội dung tin nhắn</label>
+                    <textarea class="form-input" id="selfTriggerResponse" rows="3"
+                        placeholder="Chào buổi sáng! Hôm nay bạn cần gì?"></textarea>
+                </div>
+
+                <div class="form-group" id="selfTriggerFlowGroup" style="display:none;">
+                    <label class="form-label">🔄 Chọn kịch bản</label>
+                    <select class="form-input" id="selfTriggerFlowId">
+                        <option value="">-- Chọn kịch bản --</option>
+                    </select>
+                    <div style="font-size:11px; color:#999; margin-top:4px;">
+                        💡 Kịch bản được tạo trong <a href="trigger-manager.html" target="_blank">Quản lý Trigger</a>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label">
                         <input type="checkbox" id="selfTriggerEnabled" style="margin-right:6px;">
@@ -693,7 +717,10 @@
                 description: 'Bot phản hồi khi bạn tự gõ lệnh',
                 icon: '⚡',
                 enabled: false,
-                rules: '',
+                command: '',
+                type: 'text',
+                response: '',
+                flowId: '',
                 section: 'advanced'
             },
             aiConversation: {
@@ -748,6 +775,25 @@
                 showToast('✅ Đã cập nhật cài đặt!', 'success');
                 // Refresh triggers
                 ws.send(JSON.stringify({ type: 'get_builtin_triggers' }));
+            }
+            // Handle flows response for Self-Trigger
+            if (data.type === 'flows_list' || data.type === 'flows') {
+                const flows = data.flows || data.data || [];
+                const select = document.getElementById('selfTriggerFlowId');
+                if (select) {
+                    select.innerHTML = '<option value="">-- Chọn kịch bản --</option>';
+                    flows.forEach(flow => {
+                        const opt = document.createElement('option');
+                        opt.value = flow.flowId || flow.id;
+                        opt.textContent = flow.flowName || flow.name || `Flow ${flow.flowId || flow.id}`;
+                        select.appendChild(opt);
+                    });
+                    // Select the pending flow if exists
+                    if (window.pendingSelfTriggerFlowId) {
+                        select.value = window.pendingSelfTriggerFlowId;
+                        window.pendingSelfTriggerFlowId = null;
+                    }
+                }
             }
         }
 
@@ -977,8 +1023,16 @@
         }
 
         function showSelfTriggerModal() {
-            document.getElementById('selfTriggerRules').value = builtInTriggers.selfTrigger.rules || '';
-            document.getElementById('selfTriggerEnabled').checked = builtInTriggers.selfTrigger.enabled;
+            const trigger = builtInTriggers.selfTrigger;
+            document.getElementById('selfTriggerCommand').value = trigger.command || '';
+            document.getElementById('selfTriggerType').value = trigger.type || 'text';
+            document.getElementById('selfTriggerResponse').value = trigger.response || '';
+            document.getElementById('selfTriggerEnabled').checked = trigger.enabled;
+
+            // Load flows from server
+            loadFlowsForSelfTrigger(trigger.flowId);
+
+            toggleSelfTriggerType();
             document.getElementById('selfTriggerModal').classList.add('show');
         }
 
@@ -986,14 +1040,31 @@
             document.getElementById('selfTriggerModal').classList.remove('show');
         }
 
+        function toggleSelfTriggerType() {
+            const type = document.getElementById('selfTriggerType').value;
+            document.getElementById('selfTriggerTextGroup').style.display = type === 'text' ? 'block' : 'none';
+            document.getElementById('selfTriggerFlowGroup').style.display = type === 'flow' ? 'block' : 'none';
+        }
+
+        function loadFlowsForSelfTrigger(selectedFlowId) {
+            ws.send(JSON.stringify({ type: 'get_flows', filter: 'all' }));
+
+            // Handle response in message handler
+            window.pendingSelfTriggerFlowId = selectedFlowId;
+        }
+
         function saveSelfTriggerSetup() {
-            builtInTriggers.selfTrigger.rules = document.getElementById('selfTriggerRules').value;
-            builtInTriggers.selfTrigger.enabled = document.getElementById('selfTriggerEnabled').checked;
+            const trigger = builtInTriggers.selfTrigger;
+            trigger.command = document.getElementById('selfTriggerCommand').value.trim();
+            trigger.type = document.getElementById('selfTriggerType').value;
+            trigger.response = document.getElementById('selfTriggerResponse').value;
+            trigger.flowId = document.getElementById('selfTriggerFlowId').value;
+            trigger.enabled = document.getElementById('selfTriggerEnabled').checked;
 
             ws.send(JSON.stringify({
                 type: 'update_builtin_trigger',
                 triggerId: 'builtin_self_trigger',
-                data: builtInTriggers.selfTrigger
+                data: trigger
             }));
 
             hideSelfTriggerModal();

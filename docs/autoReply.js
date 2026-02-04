@@ -2509,58 +2509,24 @@ async function processSelfTrigger(apiState, message, senderId) {
     const selfTriggerSettings = triggerDB.getBuiltInTriggerState(userUID, 'builtin_self_trigger');
 
     if (!selfTriggerSettings || !selfTriggerSettings.enabled) {
-      // log('🚫 Self Trigger disabled or not found'); // Too noisy
       return;
     }
 
-    // ✅ Parse rules from selfTriggerSettings.rules
-    // Format: "/command: response" per line
-    const rulesText = selfTriggerSettings.rules || '';
-    const rules = [];
-
-    for (const line of rulesText.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-
-      // Match format: /command: response
-      const colonIndex = trimmed.indexOf(':');
-      if (colonIndex > 0) {
-        const command = trimmed.substring(0, colonIndex).trim();
-        const response = trimmed.substring(colonIndex + 1).trim();
-        if (command && response) {
-          rules.push({ command, response });
-        }
-      }
-    }
-
-    if (rules.length === 0) {
-      log('ℹ️ Self Trigger enabled but no rules configured');
-      return;
-    }
-
-    log(`📋 Loaded ${rules.length} rules from settings`);
-
-    // Sort rules by length DESC
-    rules.sort((a, b) => (b.command?.length || 0) - (a.command?.length || 0));
-
-    let matchedRule = null;
-
+    // ✅ Check if command matches
+    const command = (selfTriggerSettings.command || '').trim().toLowerCase();
     const contentLower = content.toLowerCase();
 
-    // Check Rules - match if content starts with command
-    for (const r of rules) {
-      const cmd = (r.command || '').trim().toLowerCase();
-      if (cmd && contentLower.startsWith(cmd)) {
-        matchedRule = r;
-        log(`🎯 Rule Matched: ${r.command} → Response: ${r.response}`);
-        break;
-      }
-    }
-
-    if (!matchedRule) {
-      log('ℹ️ No matching rule found for content');
+    if (!command) {
+      log('ℹ️ Self Trigger enabled but no command configured');
       return;
     }
+
+    if (!contentLower.startsWith(command)) {
+      // Command doesn't match
+      return;
+    }
+
+    log(`🎯 Self-Trigger matched: ${command}`);
 
     const targetId = message.threadId;
     log(`📨 Trigger TargetID: ${targetId}`);
@@ -2570,26 +2536,52 @@ async function processSelfTrigger(apiState, message, senderId) {
       return;
     }
 
-    // EXECUTE - Send the matched response to the conversation
-    const response = matchedRule.response;
-    await apiState.api.sendMessage(response, targetId);
-    log(`📤 Sent Response: ${response}`);
+    // ✅ EXECUTE based on type (text or flow)
+    const triggerType = selfTriggerSettings.type || 'text';
 
-    // ✅ Broadcast to Dashboard
-    const sentMsg = {
-      msgId: `self_${Date.now()}`,
-      content: response,
-      timestamp: Date.now(),
-      senderId: userUID,
-      isSelf: true
-    };
-    if (apiState.messageStore) {
-      if (!apiState.messageStore.has(targetId)) apiState.messageStore.set(targetId, []);
-      apiState.messageStore.get(targetId).push(sentMsg);
-    }
-    if (apiState.clients && apiState.clients.forEach) {
-      const json = JSON.stringify({ type: 'new_message', uid: targetId, message: sentMsg });
-      apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(json); } catch (e) { } });
+    if (triggerType === 'flow') {
+      // Execute Flow
+      const flowId = selfTriggerSettings.flowId;
+      if (flowId) {
+        const flow = triggerDB.getFlowById(flowId);
+        if (flow) {
+          log(`🔄 Executing Flow: ${flow.flowName} (ID: ${flowId})`);
+          // Create a fake trigger object for executeFlow
+          const fakeTrigger = {
+            triggerId: 'self_trigger',
+            triggerKey: '__builtin_self_trigger__',
+            setMode: 1 // Flow mode
+          };
+          await executeFlow(apiState, targetId, fakeTrigger, message, userUID, flow);
+          log(`✅ Flow Execution initiated.`);
+        } else {
+          log(`⚠️ Flow ID ${flowId} not found in DB`);
+        }
+      } else {
+        log(`⚠️ No Flow ID configured for Self-Trigger`);
+      }
+    } else {
+      // Send Text Response
+      const response = selfTriggerSettings.response || '✅ Command executed.';
+      await apiState.api.sendMessage(response, targetId);
+      log(`📤 Sent Response: ${response}`);
+
+      // ✅ Broadcast to Dashboard
+      const sentMsg = {
+        msgId: `self_${Date.now()}`,
+        content: response,
+        timestamp: Date.now(),
+        senderId: userUID,
+        isSelf: true
+      };
+      if (apiState.messageStore) {
+        if (!apiState.messageStore.has(targetId)) apiState.messageStore.set(targetId, []);
+        apiState.messageStore.get(targetId).push(sentMsg);
+      }
+      if (apiState.clients && apiState.clients.forEach) {
+        const json = JSON.stringify({ type: 'new_message', uid: targetId, message: sentMsg });
+        apiState.clients.forEach(ws => { try { if (ws.readyState === 1) ws.send(json); } catch (e) { } });
+      }
     }
 
   } catch (error) {
