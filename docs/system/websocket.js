@@ -3739,6 +3739,14 @@ function startWebSocketServer(apiState, httpServer) {
           const uid = msg.uid;
           if (uid) {
             messageDB.deleteConversation(uid);
+
+            // ✅ Broadcast deletion to ALL connected clients for multi-device sync
+            broadcast(apiState, {
+              type: 'conversation_deleted_broadcast',
+              uid: uid,
+              timestamp: Date.now()
+            });
+
             ws.send(JSON.stringify({ type: 'delete_conversation_success', uid }));
           }
         }

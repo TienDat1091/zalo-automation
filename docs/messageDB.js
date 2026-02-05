@@ -80,6 +80,22 @@ function init() {
       )
     `);
 
+        // ✅ MESSAGE REACTIONS TABLE
+        db.exec(`
+      CREATE TABLE IF NOT EXISTS message_reactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        msgId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        UNIQUE(msgId, userId)
+      )
+    `);
+
+        db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_reactions_msgId ON message_reactions(msgId);
+    `);
+
         // ============================================
         // AUTO MIGRATION (Fix for Render/Production)
         // ============================================
@@ -508,6 +524,58 @@ function getAllLastMessages() {
     }
 }
 
+// ============================================
+// REACTION MANAGEMENT
+// ============================================
+function saveReaction(msgId, userId, icon) {
+    if (!db) return false;
+    try {
+        const stmt = db.prepare(`
+      INSERT OR REPLACE INTO message_reactions (msgId, userId, icon, timestamp)
+      VALUES (?, ?, ?, ?)
+    `);
+        stmt.run(msgId, userId, icon, Date.now());
+        console.log(`✅ Saved reaction: ${icon} by ${userId} on message ${msgId}`);
+        return true;
+    } catch (e) {
+        console.error('Failed to save reaction:', e.message);
+        return false;
+    }
+}
+
+function getReactions(msgId) {
+    if (!db) return [];
+    try {
+        const stmt = db.prepare(`
+      SELECT userId, icon, timestamp 
+      FROM message_reactions 
+      WHERE msgId = ?
+      ORDER BY timestamp ASC
+    `);
+        const reactions = stmt.all(msgId);
+        return reactions;
+    } catch (e) {
+        console.error('Failed to get reactions:', e.message);
+        return [];
+    }
+}
+
+function deleteReaction(msgId, userId) {
+    if (!db) return false;
+    try {
+        const stmt = db.prepare(`
+      DELETE FROM message_reactions 
+      WHERE msgId = ? AND userId = ?
+    `);
+        const result = stmt.run(msgId, userId);
+        console.log(`🗑️ Deleted reaction by ${userId} on message ${msgId}`);
+        return result.changes > 0;
+    } catch (e) {
+        console.error('Failed to delete reaction:', e.message);
+        return false;
+    }
+}
+
 module.exports = {
     init,
     saveMessage,
@@ -524,5 +592,9 @@ module.exports = {
     getDashboardStats,
     getTopUsers,
     getFileLogs,
-    deleteConversation
+    deleteConversation,
+    // Reactions
+    saveReaction,
+    getReactions,
+    deleteReaction
 };

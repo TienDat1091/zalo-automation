@@ -224,6 +224,14 @@ function setupMessageListener(apiState) {
           message: msgObj
         });
 
+        // ✅ Broadcast conversation update to sync multi-device ordering
+        broadcast(apiState, {
+          type: 'conversation_updated',
+          uid: senderId,
+          timestamp: msgObj.timestamp,
+          lastMessage: msgObj.content.substring(0, 100)
+        });
+
         console.log(`📨 Tin nhắn ${isGroup ? 'nhóm' : ''} từ ${senderId}: ${message.data.content.substring(0, 50)}...`);
 
         // ✅ Check if sender is stranger and fetch user info immediately
@@ -474,6 +482,14 @@ function setupMessageListener(apiState) {
           type: 'new_message',
           uid: senderId,
           message: msgObj
+        });
+
+        // ✅ Broadcast conversation update to sync multi-device ordering
+        broadcast(apiState, {
+          type: 'conversation_updated',
+          uid: senderId,
+          timestamp: msgObj.timestamp,
+          lastMessage: msgObj.content || '[Media]'
         });
 
         // Broadcast sự kiện riêng cho ảnh
@@ -739,6 +755,30 @@ async function setupFriendRequestListener(apiState) {
     console.log('✅ friend_event listener registered');
   } catch (e) {
     console.log('ℹ️ friend_event listener not supported:', e.message);
+  }
+
+  // ========================================
+  //?REACTION EVENT LISTENER
+  // =========================================
+  try {
+    apiState.api.listener.on('reaction', (event) => {
+      console.log('😊 Reaction event received:', event);
+
+      // Broadcast reaction to all connected clients
+      broadcast(apiState, {
+        type: 'reaction_received',
+        msgId: event.msgId || event.globalMsgId,
+        threadId: event.threadId,
+        userId: event.userId,
+        icon: event.icon,
+        timestamp: Date.now()
+      });
+
+      console.log(`✅ Broadcasted reaction: ${event.icon} on message ${event.msgId}`);
+    });
+    console.log('✅ reaction event listener registered');
+  } catch (e) {
+    console.log('ℹ️ reaction listener not supported:', e.message);
   }
 
   // Check for friend requests periodically (polling fallback / main method)

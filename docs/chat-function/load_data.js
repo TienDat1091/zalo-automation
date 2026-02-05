@@ -435,10 +435,11 @@ function renderMessages() {
               ${contentText}
               ${attachmentHtml}
               ${isAutoReply ? '<span class="auto-reply-badge" style="display:inline-block;background:#2196f3;color:white;font-size:9px;padding:2px 6px;border-radius:10px;margin-left:5px;">🤖 Auto</span>' : ''}
-            </div>
+          </div>
             <div class="message-actions">
               <button class="reaction-trigger-btn" onclick="toggleReactionPicker(event, '${msgIdSafe}', '${cliMsgIdSafe}')" title="Thả cảm xúc">😊</button>
             </div>
+            <div class="reactions-display" id="reactions-${msgIdSafe}" style="margin-top:4px;font-size:12px;"></div>
             <div class="time">${time}</div>
           </div>
         </div>`;
@@ -1093,6 +1094,64 @@ if (typeof ws !== 'undefined' && ws) {
         }
       }
 
+
+      // ✅ Handle conversation_updated - sync conversation ordering across devices
+      if (data.type === 'conversation_updated') {
+        console.log(`🔄 Multi-device sync: Conversation ${data.uid} updated`);
+
+        // Move conversation to top in friends list
+        if (typeof filteredFriends !== 'undefined' && Array.isArray(filteredFriends)) {
+          const friendIndex = filteredFriends.findIndex(f => f.userId === data.uid);
+          if (friendIndex > -1) {
+            const friend = filteredFriends.splice(friendIndex, 1)[0];
+            filteredFriends.unshift(friend);
+
+            // Re-render friends list to show new order
+            if (typeof renderFriendsVirtual === 'function') {
+              renderFriendsVirtual();
+              console.log(`✅ Moved conversation ${data.uid} to top`);
+            }
+          }
+        }
+
+        // Update message preview if available
+        if (data.lastMessage && typeof messageStore !== 'undefined' && messageStore.has(data.uid)) {
+          const msgData = messageStore.get(data.uid);
+          msgData.lastMessage = data.lastMessage;
+          msgData.timestamp = data.timestamp;
+        }
+      }
+
+      // ✅ Handle conversation_deleted_broadcast - sync deletion across devices
+      if (data.type === 'conversation_deleted_broadcast') {
+        console.log(`🗑️ Multi-device sync: Conversation ${data.uid} deleted`);
+
+        // Remove from friends list
+        if (typeof filteredFriends !== 'undefined' && Array.isArray(filteredFriends)) {
+          const friendIndex = filteredFriends.findIndex(f => f.userId === data.uid);
+          if (friendIndex > -1) {
+            filteredFriends.splice(friendIndex, 1);
+
+            // Re-render to update UI
+            if (typeof renderFriendsVirtual === 'function') {
+              renderFriendsVirtual();
+              console.log(`✅ Removed conversation ${data.uid} from UI`);
+            }
+          }
+        }
+
+        // Clear from message store
+        if (typeof messageStore !== 'undefined' && messageStore.has(data.uid)) {
+          messageStore.delete(data.uid);
+        }
+
+        // If currently viewing this conversation, clear chat
+        if (selectedFriend && selectedFriend.userId === data.uid) {
+          document.getElementById('messagesContainer').innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Hội thoại đã bị xóa</div></div>';
+          selectedFriend = null;
+        }
+      }
+
       // Handle reaction_added response
       if (data.type === 'reaction_added') {
         console.log('✅ Reaction added successfully:', data.icon);
@@ -1103,6 +1162,29 @@ if (typeof ws !== 'undefined' && ws) {
       if (data.type === 'reaction_error') {
         console.error('❌ Reaction error:', data.error);
         showNotification('❌ ' + data.error, 'error');
+      }
+
+      // ✅ Handle reaction_received - Update UI with new reactions
+      if (data.type === 'reaction_received') {
+        console.log(`😊 Reaction received: ${data.icon} on message ${data.msgId}`);
+
+        // Find the reactions display container for this message
+        const reactionsEl = document.getElementById(`reactions-${data.msgId}`);
+        if (reactionsEl) {
+          // TODO: Fetch all reactions from server or maintain local state
+          // For now, just add the new reaction
+          const existingHTML = reactionsEl.innerHTML;
+          const reactionHTML = `<span class="reaction-item" title="${data.userId}" style="margin-right:4px;padding:2px 6px;background:#f0f0f0;border-radius:10px;display:inline-block;">${data.icon}</span>`;
+
+          // Simple append (ideally we'd group by icon and count)
+          reactionsEl.innerHTML = existingHTML + reactionHTML;
+
+          console.log(`✅ Updated reactions display for message ${data.msgId}`);
+        } else {
+          console.warn(`⚠️ Reactions container not found for message ${data.msgId}`);
+        }
+
+        showNotification(`😊 ${data.icon}`, 'success');
       }
     } catch (err) {
       console.error('❌ Error parsing WebSocket message:', err);
