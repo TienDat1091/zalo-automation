@@ -60,18 +60,21 @@ window.VarAutocomplete = (function () {
 
     function getDefaultVariables() {
         return {
-            'zalo_name': { description: 'Tên Zalo của người gửi', category: 'sender', example: 'Nguyễn Văn A' },
-            'zalo_id': { description: 'ID Zalo của người gửi', category: 'sender', example: '716585949090695726' },
-            'zalo_phone': { description: 'Số điện thoại người gửi', category: 'sender', example: '0901234567' },
-            'my_name': { description: 'Tên Zalo của bạn', category: 'me', example: 'Tien Dat' },
-            'my_id': { description: 'ID Zalo của bạn', category: 'me', example: '716585949090695726' },
-            'time': { description: 'Giờ hiện tại', category: 'datetime', example: '14:30:00' },
-            'date': { description: 'Ngày hiện tại', category: 'datetime', example: '18/01/2026' },
-            'datetime': { description: 'Ngày giờ đầy đủ', category: 'datetime', example: '18/01/2026, 14:30:00' },
-            'weekday': { description: 'Thứ trong tuần', category: 'datetime', example: 'Thứ Bảy' },
-            'message': { description: 'Nội dung tin nhắn gốc', category: 'message', example: 'Xin chào!' },
-            'trigger_name': { description: 'Tên trigger đã kích hoạt', category: 'system', example: 'Chào hỏi' },
-            'flow_name': { description: 'Tên Flow đang chạy', category: 'system', example: 'Flow Chào Mừng' }
+            // Static variables (brown) - giá trị không đổi sau khi tạo
+            'zalo_name': { description: 'Tên Zalo của người gửi', category: 'sender', example: 'Nguyễn Văn A', type: 'static' },
+            'zalo_id': { description: 'ID Zalo của người gửi', category: 'sender', example: '716585949090695726', type: 'static' },
+            'zalo_phone': { description: 'Số điện thoại người gửi', category: 'sender', example: '0901234567', type: 'static' },
+            'my_name': { description: 'Tên Zalo của bạn', category: 'me', example: 'Tien Dat', type: 'static' },
+            'my_id': { description: 'ID Zalo của bạn', category: 'me', example: '716585949090695726', type: 'static' },
+            'message': { description: 'Nội dung tin nhắn gốc', category: 'message', example: 'Xin chào!', type: 'static' },
+            'trigger_name': { description: 'Tên trigger đã kích hoạt', category: 'system', example: 'Chào hỏi', type: 'static' },
+            'flow_name': { description: 'Tên Flow đang chạy', category: 'system', example: 'Flow Chào Mừng', type: 'static' },
+
+            // Dynamic variables (blue) - giá trị thay đổi theo thời gian thực
+            'time': { description: 'Giờ hiện tại', category: 'datetime', example: '14:30:00', type: 'dynamic' },
+            'date': { description: 'Ngày hiện tại', category: 'datetime', example: '18/01/2026', type: 'dynamic' },
+            'datetime': { description: 'Ngày giờ đầy đủ', category: 'datetime', example: '18/01/2026, 14:30:00', type: 'dynamic' },
+            'weekday': { description: 'Thứ trong tuần', category: 'datetime', example: 'Thứ Bảy', type: 'dynamic' }
         };
     }
 
@@ -127,8 +130,37 @@ window.VarAutocomplete = (function () {
         }
         .var-autocomplete-item .var-name {
           font-weight: 600;
-          color: #0066cc;
           font-size: 13px;
+        }
+        /* Static variables - brown */
+        .var-autocomplete-item.var-type-static .var-name {
+          color: #8B4513;
+        }
+        .var-autocomplete-item.var-type-static {
+          border-left: 3px solid #8B4513;
+        }
+        /* Dynamic variables - blue */
+        .var-autocomplete-item.var-type-dynamic .var-name {
+          color: #0066cc;
+        }
+        .var-autocomplete-item.var-type-dynamic {
+          border-left: 3px solid #0066cc;
+        }
+        .var-type-badge {
+          display: inline-block;
+          font-size: 9px;
+          padding: 1px 5px;
+          border-radius: 3px;
+          margin-left: 6px;
+          font-weight: 500;
+        }
+        .var-type-badge.static {
+          background: #f5e6d3;
+          color: #8B4513;
+        }
+        .var-type-badge.dynamic {
+          background: #e3f2fd;
+          color: #0066cc;
         }
         .var-autocomplete-item .var-desc {
           font-size: 11px;
@@ -201,9 +233,13 @@ window.VarAutocomplete = (function () {
             for (const [cat, items] of Object.entries(groups)) {
                 html += `<div class="var-autocomplete-category">${categoryLabels[cat] || cat}</div>`;
                 for (const [key, val] of items) {
+                    const varType = val.type || 'static';
+                    const typeBadge = varType === 'dynamic'
+                        ? '<span class="var-type-badge dynamic">động</span>'
+                        : '<span class="var-type-badge static">tĩnh</span>';
                     html += `
-            <div class="var-autocomplete-item ${itemIndex === selectedIndex ? 'selected' : ''}" data-key="${key}" data-index="${itemIndex}">
-              <span class="var-name">{${key}}</span>
+            <div class="var-autocomplete-item var-type-${varType} ${itemIndex === selectedIndex ? 'selected' : ''}" data-key="${key}" data-index="${itemIndex}">
+              <span class="var-name">{${key}}${typeBadge}</span>
               <span class="var-desc">${val.description}</span>
               ${val.example ? `<span class="var-example">VD: ${val.example}</span>` : ''}
             </div>

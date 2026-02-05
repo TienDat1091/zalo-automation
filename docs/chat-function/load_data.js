@@ -518,7 +518,7 @@ function sendReaction(event, icon, msgId, cliMsgId) {
     icon: icon,
     msgId: msgId,
     cliMsgId: cliMsgId,
-    threadId: selectedFriend.odId || selectedFriend.odId || selectedFriend.id,
+    threadId: selectedFriend.userId || selectedFriend.id,
     threadType: selectedFriend.isGroup ? 1 : 0
   }));
 

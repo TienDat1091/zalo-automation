@@ -158,6 +158,23 @@ module.exports = {
           scope: AutoReplyScope.Everyone
         });
       }
+
+      // ✅ Check Auto Reaction Trigger
+      const checkAutoReaction = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_reaction__' AND triggerUserID = 'system'").get();
+      if (!checkAutoReaction) {
+        console.log('✨ Creating built-in trigger: Auto Reaction (System)');
+        this.createTrigger({
+          triggerName: 'Tự động thả cảm xúc',
+          triggerKey: '__builtin_auto_reaction__',
+          triggerUserID: 'system',
+          triggerContent: '/-heart',
+          enabled: false,
+          scope: AutoReplyScope.Everyone,
+          cooldown: 30000,
+          // debounceTime (3000) will be stored in extra meta if needed, but here we only have standard fields.
+          // We can use triggerContent for the icon.
+        });
+      }
     } catch (e) {
       console.error('❌ Init built-in triggers error:', e.message);
     }
@@ -297,6 +314,35 @@ module.exports = {
             triggerContent: 'Đánh dấu hội thoại là chưa đọc sau khi Bot phản hồi.',
             enabled: false,
             scope: AutoReplyScope.Everyone
+          });
+        }
+      }
+
+      // 6. Auto Reaction
+      let reactionTrigger = db.prepare("SELECT id FROM triggers WHERE triggerKey = '__builtin_auto_reaction__' AND triggerUserID = ?").get(userUID);
+      if (!reactionTrigger) {
+        console.log(`✨ Creating user trigger for ${userUID}: Auto Reaction`);
+        const systemTrigger = db.prepare("SELECT * FROM triggers WHERE triggerKey = '__builtin_auto_reaction__' AND triggerUserID = 'system'").get();
+
+        if (systemTrigger) {
+          this.createTrigger({
+            triggerName: systemTrigger.triggerName,
+            triggerKey: systemTrigger.triggerKey,
+            triggerUserID: userUID,
+            triggerContent: systemTrigger.triggerContent,
+            enabled: false,
+            scope: systemTrigger.scope,
+            cooldown: systemTrigger.cooldown
+          });
+        } else {
+          this.createTrigger({
+            triggerName: 'Tự động thả cảm xúc',
+            triggerKey: '__builtin_auto_reaction__',
+            triggerUserID: userUID,
+            triggerContent: '/-heart',
+            enabled: false,
+            scope: AutoReplyScope.Everyone,
+            cooldown: 30000
           });
         }
       }
@@ -513,6 +559,74 @@ module.exports = {
     } catch (error) {
       console.error('❌ Delete trigger error:', error.message);
       return false;
+    }
+  },
+
+  getBuiltInTriggerState(userUID, triggerKey) {
+    try {
+      // Map frontend ID to triggerKey if needed
+      if (!triggerKey.startsWith('__builtin_')) {
+        // e.g. builtin_auto_reaction -> __builtin_auto_reaction__
+        triggerKey = `__${triggerKey}__`;
+      }
+
+      const trigger = db.prepare('SELECT * FROM triggers WHERE triggerKey = ? AND triggerUserID = ?').get(triggerKey, userUID);
+      if (trigger) {
+        const formatted = this._formatTrigger(trigger);
+        // Map fields that are stored differently in DB vs frontend expectation
+        // e.g. response <- triggerContent
+        // For autoReaction: reactionIcon is in triggerContent
+
+        if (triggerKey === '__builtin_auto_reaction__') {
+          formatted.reactionIcon = formatted.triggerContent;
+          // Debounce time not currently stored in standard columns, using default or meta if implemented
+          // For now, let's assume standard cooldown is used
+          formatted.debounceTime = 3000; // Default or need new column
+        } else if (triggerKey === '__builtin_auto_file__') {
+          formatted.response = formatted.triggerContent;
+          formatted.debounceTime = 15000; // Default
+        } else {
+          formatted.response = formatted.triggerContent;
+        }
+
+        return formatted;
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Get built-in trigger state error:', error.message);
+      return null;
+    }
+  },
+
+  saveBuiltInTriggerState(userUID, triggerId, data) {
+    try {
+      // Map triggerId to key
+      let triggerKey = triggerId;
+      if (!triggerKey.startsWith('__builtin_')) {
+        triggerKey = `__${triggerKey}__`;
+      }
+
+      const existing = db.prepare('SELECT id FROM triggers WHERE triggerKey = ? AND triggerUserID = ?').get(triggerKey, userUID);
+
+      if (existing) {
+        // Update
+        const updates = {
+          enabled: data.enabled ? 1 : 0,
+          triggerContent: data.response || data.reactionIcon || '',
+          cooldown: data.cooldown
+        };
+
+        // Special handling
+        if (triggerKey === '__builtin_auto_reaction__') {
+          updates.triggerContent = data.reactionIcon;
+        }
+
+        return this.updateTrigger(existing.id, updates);
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Save built-in trigger state error:', error.message);
+      return null;
     }
   },
 

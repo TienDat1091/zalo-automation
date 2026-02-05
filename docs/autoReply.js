@@ -4,6 +4,64 @@ const triggerDB = require('./triggerDB');
 const fileReader = require('./fileReader');
 const printer = require('./printer');
 const messageDB = require('./messageDB');
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const http = require('http');
+
+// ========================================
+// FILE DOWNLOAD UTILITY
+// ========================================
+async function downloadFile(url, filename, senderId) {
+  try {
+    const uploadDir = path.join(__dirname, 'uploads', senderId);
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    // Generate safe filename
+    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filepath = path.join(uploadDir, safeFilename);
+
+    return new Promise((resolve, reject) => {
+      const protocol = url.startsWith('https') ? https : http;
+
+      protocol.get(url, (response) => {
+        // Handle redirects
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          return downloadFile(response.headers.location, filename, senderId)
+            .then(resolve)
+            .catch(reject);
+        }
+
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to download: HTTP ${response.statusCode}`));
+          return;
+        }
+
+        const fileStream = fs.createWriteStream(filepath);
+        response.pipe(fileStream);
+
+        fileStream.on('finish', () => {
+          fileStream.close();
+          console.log(`✅ Downloaded file: ${safeFilename} for ${senderId}`);
+          resolve(filepath);
+        });
+
+        fileStream.on('error', (err) => {
+          fs.unlink(filepath, () => { }); // Delete incomplete file
+          reject(err);
+        });
+      }).on('error', (err) => {
+        console.error(`❌ Download error: ${err.message}`);
+        reject(err);
+      });
+    });
+  } catch (error) {
+    console.error('downloadFile error:', error);
+    throw error;
+  }
+}
 
 const fileBatchMap = new Map(); // senderId -> { files: [], timer: null }
 const autoReactionBatchMap = new Map(); // senderId -> { firstMsg: {}, lastMsg: {}, timer: null, cooldownUntil: 0 }

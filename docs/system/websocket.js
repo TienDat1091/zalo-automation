@@ -724,6 +724,131 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ============================================
+        // GET BUILT-IN TRIGGERS
+        // ============================================
+        if (msg.type === 'get_builtin_triggers') {
+          const userUID = apiState.currentUser?.uid;
+          console.log(`🔍 get_builtin_triggers request from user: ${userUID}`);
+          if (userUID) {
+            const triggers = {};
+            const builtInIDs = [
+              'builtin_auto_reply_user',
+              'builtin_auto_reply_group',
+              'builtin_auto_friend',
+              'builtin_auto_unread',
+              'builtin_auto_delete_messages',
+              'builtin_self_trigger',
+              'builtin_ai_conversation',
+              'builtin_auto_file',
+              'builtin_auto_reaction'
+            ];
+
+            builtInIDs.forEach(id => {
+              const state = triggerDB.getBuiltInTriggerState(userUID, id);
+
+              // Map ID to frontend key
+              let key = '';
+              if (id === 'builtin_auto_reply_user') key = 'autoReplyUser';
+              else if (id === 'builtin_auto_reply_group') key = 'autoReplyGroup';
+              else if (id === 'builtin_auto_friend') key = 'autoAcceptFriend';
+              else if (id === 'builtin_auto_unread') key = 'autoUnread';
+              else if (id === 'builtin_auto_delete_messages') key = 'autoDelete';
+              else if (id === 'builtin_self_trigger') key = 'selfTrigger';
+              else if (id === 'builtin_ai_conversation') key = 'aiConversation';
+              else if (id === 'builtin_auto_file') key = 'autoFile';
+              else if (id === 'builtin_auto_reaction') key = 'autoReaction';
+
+              if (state) {
+                console.log(`  ✅ ${id} -> ${key}:`, state.enabled ? 'ENABLED' : 'disabled');
+                triggers[key] = state;
+              } else {
+                console.log(`  ❌ ${id} -> ${key}: NOT FOUND in database for user ${userUID}`);
+              }
+            });
+
+            ws.send(JSON.stringify({
+              type: 'builtin_triggers',
+              triggers
+            }));
+          }
+          return;
+        }
+
+        // ============================================
+        // UPDATE BUILT-IN TRIGGER
+        // ============================================
+        if (msg.type === 'update_builtin_trigger') {
+          const userUID = apiState.currentUser?.uid;
+          if (userUID && msg.triggerId && msg.data) {
+            const updated = triggerDB.saveBuiltInTriggerState(userUID, msg.triggerId, msg.data);
+
+            if (updated) {
+              ws.send(JSON.stringify({
+                type: 'builtin_trigger_updated',
+                triggerId: msg.triggerId
+              }));
+
+              // Broadcast update to other tabs
+              broadcast(apiState, {
+                type: 'builtin_triggers',
+                triggers: { [getFrontendKey(msg.triggerId)]: updated }
+              });
+            }
+          }
+          return;
+        }
+
+        // Helper for frontend key mapping
+        function getFrontendKey(id) {
+          if (id === 'builtin_auto_reply_user') return 'autoReplyUser';
+          if (id === 'builtin_auto_reply_group') return 'autoReplyGroup';
+          if (id === 'builtin_auto_friend') return 'autoAcceptFriend';
+          if (id === 'builtin_auto_unread') return 'autoUnread';
+          if (id === 'builtin_auto_delete_messages') return 'autoDelete';
+          if (id === 'builtin_self_trigger') return 'selfTrigger';
+          if (id === 'builtin_ai_conversation') return 'aiConversation';
+          if (id === 'builtin_auto_file') return 'autoFile';
+          if (id === 'builtin_auto_reaction') return 'autoReaction';
+          return id;
+        }
+
+        // ============================================
+        // GET FILE LIST
+        // ============================================
+        if (msg.type === 'get_file_list') {
+          const userUID = msg.userUID || apiState.currentUser?.uid;
+
+          if (!userUID) {
+            ws.send(JSON.stringify({
+              type: 'file_list',
+              files: [],
+              error: 'No user UID'
+            }));
+            return;
+          }
+
+          try {
+            // Query messageDB for received files
+            const files = messageDB.getReceivedFiles(userUID, 100); // Get last 100 files
+
+            ws.send(JSON.stringify({
+              type: 'file_list',
+              files: files
+            }));
+
+            console.log(`📂 Sent ${files.length} files to client for user ${userUID}`);
+          } catch (error) {
+            console.error('Error fetching file list:', error);
+            ws.send(JSON.stringify({
+              type: 'file_list',
+              files: [],
+              error: error.message
+            }));
+          }
+          return;
+        }
+
+        // ============================================
         // UPDATE AUTO DELETE CHAT (New Feature)
         // ============================================
         if (msg.type === 'update_auto_delete_chat') {

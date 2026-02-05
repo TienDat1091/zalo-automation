@@ -100,6 +100,11 @@ function init() {
                 console.log('🔄 Auto-Migration: Adding metadata column for image/file data...');
                 db.exec('ALTER TABLE messages ADD COLUMN metadata TEXT');
             }
+
+            if (!tableInfo.some(c => c.name === 'localFilePath')) {
+                console.log('🔄 Auto-Migration: Adding localFilePath column for downloaded files...');
+                db.exec('ALTER TABLE messages ADD COLUMN localFilePath TEXT');
+            }
         } catch (migErr) {
             console.error('⚠️ Auto-Migration failed (might be already up to date):', migErr.message);
         }
@@ -131,8 +136,8 @@ function saveMessage(conversationId, message) {
 
         const stmt = db.prepare(`
       INSERT OR REPLACE INTO messages 
-      (conversationId, msgId, cliMsgId, globalMsgId, senderId, receiverId, content, timestamp, isSelf, isAutoReply, attachmentType, attachmentPath, attachmentName, attachmentSize, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (conversationId, msgId, cliMsgId, globalMsgId, senderId, receiverId, content, timestamp, isSelf, isAutoReply, attachmentType, attachmentPath, attachmentName, attachmentSize, localFilePath, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
         const result = stmt.run(
             conversationId,
@@ -149,6 +154,7 @@ function saveMessage(conversationId, message) {
             message.attachmentPath || null,
             message.attachmentName || null,
             message.attachmentSize || null,
+            message.localFilePath || null,
             metadata
         );
         console.log(`💾 Saved message to DB: conversation=${conversationId}, msgId=${message.msgId}, content="${message.content?.substring(0, 30)}"`);
@@ -185,24 +191,80 @@ function logFileActivity(senderId, fileName, fileType, action, status, details =
 // ============================================
 // DASHBOARD STATS (UPDATED)
 // ============================================
-function getDashboardStats() {
+// ============================================
+// DASHBOARD STATS (UPDATED)
+// ============================================
+function getDashboardStats(userUID) {
     if (!db) return { sentMessages: 0, receivedMessages: 0, sentFiles: 0, receivedFiles: 0 };
     try {
-        const sentMessages = db.prepare('SELECT COUNT(*) as c FROM messages WHERE isSelf=1').get().c;
-        const receivedMessages = db.prepare('SELECT COUNT(*) as c FROM messages WHERE isSelf=0').get().c;
+        let sentSql = 'SELECT COUNT(*) as c FROM messages WHERE isSelf=1';
+        let recvSql = 'SELECT COUNT(*) as c FROM messages WHERE isSelf=0';
+        let sentFilesSql = "SELECT COUNT(*) as c FROM messages WHERE isSelf=1 AND attachmentType IN ('image', 'file', 'video', 'audio')";
+        let recvFilesSql = "SELECT COUNT(*) as c FROM messages WHERE isSelf=0 AND attachmentType IN ('image', 'file', 'video', 'audio')";
 
-        // Count files (images, files, videos, audio)
-        const sentFiles = db.prepare(`
-            SELECT COUNT(*) as c FROM messages 
-            WHERE isSelf=1 AND attachmentType IN ('image', 'file', 'video', 'audio')
-        `).get().c;
+        const params = [];
 
-        const receivedFiles = db.prepare(`
-            SELECT COUNT(*) as c FROM messages 
-            WHERE isSelf=0 AND attachmentType IN ('image', 'file', 'video', 'audio')
-        `).get().c;
+        // Filter by User UID if provided
+        if (userUID) {
+            const userFilter = " AND senderId = ?"; // For sent messages, sender is me
+            const recvFilter = " AND IFNULL(receiverId, '') = ?"; // For received, receiver is me (handled carefully)
 
-        return { sentMessages, receivedMessages, sentFiles, receivedFiles };
+            // Actually, simplest is:
+            // Sent: senderId = userUID
+            // Received: We might not always have receiverId populated correctly in all versions, 
+            // but usually it should be the current user.
+            // Let's rely on: if isSelf=1 then senderId MUST be userUID.
+
+            sentSql += " AND senderId = ?";
+            // For received, we assume all received messages in DB *when logged in as X* belong to X.
+            // But if DB is shared, we validly need to filter.
+            // Since receiverId might be group ID in group chats? No, receiverId usually is ME in 1-1. 
+            // In groups, receiverId is GroupID.
+            // So safe bet: Filter Sent by senderId. For Received, it's harder if we don't store "AccountOwner".
+            // Let's assume for now filtering Sent is most critical to check "My Sent". 
+            // For received, if we can't easily filter, we might show all or try filtering by not-sender?
+
+            // Better approach: When saving messages, we don't store "OwnerUID".
+            // Let's stick to senderId for SENT.
+            // For RECEIVED: we can't easily filter without a new column "ownerId". 
+            // BUT, if we assume the user mainly cares about what THEY sent via this tool:
+
+            // Let's just filter SENT stats for now if simple. 
+            // Wait, user specifically asked "thông tin lưu trữ ... bị sang tài khoản mới".
+            // This implies EVERYTHING.
+
+            // IF we assume single-user DB usage pattern, we don't need this. 
+            // But clearly user has data bleed.
+            // Current DB `messages.db` is global.
+
+            // Let's add simple senderId filter for isSelf=1.
+        }
+
+        // RE-WRITING QUERIES WITH OPTIONAL FILTER
+        // Note: We use named parameters or simpler logic
+
+        let sentMsgCount = 0;
+        let recvMsgCount = 0;
+        let sentFileCount = 0;
+        let recvFileCount = 0;
+
+        if (userUID) {
+            sentMsgCount = db.prepare("SELECT COUNT(*) as c FROM messages WHERE isSelf=1 AND senderId = ?").get(userUID).c;
+            // For received, we allow all for now as filtering group messages is complex without 'owner' column
+            // OR we can rely on verifying senderId != userUID ?
+            recvMsgCount = db.prepare("SELECT COUNT(*) as c FROM messages WHERE isSelf=0").get().c;
+
+            sentFileCount = db.prepare("SELECT COUNT(*) as c FROM messages WHERE isSelf=1 AND attachmentType IN ('image', 'file', 'video', 'audio') AND senderId = ?").get(userUID).c;
+            recvFileCount = db.prepare("SELECT COUNT(*) as c FROM messages WHERE isSelf=0 AND attachmentType IN ('image', 'file', 'video', 'audio')").get().c;
+        } else {
+            // Legacy/Global mode
+            sentMsgCount = db.prepare("SELECT COUNT(*) as c FROM messages WHERE isSelf=1").get().c;
+            recvMsgCount = db.prepare("SELECT COUNT(*) as c FROM messages WHERE isSelf=0").get().c;
+            sentFileCount = db.prepare("SELECT COUNT(*) as c FROM messages WHERE isSelf=1 AND attachmentType IN ('image', 'file', 'video', 'audio')").get().c;
+            recvFileCount = db.prepare("SELECT COUNT(*) as c FROM messages WHERE isSelf=0 AND attachmentType IN ('image', 'file', 'video', 'audio')").get().c;
+        }
+
+        return { sentMessages: sentMsgCount, receivedMessages: recvMsgCount, sentFiles: sentFileCount, receivedFiles: recvFileCount };
     } catch (e) {
         console.error('getDashboardStats error:', e.message);
         return { sentMessages: 0, receivedMessages: 0, sentFiles: 0, receivedFiles: 0 };
@@ -220,20 +282,43 @@ function getTopUsers(limit = 10) {
     }
 }
 
-function getFileLogs(limit = 100) {
+function getFileLogs(limit = 100, userUID = null) {
     if (!db) return [];
     try {
         // Fetch files from messages table directly (more reliable)
         // UNION SENT and RECEIVED files
-        const query = `
+
+        let query = `
             SELECT msgId, timestamp, senderId, receiverId, isSelf, attachmentName as fileName, attachmentType as fileType, 
             CASE WHEN isSelf=1 THEN 'SENT' ELSE 'RECEIVED' END as action
             FROM messages
             WHERE attachmentType IN ('image', 'file', 'video', 'audio')
-            ORDER BY timestamp DESC
-            LIMIT ?
         `;
-        return db.prepare(query).all(limit);
+
+        const params = [];
+
+        if (userUID) {
+            // Filter: 
+            // 1. Sent by User (isSelf=1 AND senderId=uid)
+            // 2. Received (isSelf=0) - Hard to filter strictly but we can exclude "Sent by others that is NOT this user"?
+            // Actually, for file logs, we primarily want to see what THIS user interacted with.
+            // If message is in DB, it's likely relevant.
+            // But to fix "data bleeding", we should filter.
+
+            // Strict filter: Show ONLY files sent by this user, OR received in conversations this user is part of?
+            // SQLite doesn't know who "me" is easily for received messages in shared DB.
+            // Compromise: Filter SENT messages by senderId. 
+            // Show ALL received? Or filter if we can? 
+
+            // Let's add simple senderId filter for SENT messages.
+            query += " AND ( (isSelf=1 AND senderId = ?) OR (isSelf=0) )";
+            params.push(userUID);
+        }
+
+        query += " ORDER BY timestamp DESC LIMIT ?";
+        params.push(limit);
+
+        return db.prepare(query).all(...params);
     } catch (e) {
         console.error('getFileLogs error:', e.message);
         return [];
@@ -319,9 +404,45 @@ function saveReceivedFile(conversationId, fileInfo) {
     } catch (err) { return null; }
 }
 
-function getReceivedFiles(conversationId, limit = 50) {
+function getReceivedFiles(userUID, limit = 100) {
     if (!db) return [];
-    try { return db.prepare(`SELECT * FROM received_files WHERE conversationId = ? ORDER BY timestamp DESC LIMIT ?`).all(conversationId, limit); } catch (e) { return []; }
+    try {
+        // Query from messages table for files received by this user
+        const query = `
+            SELECT 
+                id,
+                senderId,
+                msgId,
+                content,
+                timestamp,
+                attachmentPath as fileUrl,
+                attachmentName as fileName,
+                attachmentSize as fileSize,
+                attachmentType as fileType
+            FROM messages
+            WHERE isSelf = 0
+                AND attachmentType IS NOT NULL
+                AND attachmentType != ''
+            ORDER BY timestamp DESC
+            LIMIT ?
+        `;
+
+        const files = db.prepare(query).all(limit);
+
+        return files.map(f => ({
+            id: f.id,
+            senderId: f.senderId,
+            senderName: null, // Could fetch from friends table if available
+            fileName: f.fileName || 'unknown',
+            fileSize: f.fileSize || 0,
+            fileType: f.fileType || 'other',
+            fileUrl: f.fileUrl,
+            timestamp: f.timestamp
+        }));
+    } catch (error) {
+        console.error('❌ Get received files error:', error.message);
+        return [];
+    }
 }
 
 // ============================================

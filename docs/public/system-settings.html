@@ -835,7 +835,7 @@
                 reactionIcon: '/-heart',
                 cooldown: 30000,
                 debounceTime: 3000,
-                section: 'automation'
+                section: 'advanced'
             }
         };
 
@@ -865,10 +865,15 @@
                 currentUser = data.user;
             }
             if (data.type === 'builtin_triggers' && data.triggers) {
+                console.log('✅ Received builtin_triggers from server:', Object.keys(data.triggers));
+                console.log('   autoReaction in response?', 'autoReaction' in data.triggers);
                 // Update local state from server
                 for (const [key, value] of Object.entries(data.triggers)) {
                     if (builtInTriggers[key]) {
                         Object.assign(builtInTriggers[key], value);
+                        console.log(`   Updated ${key}:`, value.enabled ? 'ENABLED' : 'disabled');
+                    } else {
+                        console.warn(`   ⚠️ Unknown trigger key: ${key}`);
                     }
                 }
                 renderSettings();
@@ -902,14 +907,17 @@
         function renderSettings() {
             // Auto Reply section
             const autoReplyTriggers = Object.values(builtInTriggers).filter(t => t.section === 'autoReply');
+            console.log('📋 Auto Reply triggers:', autoReplyTriggers.length, autoReplyTriggers.map(t => t.name));
             document.getElementById('autoReplySettings').innerHTML = autoReplyTriggers.map(renderSettingItem).join('');
 
             // Automation section
             const automationTriggers = Object.values(builtInTriggers).filter(t => t.section === 'automation');
+            console.log('🤖 Automation triggers:', automationTriggers.length, automationTriggers.map(t => t.name));
             document.getElementById('automationSettings').innerHTML = automationTriggers.map(renderSettingItem).join('');
 
             // Advanced section
             const advancedTriggers = Object.values(builtInTriggers).filter(t => t.section === 'advanced');
+            console.log('⚡ Advanced triggers:', advancedTriggers.length, advancedTriggers.map(t => t.name));
             document.getElementById('advancedSettings').innerHTML = advancedTriggers.map(renderSettingItem).join('');
         }
 
@@ -1262,6 +1270,9 @@
         }
 
         // Initialize
+        console.log('🚀 System Settings initialized');
+        console.log('📦 Built-in triggers defined:', Object.keys(builtInTriggers));
+        console.log('   autoReaction defined?', 'autoReaction' in builtInTriggers);
         connectWebSocket();
         renderSettings();
     </script>

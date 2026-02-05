@@ -317,3 +317,113 @@ Lưu ý: hãy giữ token này an toàn và bảo mật, vì bất kỳ ai có t
 [23:26:02] RECV: Type=0 Content="A" IsSelf=false UID=undefined MyUID=716585949090695726
 [23:26:24] RECV: Type=0 Content="B" IsSelf=false UID=undefined MyUID=716585949090695726
 [23:26:29] RECV: Type=0 Content="C" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:46:08] RECV: Type=0 Content="Nh" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:46:44] RECV: Type=0 Content="Cc" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:56:49] RECV: Type=0 Content="." IsSelf=false UID=undefined MyUID=284707033025009316
+[22:58:44] RECV: Type=0 Content="B" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:03:55] RECV: Type=0 Content="A" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:59:26] RECV: Type=0 Content="N" IsSelf=false UID=undefined MyUID=284707033025009316
+[00:39:15] RECV: Type=0 Content="D" IsSelf=false UID=undefined MyUID=284707033025009316
+[00:39:21] RECV: Type=0 Content="Cb" IsSelf=false UID=undefined MyUID=284707033025009316
+[00:55:35] RECV: Type=0 Content="Cc" IsSelf=false UID=undefined MyUID=284707033025009316
+[00:56:31] RECV: Type=0 Content="Xx" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:00:14] RECV: Type=0 Content="Cfg" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:00:14] RECV: Type=0 Content="Bznzh" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:00:30] RECV: Type=0 Content="Chj" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:00:37] RECV: Type=0 Content="Hhfa" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:00:51] RECV: Type=0 Content="Ngjp" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:01:07] RECV: Type=0 Content="A" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:01:10] RECV: Type=0 Content="Khh" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:01:24] RECV: Type=0 Content="Abc" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:01:26] RECV: Type=0 Content="123" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:03:11] RECV: Type=0 Content="123456" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:52:56] RECV: Type=0 Content="Q" IsSelf=false UID=undefined MyUID=284707033025009316
+[20:55:45] RECV: Type=text Content="abc" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[20:55:45] processSelfTrigger CALLED for "abc"
+[20:55:56] RECV: Type=text Content="abc" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[20:55:56] processSelfTrigger CALLED for "abc"
+[21:02:22] RECV: Type=0 Content="Gh" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:02:53] RECV: Type=text Content="fsd" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[21:02:53] processSelfTrigger CALLED for "fsd"
+[21:02:57] RECV: Type=0 Content="Az" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:07:10] RECV: Type=0 Content="dfd" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:07:42] RECV: Type=0 Content="abc" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:16:30] RECV: Type=0 Content="FDF" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:23:24] RECV: Type=0 Content="sda" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:24:26] RECV: Type=0 Content="sd" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:24:33] RECV: Type=0 Content="abc" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:31:21] RECV: Type=0 Content="fd" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:31:52] RECV: Type=0 Content="f" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:35:17] RECV: Type=0 Content="fd" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:04:51] RECV: Type=0 Content=":3" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:15:32] RECV: Type=0 Content="T" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:38:09] RECV: Type=0 Content="H" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:26:43] RECV: Type=0 Content="Ff" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:26:45] RECV: Type=0 Content="C" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:29:47] RECV: Type=0 Content="Bxhxj" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:33:00] RECV: Type=text Content="g" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[22:33:00] processSelfTrigger CALLED for "g"
+[22:50:09] RECV: Type=0 Content="Hxb" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:00:02] RECV: Type=0 Content="Xxkkc" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:19:21] RECV: Type=text Content="{zalo_name}" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[23:19:21] processSelfTrigger CALLED for "{zalo_name}"
+[23:27:35] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=284707033025009316
+[22:48:22] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:00:26] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:07:54] RECV: Type=0 Content="Dnd" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:10:58] RECV: Type=text Content="cxfcx" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[23:10:58] processSelfTrigger CALLED for "cxfcx"
+[23:10:59] RECV: Type=text Content="sdf" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[23:10:59] processSelfTrigger CALLED for "sdf"
+[23:11:00] RECV: Type=text Content="sdfs" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[23:11:00] processSelfTrigger CALLED for "sdfs"
+[23:11:17] RECV: Type=text Content="cxvxc" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[23:11:17] processSelfTrigger CALLED for "cxvxc"
+[23:28:32] RECV: Type=0 Content="Bzxnx" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:28:33] RECV: Type=0 Content="Abc" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:28:36] RECV: Type=0 Content="Dbe" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:48:17] RECV: Type=0 Content="Dh" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:48:58] RECV: Type=0 Content="Nfjf" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:49:15] RECV: Type=0 Content="Ff" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:49:16] RECV: Type=0 Content="Nfjf" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:49:42] RECV: Type=text Content="sfdfsd" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[23:49:42] processSelfTrigger CALLED for "sfdfsd"
+[23:49:45] RECV: Type=0 Content="hcj" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:49:48] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:49:56] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:49:58] RECV: Type=0 Content="Jxdp" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:50:14] RECV: Type=0 Content="Hxbx" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:50:22] RECV: Type=0 Content="D" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:50:36] RECV: Type=0 Content="V" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:55:49] RECV: Type=0 Content="H" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:56:02] RECV: Type=0 Content="H" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:56:08] RECV: Type=0 Content="G" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:56:10] RECV: Type=0 Content="Ng" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:59:06] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:59:08] RECV: Type=0 Content="H" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:59:10] RECV: Type=0 Content="Hx" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:59:24] RECV: Type=0 Content="Y" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:03:58] RECV: Type=0 Content="hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:15:21] RECV: Type=0 Content="G" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:16:31] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:16:34] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:16:42] RECV: Type=0 Content="/ai-off" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:22:38] RECV: Type=0 Content="Hịi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:22:50] RECV: Type=0 Content="Gg" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:22:54] RECV: Type=0 Content="Bh" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:23:15] RECV: Type=0 Content="H" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:23:53] RECV: Type=0 Content="Cc" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:24:08] RECV: Type=0 Content="B" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:24:13] RECV: Type=0 Content="Bb" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:24:16] RECV: Type=0 Content="Nb" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:26:34] RECV: Type=0 Content="in" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:32:38] RECV: Type=0 Content="In" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:32:54] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:47:34] RECV: Type=text Content="/hi" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[21:47:34] processSelfTrigger CALLED for "/hi"
+[22:54:38] RECV: Type=text Content="j" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[22:54:38] processSelfTrigger CALLED for "j"
+[22:55:10] RECV: Type=0 Content="Cvv" IsSelf=false UID=undefined MyUID=284707033025009316
+[23:12:26] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:14:33] RECV: Type=0 Content="H" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:14:43] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726

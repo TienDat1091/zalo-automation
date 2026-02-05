@@ -12,7 +12,7 @@
     body {
       background: #f0f2f5;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding-top: 64px;
+      padding-top: 20px;
       /* Space for unified header */
     }
 
@@ -346,6 +346,33 @@
         </table>
       </div>
     </div>
+
+    <!-- File List --!>
+    <div class="card-container">
+      <div class="card-title">📂 Danh Sách File Đã Nhận</div>
+      <div style="margin-bottom: 15px;">
+        <input type="text" placeholder="🔍 Tìm kiếm theo người gửi..." 
+               id="fileSearchInput" 
+               style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; width:100%; max-width:400px; font-size:14px;">
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Tên file</th>
+              <th>Người gửi</th>
+              <th>Kích thước</th>
+              <th>Loại</th>
+              <th>Thời gian</th>
+            </tr>
+          </thead>
+          <tbody id="file-list-body">
+            <tr><td colspan="5" style="text-align:center;color:#999;">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="filePagination" style="margin-top:15px; text-align:center;"></div>
+    </div>
   </div>
 
   <script>
@@ -380,6 +407,10 @@
         if (data.type === 'file_logs') {
           renderFileLogs(data.data);
         }
+        if (data.type === 'file_list') {
+          allFiles = data.files || [];
+          renderFileList();
+        }
       } catch (e) {
         console.error('WebSocket message error:', e);
       }
@@ -392,6 +423,7 @@
         console.log('🔄 Refreshing data for UID:', userUID);
         ws.send(JSON.stringify({ type: 'get_dashboard_stats', userUID }));
         ws.send(JSON.stringify({ type: 'get_file_logs', userUID }));
+        requestFileList(); // Request file list
       }
     }
 
@@ -485,190 +517,316 @@
              `}).join('');
     }
 
+    // ========== FILE LIST FUNCTIONS ==========
+    let allFiles = [];
+    let currentPage = 1;
+    const filesPerPage = 20;
+
+    function requestFileList() {
+      if (ws.readyState === 1 && currentUserUID) {
+        ws.send(JSON.stringify({ 
+          type: 'get_file_list', 
+          userUID: currentUserUID 
+        }));
+      }
+    }
+
+    function renderFileList(filteredFiles = null) {
+      const files = filteredFiles || allFiles;
+      const start = (currentPage - 1) * filesPerPage;
+      const end = start + filesPerPage;
+      const pageFiles = files.slice(start, end);
+      
+      const tbody = document.getElementById('file-list-body');
+      
+      if (pageFiles.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;">Chưa có file nào</td></tr>';
+        document.getElementById('filePagination').innerHTML = '';
+        return;
+      }
+      
+      tbody.innerHTML = pageFiles.map(f => `
+        <tr>
+          <td>
+            ${getFileIcon(f.fileType)} 
+            <span title="${f.fileName || 'Unknown'}">${truncate(f.fileName || 'Unknown', 40)}</span>
+          </td>
+          <td>${f.senderName || f.senderId || 'Unknown'}</td>
+          <td>${formatFileSize(f.fileSize)}</td>
+          <td>${formatFileType(f.fileType)}</td>
+          <td style="color:#666;font-size:13px;">${new Date(f.timestamp).toLocaleString()}</td>
+        </tr>
+      `).join('');
+      
+      renderPagination(files.length);
+    }
+
+    function getFileIcon(type) {
+      const icons = {
+        image: '🖼️',
+        video: '🎥',
+        document: '📄',
+        audio: '🎵',
+        archive: '📦',
+        other: '📎'
+      };
+      return icons[type] || icons.other;
+    }
+
+    function formatFileSize(bytes) {
+      if (!bytes || bytes === 0) return 'N/A';
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+    }
+
+    function formatFileType(type) {
+      const types = {
+        image: 'Hình ảnh',
+        video: 'Video',
+        document: 'Tài liệu',
+        audio: 'Âm thanh',
+        archive: 'Nén',
+        other: 'Khác'
+      };
+      return types[type] || type || 'Khác';
+    }
+
+    function truncate(str, len) {
+      if (!str) return '';
+      return str.length > len ? str.substring(0, len) + '...' : str;
+    }
+
+    function renderPagination(totalFiles) {
+      const totalPages = Math.ceil(totalFiles / filesPerPage);
+      const paginationDiv = document.getElementById('filePagination');
+      
+      if (totalPages <= 1) {
+        paginationDiv.innerHTML = '';
+        return;
+      }
+      
+      let html = '<div style="display:inline-flex;gap:5px;">';
+      
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button 
+          onclick="goToPage(${i})" 
+          style="padding:6px 12px; border:1px solid #ddd; background:${i === currentPage ? '#1976d2' : '#fff'}; color:${i === currentPage ? '#fff' : '#333'}; border-radius:4px; cursor:pointer;"
+        >${i}</button>`;
+      }
+      
+      html += '</div>';
+      paginationDiv.innerHTML = html;
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      renderFileList();
+    }
+
+    // Search filter
+    if (document.getElementById('fileSearchInput')) {
+      document.getElementById('fileSearchInput').addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        if (!query) {
+          currentPage = 1;
+          renderFileList();
+          return;
+        }
+        const filtered = allFiles.filter(f => 
+          (f.senderName && f.senderName.toLowerCase().includes(query)) ||
+          (f.senderId && f.senderId.includes(query)) ||
+          (f.fileName && f.fileName.toLowerCase().includes(query))
+        );
+        currentPage = 1;
+        renderFileList(filtered);
+      });
+    }
+
     // Auto refresh every 10s
     setInterval(refreshData, 10000);
   </script>
 
   <!-- Load IndexedDB.js BEFORE calling its functions -->
-  <script src="IndexedDB.js"></script>
+    <script src="IndexedDB.js"></script>
 
-  <script>
-    // ========== 💾 DATA BACKUP FUNCTIONS ==========
+    <script>
+      // ========== 💾 DATA BACKUP FUNCTIONS ==========
 
-    // Get current user UID from localStorage or URL params
-    function getCurrentUserUID() {
-      // Try URL params first
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlUID = urlParams.get('userUID') || urlParams.get('uid');
-      if (urlUID) return urlUID;
+      // Get current user UID from localStorage or URL params
+      function getCurrentUserUID() {
+        // Try URL params first
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlUID = urlParams.get('userUID') || urlParams.get('uid');
+        if (urlUID) return urlUID;
 
-      // Try localStorage
-      const storedUID = localStorage.getItem('currentUserUID');
-      if (storedUID) return storedUID;
+        // Try localStorage
+        const storedUID = localStorage.getItem('currentUserUID');
+        if (storedUID) return storedUID;
 
-      return null;
-    }
-
-    // Initialize IndexedDB with user UID before loading stats
-    async function initAndLoadStats() {
-      const userUID = getCurrentUserUID();
-
-      if (!userUID) {
-        console.warn('⚠️ No user UID found, cannot load data');
-        document.getElementById('dbMessages').textContent = 'Chưa đăng nhập';
-        document.getElementById('dbFriends').textContent = '-';
-        document.getElementById('dbSize').textContent = '-';
-        return;
+        return null;
       }
 
-      console.log(`🔐 Loading data for user: ${userUID}`);
+      // Initialize IndexedDB with user UID before loading stats
+      async function initAndLoadStats() {
+        const userUID = getCurrentUserUID();
 
-      // Initialize IndexedDB with correct UID
-      if (typeof initIndexedDB === 'function') {
+        if (!userUID) {
+          console.warn('⚠️ No user UID found, cannot load data');
+          document.getElementById('dbMessages').textContent = 'Chưa đăng nhập';
+          document.getElementById('dbFriends').textContent = '-';
+          document.getElementById('dbSize').textContent = '-';
+          return;
+        }
+
+        console.log(`🔐 Loading data for user: ${userUID}`);
+
+        // Initialize IndexedDB with correct UID
+        if (typeof initIndexedDB === 'function') {
+          try {
+            await initIndexedDB(userUID);
+          } catch (e) {
+            console.error('Failed to init IndexedDB:', e);
+          }
+        }
+
+        await loadDataStats();
+      }
+
+      // Load data stats - now called AFTER IndexedDB.js is loaded
+      async function loadDataStats() {
         try {
-          await initIndexedDB(userUID);
+          // Use getDataStats from IndexedDB.js
+          if (typeof getDataStats === 'function') {
+            const stats = await getDataStats();
+            document.getElementById('dbMessages').textContent = (stats.messages || 0).toLocaleString();
+            document.getElementById('dbFriends').textContent = (stats.friends || 0).toLocaleString();
+            document.getElementById('dbSize').textContent = stats.dbSize || '0 KB';
+          } else {
+            // Fallback: manually query IndexedDB
+            console.log('⚠️ getDataStats not found, using fallback...');
+            await loadDataStatsFallback();
+          }
         } catch (e) {
-          console.error('Failed to init IndexedDB:', e);
-        }
-      }
-
-      await loadDataStats();
-    }
-
-    // Load data stats - now called AFTER IndexedDB.js is loaded
-    async function loadDataStats() {
-      try {
-        // Use getDataStats from IndexedDB.js
-        if (typeof getDataStats === 'function') {
-          const stats = await getDataStats();
-          document.getElementById('dbMessages').textContent = (stats.messages || 0).toLocaleString();
-          document.getElementById('dbFriends').textContent = (stats.friends || 0).toLocaleString();
-          document.getElementById('dbSize').textContent = stats.dbSize || '0 KB';
-        } else {
-          // Fallback: manually query IndexedDB
-          console.log('⚠️ getDataStats not found, using fallback...');
-          await loadDataStatsFallback();
-        }
-      } catch (e) {
-        console.error('Error loading data stats:', e);
-        document.getElementById('dbMessages').textContent = '?';
-        document.getElementById('dbFriends').textContent = '?';
-        document.getElementById('dbSize').textContent = '?';
-      }
-    }
-
-    // Fallback function - now uses per-user DB name
-    async function loadDataStatsFallback() {
-      const userUID = getCurrentUserUID();
-      const DB_NAME = userUID ? `ZaloChat_${userUID}` : 'ZaloChatDB';
-      console.log(`📊 Fallback loading from: ${DB_NAME}`);
-
-      return new Promise((resolve) => {
-        const request = indexedDB.open(DB_NAME);
-        request.onsuccess = (e) => {
-          const db = e.target.result;
-          let msgCount = 0, friendCount = 0;
-
-          // Count messages
-          if (db.objectStoreNames.contains('messages')) {
-            const msgTx = db.transaction('messages', 'readonly');
-            const msgStore = msgTx.objectStore('messages');
-            const countReq = msgStore.count();
-            countReq.onsuccess = () => {
-              msgCount = countReq.result || 0;
-              document.getElementById('dbMessages').textContent = msgCount.toLocaleString();
-            };
-          } else {
-            document.getElementById('dbMessages').textContent = '0';
-          }
-
-          // Count friends
-          if (db.objectStoreNames.contains('friends')) {
-            const frTx = db.transaction('friends', 'readonly');
-            const frStore = frTx.objectStore('friends');
-            const frCountReq = frStore.count();
-            frCountReq.onsuccess = () => {
-              friendCount = frCountReq.result || 0;
-              document.getElementById('dbFriends').textContent = friendCount.toLocaleString();
-            };
-          } else {
-            document.getElementById('dbFriends').textContent = '0';
-          }
-
-          // Estimate size
-          if (navigator.storage && navigator.storage.estimate) {
-            navigator.storage.estimate().then(est => {
-              const usedMB = (est.usage / (1024 * 1024)).toFixed(2);
-              document.getElementById('dbSize').textContent = usedMB + ' MB';
-            });
-          } else {
-            document.getElementById('dbSize').textContent = 'N/A';
-          }
-
-          resolve();
-        };
-        request.onerror = () => {
+          console.error('Error loading data stats:', e);
           document.getElementById('dbMessages').textContent = '?';
           document.getElementById('dbFriends').textContent = '?';
           document.getElementById('dbSize').textContent = '?';
-          resolve();
-        };
-      });
-    }
-
-    // Export data
-    async function exportData() {
-      if (typeof exportAllDataAsJSON === 'function') {
-        await exportAllDataAsJSON();
-      } else {
-        alert('❌ Export function not available');
-      }
-    }
-
-    // Handle import file selection
-    async function handleImport(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      if (typeof importDataFromJSON === 'function') {
-        try {
-          await importDataFromJSON(file);
-          // Reload page after successful import
-          setTimeout(() => window.location.reload(), 2000);
-        } catch (err) {
-          console.error('Import error:', err);
         }
-      } else {
-        alert('❌ Import function not available');
       }
 
-      // Reset file input
-      event.target.value = '';
-    }
+      // Fallback function - now uses per-user DB name
+      async function loadDataStatsFallback() {
+        const userUID = getCurrentUserUID();
+        const DB_NAME = userUID ? `ZaloChat_${userUID}` : 'ZaloChatDB';
+        console.log(`📊 Fallback loading from: ${DB_NAME}`);
 
-    // Clear all data
-    async function clearAllData() {
-      if (!confirm('⚠️ Xóa TẤT CẢ dữ liệu?\n\nĐây là hành động không thể hoàn tác!\n\nBạn có chắc chắn?')) {
-        return;
+        return new Promise((resolve) => {
+          const request = indexedDB.open(DB_NAME);
+          request.onsuccess = (e) => {
+            const db = e.target.result;
+            let msgCount = 0, friendCount = 0;
+
+            // Count messages
+            if (db.objectStoreNames.contains('messages')) {
+              const msgTx = db.transaction('messages', 'readonly');
+              const msgStore = msgTx.objectStore('messages');
+              const countReq = msgStore.count();
+              countReq.onsuccess = () => {
+                msgCount = countReq.result || 0;
+                document.getElementById('dbMessages').textContent = msgCount.toLocaleString();
+              };
+            } else {
+              document.getElementById('dbMessages').textContent = '0';
+            }
+
+            // Count friends
+            if (db.objectStoreNames.contains('friends')) {
+              const frTx = db.transaction('friends', 'readonly');
+              const frStore = frTx.objectStore('friends');
+              const frCountReq = frStore.count();
+              frCountReq.onsuccess = () => {
+                friendCount = frCountReq.result || 0;
+                document.getElementById('dbFriends').textContent = friendCount.toLocaleString();
+              };
+            } else {
+              document.getElementById('dbFriends').textContent = '0';
+            }
+
+            // Estimate size
+            if (navigator.storage && navigator.storage.estimate) {
+              navigator.storage.estimate().then(est => {
+                const usedMB = (est.usage / (1024 * 1024)).toFixed(2);
+                document.getElementById('dbSize').textContent = usedMB + ' MB';
+              });
+            } else {
+              document.getElementById('dbSize').textContent = 'N/A';
+            }
+
+            resolve();
+          };
+          request.onerror = () => {
+            document.getElementById('dbMessages').textContent = '?';
+            document.getElementById('dbFriends').textContent = '?';
+            document.getElementById('dbSize').textContent = '?';
+            resolve();
+          };
+        });
       }
 
-      if (typeof clearAllIndexedDBData === 'function') {
-        await clearAllIndexedDBData();
-        alert('✅ Đã xóa tất cả dữ liệu!\n\nVui lòng tải lại trang.');
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
-        alert('❌ Clear function not available');
+      // Export data
+      async function exportData() {
+        if (typeof exportAllDataAsJSON === 'function') {
+          await exportAllDataAsJSON();
+        } else {
+          alert('❌ Export function not available');
+        }
       }
-    }
 
-    // Load stats when IndexedDB.js is ready - USING UID-AWARE INIT
-    setTimeout(initAndLoadStats, 500);
-    // Refresh stats every 30s
-    setInterval(loadDataStats, 30000);
-  </script>
+      // Handle import file selection
+      async function handleImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
 
-  <!-- Unified Header for consistent navigation -->
-  <script src="/assets/unified-header.js?v=4"></script>
+        if (typeof importDataFromJSON === 'function') {
+          try {
+            await importDataFromJSON(file);
+            // Reload page after successful import
+            setTimeout(() => window.location.reload(), 2000);
+          } catch (err) {
+            console.error('Import error:', err);
+          }
+        } else {
+          alert('❌ Import function not available');
+        }
+
+        // Reset file input
+        event.target.value = '';
+      }
+
+      // Clear all data
+      async function clearAllData() {
+        if (!confirm('⚠️ Xóa TẤT CẢ dữ liệu?\n\nĐây là hành động không thể hoàn tác!\n\nBạn có chắc chắn?')) {
+          return;
+        }
+
+        if (typeof clearAllIndexedDBData === 'function') {
+          await clearAllIndexedDBData();
+          alert('✅ Đã xóa tất cả dữ liệu!\n\nVui lòng tải lại trang.');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          alert('❌ Clear function not available');
+        }
+      }
+
+      // Load stats when IndexedDB.js is ready - USING UID-AWARE INIT
+      setTimeout(initAndLoadStats, 500);
+      // Refresh stats every 30s
+      setInterval(loadDataStats, 30000);
+    </script>
+
+    <!-- Unified Header for consistent navigation -->
+    <script src="/assets/unified-header.js?v=4"></script>
 </body>
 
 </html>
