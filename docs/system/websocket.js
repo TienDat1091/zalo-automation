@@ -580,23 +580,17 @@ function startWebSocketServer(apiState, httpServer) {
     let clientIP = req.socket.remoteAddress;
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) clientIP = forwarded.split(',')[0].trim();
-    ws.clientIP = clientIP; // Store for IP Gating
+    ws.clientIP = clientIP; // Store for logging
 
     console.log(`✅ New WebSocket connection from: ${clientIP}`);
     apiState.clients.add(ws);
 
-    // Send current user info ONLY if authorized
-    // If authorizedIP is set, MUST match. If null, anyone can connect.
+    // Send current user info to ALL clients (no IP gating)
     if (apiState.currentUser) {
-      if (apiState.authorizedIP && clientIP !== apiState.authorizedIP) {
-        console.log(`🔒 Gating WebSocket info for unauthorized IP: ${clientIP}`);
-        ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false }));
-      } else {
-        ws.send(JSON.stringify({
-          type: 'current_user',
-          user: apiState.currentUser
-        }));
-      }
+      ws.send(JSON.stringify({
+        type: 'current_user',
+        user: apiState.currentUser
+      }));
 
       // Migrate old data if needed
       migrateOldData(apiState.currentUser.uid);
@@ -913,12 +907,7 @@ function startWebSocketServer(apiState, httpServer) {
         // GET DASHBOARD STATS
         // ============================================
         if (msg.type === 'get_dashboard_stats') {
-          // IP Gating
-          if (apiState.authorizedIP && ws.clientIP !== apiState.authorizedIP) {
-            ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false }));
-            return;
-          }
-
+          // No IP gating - allow all clients
           const userUID = msg.userUID || (apiState.currentUser ? apiState.currentUser.uid : null);
           const stats = messageDB.getDashboardStats(userUID);
           const topUsers = messageDB.getTopUsers(10); // Limit 10
@@ -933,12 +922,7 @@ function startWebSocketServer(apiState, httpServer) {
         // GET FILE LOGS
         // ============================================
         if (msg.type === 'get_file_logs') {
-          // IP Gating
-          if (apiState.authorizedIP && ws.clientIP !== apiState.authorizedIP) {
-            ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false }));
-            return;
-          }
-
+          // No IP gating - allow all clients
           const userUID = msg.userUID || (apiState.currentUser ? apiState.currentUser.uid : null);
           const limit = msg.limit || 100;
           const logs = messageDB.getFileLogs(limit, userUID);
@@ -953,12 +937,7 @@ function startWebSocketServer(apiState, httpServer) {
         // USER INFO
         // ============================================
         if (msg.type === 'get_current_user') {
-          // IP Gating
-          if (apiState.authorizedIP && ws.clientIP !== apiState.authorizedIP) {
-            ws.send(JSON.stringify({ type: 'session_info', isLoggedIn: false }));
-            return;
-          }
-
+          // No IP gating - allow all clients
           if (apiState.currentUser) {
             // Ensure built-in triggers exist for this user
             ensureBuiltInTriggers(apiState.currentUser.uid);

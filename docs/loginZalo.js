@@ -1057,37 +1057,13 @@ async function loginZalo(apiState) {
     targetState.api = await zalo.loginQR();
 
     // Xóa file QR
+    // Clean up QR code file
     try {
       fs.unlinkSync('qr.png');
     } catch (e) { }
 
-    // 🔄 SIMPLE RULE: New login = kick out old IP (ONLY if there was a previous session)
-    // Send force_logout to OLD clients (they will disconnect themselves)
-    // DON'T clear clients - new client is waiting to receive current_user broadcast!
-    if (targetState.authorizedIP && targetState.clients && targetState.clients.size > 0) {
-      console.log(`🔄 Sending force_logout to clients from old IP ${targetState.authorizedIP}...`);
-
-      const logoutMsg = JSON.stringify({
-        type: 'force_logout',
-        message: 'Tài khoản đã được đăng nhập từ thiết bị khác'
-      });
-
-      targetState.clients.forEach(ws => {
-        try {
-          if (ws.readyState === 1) ws.send(logoutMsg);
-        } catch (e) { }
-      });
-
-      // NOTE: Don't clear clients here - they will be removed on disconnect
-      // The new client waiting for QR needs to receive the broadcast!
-    }
-
-    // Reset IP - will be locked to first dashboard access
-    targetState.authorizedIP = null;
-
-    // Clear any pending takeover flags
-    targetState.pendingTakeover = false;
-    targetState.pendingTakeoverIP = null;
+    // ✅ Multi-device support enabled - no IP locking or force logout
+    // All connected clients will receive the current_user broadcast
 
     targetState.isLoggedIn = true;
 
