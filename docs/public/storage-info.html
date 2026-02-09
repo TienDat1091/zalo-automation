@@ -12,14 +12,21 @@
     body {
       background: #f0f2f5;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding-top: 20px;
+      padding-top: 0;
       /* Space for unified header */
+      height: auto !important;
+      overflow-y: auto !important;
     }
 
     .container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 20px;
+      display: block;
+      /* Fix: Override external dashboard grid layout */
+      height: auto;
+      /* Fix: Allow scrolling */
+      overflow: visible;
     }
 
     .header {
@@ -35,6 +42,8 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      font-size: 20px;
+      /* slightly smaller for compact view */
     }
 
     .stats-grid {
@@ -110,9 +119,13 @@
     .card-container {
       background: white;
       border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-      margin-bottom: 20px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      margin-bottom: 16px;
+    }
+
+    .card-container.compact {
+      padding: 12px;
     }
 
     .card-title {
@@ -128,7 +141,9 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
-      font-size: 14px;
+      font-size: 13px;
+      table-layout: fixed;
+      /* Fix column widths */
     }
 
     .data-table th,
@@ -182,16 +197,325 @@
       background: #f0f0f0;
     }
 
-    .grid-2 {
+    .grid-3 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      grid-template-columns: repeat(3, 1fr);
+      /* Equal width columns */
+      gap: 15px;
+      align-items: start;
+    }
+
+    @media (max-width: 1200px) {
+      .grid-3 {
+        grid-template-columns: 1fr;
+        /* Stack on smaller screens */
+      }
     }
 
     @media (max-width: 768px) {
       .grid-2 {
         grid-template-columns: 1fr;
       }
+    }
+
+    /* ✅ Gallery Tabs & Filter */
+    .gallery-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .gallery-tabs {
+      display: flex;
+      gap: 5px;
+      border-bottom: 2px solid #eee;
+    }
+
+    .tab-btn {
+      padding: 10px 15px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tab-btn.active {
+      border-bottom-color: #0068FF;
+      color: #0068FF;
+    }
+
+    .tab-btn:hover {
+      color: #333;
+    }
+
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+      min-height: 120px;
+    }
+
+    /* Make gallery area scrollable so page doesn't grow too tall */
+    .gallery-scrollable {
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 8px;
+      /* room for scrollbar */
+    }
+
+    /* Sticky top toolbar for gallery */
+    .top-gallery-toolbar {
+      position: sticky;
+      top: 84px;
+      /* below unified header */
+      z-index: 10002;
+      background: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+      margin-bottom: 12px;
+    }
+
+    /* Scrollable table wrapper for logs */
+    .data-table-wrapper {
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .gallery-item {
+      background: #f8f9fa;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      height: 180px;
+    }
+
+    .gallery-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .gallery-item-preview {
+      flex: 1;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-size: 40px;
+    }
+
+    .gallery-item-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-item-info {
+      padding: 10px;
+      background: white;
+      font-size: 12px;
+      overflow: hidden;
+    }
+
+    .gallery-item-name {
+      font-weight: 500;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+
+    .gallery-item-sender {
+      color: #666;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ✅ Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10020;
+      /* ensure modal appears above toolbar */
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      max-width: 800px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .modal-close:hover {
+      color: #333;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-preview {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .modal-preview img {
+      max-width: 100%;
+      max-height: 400px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .modal-details {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .detail-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      color: #666;
+      width: 150px;
+      flex-shrink: 0;
+    }
+
+    .detail-value {
+      color: #333;
+      flex: 1;
+      word-break: break-all;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn-modal {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .btn-view {
+      background: #0068FF;
+      color: white;
+    }
+
+    .btn-view:hover {
+      background: #0052CC;
+    }
+
+    .btn-download {
+      background: #34a853;
+      color: white;
+    }
+
+    .btn-download:hover {
+      background: #27a03a;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .empty-state-text {
+      font-size: 16px;
+      color: #666;
     }
   </style>
 </head>
@@ -238,46 +562,75 @@
       </div>
     </div>
 
-    <div class="grid-2">
+    <div class="grid-3">
       <!-- Top Users -->
       <div class="card-container">
-        <div class="card-title">🏆 Top Người Dùng Tích Cực (Tin nhắn)</div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>UID / Tên</th>
-              <th>Số lượng</th>
-            </tr>
-          </thead>
-          <tbody id="top-users-body">
-            <tr>
-              <td colspan="2">Đang tải...</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="card-title">🏆 Top Người Dùng Tích Cực</div>
+        <div style="max-height: 400px; overflow-y: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 70%">Người dùng</th>
+                <th style="width: 30%">Số lượng</th>
+              </tr>
+            </thead>
+            <tbody id="top-users-body">
+              <tr>
+                <td colspan="2">Đang tải...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="topUsersPagination" style="margin-top:10px; text-align:center;"></div>
       </div>
 
       <!-- Top File Senders -->
       <div class="card-container">
         <div class="card-title">📁 Top Gửi File</div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>UID / Tên</th>
-              <th>Số lượng</th>
-            </tr>
-          </thead>
-          <tbody id="top-files-body">
-            <tr>
-              <td colspan="2">Đang tải...</td>
-            </tr>
-          </tbody>
-        </table>
+        <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 35%">File</th>
+                <th style="width: 35%">Người gửi</th>
+                <th style="width: 18%">Thời gian</th>
+                <th style="width: 12%">Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="top-files-body">
+              <tr>
+                <td colspan="4">Đang tải...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Top Images Senders -->
+      <div class="card-container">
+        <div class="card-title">🖼️ Top Gửi Ảnh</div>
+        <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px">Ảnh</th>
+                <th style="width: 50%">Người gửi</th>
+                <th style="width: 100px">Thời gian</th>
+                <th style="width: 50px">#</th>
+              </tr>
+            </thead>
+            <tbody id="top-images-body">
+              <tr>
+                <td colspan="4">Đang tải...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
     <!-- 💾 Data Backup & Management -->
-    <div class="card-container">
+    <div class="card-container" style="margin-top: 30px;">
       <div class="card-title">💾 Quản Lý Dữ Liệu</div>
       <div style="margin-bottom: 15px;">
         <div id="dataStats" style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px;">
@@ -304,18 +657,13 @@
             <i class="fas fa-download"></i> Xuất Dữ Liệu (JSON)
           </button>
 
-          <button onclick="document.getElementById('importFile').click()"
-            style="padding: 12px 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s;">
-            <i class="fas fa-upload"></i> Nhập Dữ Liệu
-          </button>
+
 
           <button onclick="clearAllData()"
             style="padding: 12px 20px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s;">
             <i class="fas fa-trash-alt"></i> Xóa Tất Cả
           </button>
         </div>
-
-        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImport(event)">
 
         <div
           style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 6px; font-size: 13px; color: #856404;">
@@ -325,59 +673,99 @@
       </div>
     </div>
 
-    <!-- File Logs -->
-    <div class="card-container">
-      <div class="card-title">📝 Nhật Ký File (Gần đây)</div>
-      <div style="overflow-x:auto;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Thời gian</th>
-              <th>Người gửi/nhận</th>
-              <th>Hành động</th>
-              <th>File</th>
-            </tr>
-          </thead>
-          <tbody id="file-logs-body">
-            <tr>
-              <td colspan="4">Đang tải...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+
 
     <!-- File List --!>
     <div class="card-container">
-      <div class="card-title">📂 Danh Sách File Đã Nhận</div>
-      <div style="margin-bottom: 15px;">
-        <input type="text" placeholder="🔍 Tìm kiếm theo người gửi..." 
-               id="fileSearchInput" 
-               style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; width:100%; max-width:400px; font-size:14px;">
+      <div class="card-title">📂 Thư Viện File & Hình Ảnh</div>
+      
+      <!-- Gallery Controls -->
+    <div class="gallery-controls">
+      <div class="gallery-tabs">
+        <button class="tab-btn active" onclick="switchGalleryTab('logs')">📝 Nhật Ký (Gần đây)</button>
+        <button class="tab-btn" onclick="switchGalleryTab('files')">📁 Tất cả File</button>
+        <button class="tab-btn" onclick="switchGalleryTab('images')">🖼️ Tất cả Hình Ảnh</button>
       </div>
-      <div style="overflow-x:auto;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Tên file</th>
-              <th>Người gửi</th>
-              <th>Kích thước</th>
-              <th>Loại</th>
-              <th>Thời gian</th>
-            </tr>
-          </thead>
-          <tbody id="file-list-body">
-            <tr><td colspan="5" style="text-align:center;color:#999;">Đang tải...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div id="filePagination" style="margin-top:15px; text-align:center;"></div>
+      <select id="userFilter" class="filter-select" onchange="applyGalleryFilter()" style="margin-left: auto;">
+        <option value="">📋 Tất cả người gửi</option>
+      </select>
     </div>
+
+    <!-- Logs View -->
+    <div id="logs-view" style="display: block;">
+      <div class="data-table-wrapper">
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th onclick="sortFiles('timestamp')" style="cursor:pointer">Thời gian <span id="sort-timestamp">▼</span>
+                </th>
+                <th onclick="sortFiles('senderName')" style="cursor:pointer">Người gửi/nhận <span
+                    id="sort-senderName"></span></th>
+                <th>Hành động</th>
+                <th onclick="sortFiles('fileName')" style="cursor:pointer">File <span id="sort-fileName"></span></th>
+              </tr>
+            </thead>
+            <tbody id="file-logs-body-view">
+              <tr>
+                <td colspan="4">Đang tải...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Files Gallery View -->
+    <div id="files-view" style="display: none;">
+      <div class="gallery-scrollable">
+        <div class="gallery-grid" id="files-gallery">
+          <div class="empty-state">
+            <div class="empty-state-icon">📁</div>
+            <div class="empty-state-text">Đang tải...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Images Gallery View -->
+    <div id="images-view" style="display: none;">
+      <div class="gallery-scrollable">
+        <div class="gallery-grid" id="images-gallery">
+          <div class="empty-state">
+            <div class="empty-state-icon">🖼️</div>
+            <div class="empty-state-text">Đang tải...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="filePagination" style="margin-top:15px; text-align:center;"></div>
+  </div>
+
+  <!-- Modal for File Preview -->
+  <div class="modal-overlay" id="fileModal" onclick="closeFileModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-title">Chi Tiết File</div>
+        <button class="modal-close" onclick="closeFileModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-preview" id="modal-preview"></div>
+        <div class="modal-details" id="modal-details"></div>
+        <div class="modal-actions" id="modal-actions"></div>
+      </div>
+    </div>
+  </div>
   </div>
 
   <script>
     const ws = new WebSocket('ws://localhost:3000');
     let currentUserUID = null;
+    let currentGalleryTab = 'logs';
+    let allFilesData = [];
+    let allImagesData = [];
+    let allUsersSet = new Set();
 
     ws.onopen = () => {
       console.log('✅ Connected to WebSocket');
@@ -408,8 +796,25 @@
           renderFileLogs(data.data);
         }
         if (data.type === 'file_list') {
-          allFiles = data.files || [];
+          const fullList = data.files || [];
+          allFiles = fullList;
+
+          // Split data for galleries
+          allFilesData = fullList; // Keep all files for "All Files" tab
+          allImagesData = fullList.filter(f => f.fileType === 'image');
+
+          // Populate User Filter
+          allUsersSet.clear();
+          fullList.forEach(f => {
+            if (f.senderName) allUsersSet.add(f.senderName);
+            else if (f.senderId) allUsersSet.add(f.senderId);
+          });
+          populateUserFilter();
+
+          // Render active view
           renderFileList();
+          if (currentGalleryTab === 'files') renderFilesGallery();
+          if (currentGalleryTab === 'images') renderImagesGallery();
         }
       } catch (e) {
         console.error('WebSocket message error:', e);
@@ -477,44 +882,131 @@
       document.getElementById('received-files').textContent = (stats.receivedFiles || 0).toLocaleString();
     }
 
+    // ========== TOP USERS PAGINATION ==========
+    let allTopUsers = [];
+    let currentTopUserPage = 1;
+    const topUsersPerPage = 100;
+
     function renderTopUsers(top) {
+      // 1. Store Top Messages Data
+      allTopUsers = top.topMsg || [];
+      currentTopUserPage = 1;
+      renderTopUsersPage();
+
+      // 2. Render Top Files (Recent Received Files)
+      const filesBody = document.getElementById('top-files-body');
+      if (filesBody) {
+        const fileUsers = top.topFiles || [];
+        filesBody.innerHTML = fileUsers.length ? fileUsers.map(u => `
+                <tr>
+                    <td>
+                        <div style="font-weight:500; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${u.fileName}">${u.fileName}</div>
+                    </td>
+                    <td><div style="font-size:11px; color:#555; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${u.senderName || u.senderId}">${u.senderName || u.senderId}</div></td>
+                    <td><div style="font-size:10px; color:#888;">${u.timestamp ? new Date(Number(u.timestamp)).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</div></td>
+                    <td>
+                      <button onclick="forceDownload('${u.attachmentPath || u.fileUrl}', '${u.fileName}')" style="padding:4px 8px; border:1px solid #ddd; background:#fff; border-radius:4px; cursor:pointer; font-size:11px;">⬇️</button>
+                    </td>
+                </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:#999;">Chưa có dữ liệu</td></tr>';
+      }
+
+      // 3. Render Top Images
+      const imagesBody = document.getElementById('top-images-body');
+      if (imagesBody) {
+        const imgUsers = top.topImages || [];
+        imagesBody.innerHTML = imgUsers.length ? imgUsers.map(u => {
+          let imgSrc = u.fileUrl || '';
+          // Use raw path, forceDownload will handle it
+          let downloadUrl = u.attachmentPath || imgSrc;
+
+          // Inline SVG placeholder to avoid network errors
+          // Inline SVG placeholder to avoid network errors (URL encoded for safety in attributes)
+          const placeholder = "data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2740%27 height=%2740%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 fill=%27%23eee%27/%3E%3Ctext x=%2750%25%27 y=%2750%27 text-anchor=%27middle%27 dy=%27.3em%27 font-family=%27Arial%27 font-size=%2710%27 fill=%27%23999%27%3EIMG%3C/text%3E%3C/svg%3E";
+
+          return `
+           <tr style="border-bottom:1px solid #eee;">
+             <td style="padding:8px; vertical-align: middle; width: 50px;">
+                 <img src="${imgSrc}" onclick="openImageModal('${imgSrc}')" 
+                      style="width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:pointer;display:block;" 
+                      onerror="this.onerror=null; this.src='${placeholder}';">
+             </td>
+             <td style="vertical-align: middle; max-width: 0; padding-right: 10px; width: auto;">
+                 <div style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${u.fileName}">${u.fileName || 'Ảnh'}</div>
+                 <div style="font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${u.senderName || u.senderId}">${u.senderName || u.senderId}</div>
+             </td>
+             <td style="font-size: 11px; color: #666; vertical-align: middle; width: 90px;">
+                ${u.timestamp ? new Date(Number(u.timestamp)).toLocaleDateString('vi-VN') : '-'}
+             </td>
+             <td style="vertical-align: middle; text-align: center; width: 50px;">
+               <button onclick="forceDownload('${downloadUrl}', '${u.fileName || 'image.jpg'}', true)" style="padding:4px; border:1px solid #ddd; background:#fff; border-radius:4px; cursor:pointer;" title="Tải xuống">⬇️</button>
+             </td>
+           </tr>
+          `;
+        }).join('') : '<tr><td colspan="4" style="text-align:center;color:#999;">Chưa có dữ liệu</td></tr>';
+      }
+    }
+
+    async function forceDownload(url, filename, isImage = false) {
+      if (!url) return alert('Không có link tải');
+
+      // ✅ Use the new unified proxy-file API for everything
+      // It handles both local paths and remote URLs, plus cookies/headers
+
+      const proxyUrl = `/api/proxy-file?url=${encodeURIComponent(url)}&name=${encodeURIComponent(filename)}&mode=download`;
+
+      // Open in new window/tab to trigger download
+      // Using window.location.href might replace the page if there's an error, 
+      // but if it's a download attachment, it stays on page.
+      window.location.href = proxyUrl;
+    }
+
+    function openImageModal(src, name) {
+      if (!src) return;
+      // Simple modal or window open
+      const win = window.open('', '_blank');
+      win.document.write(`<img src="${src}" style="max-width:100%; margin:auto; display:block;">`);
+    }
+
+    function renderTopUsersPage() {
       const msgBody = document.getElementById('top-users-body');
-      // Fix: topUsers object structure might vary, handle array safely
-      const users = top.topMsg || [];
+      const start = (currentTopUserPage - 1) * topUsersPerPage;
+      const end = start + topUsersPerPage;
+      const users = allTopUsers.slice(start, end);
 
       msgBody.innerHTML = users.length ? users.map(u => `
                 <tr>
                     <td>
-                        <div style="font-weight:500;">${u.senderId}</div>
+                        <div style="font-weight:500;">${u.senderName || u.senderId}</div>
                     </td>
                     <td><b>${u.count}</b></td>
                 </tr>`).join('') : '<tr><td colspan="2" style="text-align:center;color:#999;">Chưa có dữ liệu</td></tr>';
+
+      renderTopUserPagination();
     }
 
-    function renderFileLogs(logs) {
-      const body = document.getElementById('file-logs-body');
-      if (!logs || logs.length === 0) {
-        body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">Chưa có log nào</td></tr>';
+    function renderTopUserPagination() {
+      const totalPages = Math.ceil(allTopUsers.length / topUsersPerPage);
+      const paginationDiv = document.getElementById('topUsersPagination');
+
+      if (totalPages <= 1) {
+        paginationDiv.innerHTML = '';
         return;
       }
-      body.innerHTML = logs.map(l => {
-        const isSent = l.action === 'SENT';
-        const actionBadge = isSent
-          ? '<span class="status-badge bg-orange">Gửi đi</span>'
-          : '<span class="status-badge bg-green">Nhận về</span>';
 
-        const user = isSent ? (l.receiverId || 'Partner') : (l.senderId || 'Unknown');
+      let html = '<div style="display:inline-flex;gap:5px;">';
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button 
+          onclick="goToTopUserPage(${i})" 
+          style="padding:6px 12px; border:1px solid #ddd; background:${i === currentTopUserPage ? '#1976d2' : '#fff'}; color:${i === currentTopUserPage ? '#fff' : '#333'}; border-radius:4px; cursor:pointer;"
+        >${i}</button>`;
+      }
+      html += '</div>';
+      paginationDiv.innerHTML = html;
+    }
 
-        return `
-                 <tr>
-                    <td style="color:#666;font-size:13px;">${new Date(l.timestamp).toLocaleString()}</td>
-                    <td>${user}</td>
-                    <td>${actionBadge}</td>
-                    <td title="${l.fileName}" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                        ${l.fileType === 'image' ? '🖼️' : '📄'} ${l.fileName}
-                    </td>
-                 </tr>
-             `}).join('');
+    function goToTopUserPage(page) {
+      currentTopUserPage = page;
+      renderTopUsersPage();
     }
 
     // ========== FILE LIST FUNCTIONS ==========
@@ -522,29 +1014,74 @@
     let currentPage = 1;
     const filesPerPage = 20;
 
+    // Sorting state
+    let sortField = 'timestamp';
+    let sortOrder = 'desc'; // 'asc' or 'desc'
+
+    function sortFiles(field) {
+      if (sortField === field) {
+        sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortField = field;
+        sortOrder = 'desc'; // Default desc for new field
+      }
+
+      // Update indicators
+      document.querySelectorAll('th span[id^="sort-"]').forEach(el => el.textContent = '');
+      const indicator = sortOrder === 'asc' ? '▲' : '▼';
+      const el = document.getElementById('sort-' + field);
+      if (el) el.textContent = indicator;
+
+      renderFileList();
+    }
+
     function requestFileList() {
       if (ws.readyState === 1 && currentUserUID) {
-        ws.send(JSON.stringify({ 
-          type: 'get_file_list', 
-          userUID: currentUserUID 
+        ws.send(JSON.stringify({
+          type: 'get_file_list',
+          userUID: currentUserUID
         }));
       }
     }
 
     function renderFileList(filteredFiles = null) {
-      const files = filteredFiles || allFiles;
+      let files = filteredFiles || allFiles;
+
+      // Apply Sorting
+      files.sort((a, b) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+
+        // Handle specific fields
+        if (sortField === 'fileSize') {
+          valA = Number(valA) || 0;
+          valB = Number(valB) || 0;
+        } else if (sortField === 'timestamp') {
+          valA = new Date(valA).getTime();
+          valB = new Date(valB).getTime();
+        } else {
+          valA = (valA || '').toString().toLowerCase();
+          valB = (valB || '').toString().toLowerCase();
+        }
+
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+
       const start = (currentPage - 1) * filesPerPage;
       const end = start + filesPerPage;
       const pageFiles = files.slice(start, end);
-      
+
       const tbody = document.getElementById('file-list-body');
-      
+      if (!tbody) return; // Exit if element doesn't exist to prevent error
+
       if (pageFiles.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;">Chưa có file nào</td></tr>';
         document.getElementById('filePagination').innerHTML = '';
         return;
       }
-      
+
       tbody.innerHTML = pageFiles.map(f => `
         <tr>
           <td>
@@ -557,7 +1094,7 @@
           <td style="color:#666;font-size:13px;">${new Date(f.timestamp).toLocaleString()}</td>
         </tr>
       `).join('');
-      
+
       renderPagination(files.length);
     }
 
@@ -600,21 +1137,21 @@
     function renderPagination(totalFiles) {
       const totalPages = Math.ceil(totalFiles / filesPerPage);
       const paginationDiv = document.getElementById('filePagination');
-      
+
       if (totalPages <= 1) {
         paginationDiv.innerHTML = '';
         return;
       }
-      
+
       let html = '<div style="display:inline-flex;gap:5px;">';
-      
+
       for (let i = 1; i <= totalPages; i++) {
         html += `<button 
           onclick="goToPage(${i})" 
           style="padding:6px 12px; border:1px solid #ddd; background:${i === currentPage ? '#1976d2' : '#fff'}; color:${i === currentPage ? '#fff' : '#333'}; border-radius:4px; cursor:pointer;"
         >${i}</button>`;
       }
-      
+
       html += '</div>';
       paginationDiv.innerHTML = html;
     }
@@ -633,7 +1170,7 @@
           renderFileList();
           return;
         }
-        const filtered = allFiles.filter(f => 
+        const filtered = allFiles.filter(f =>
           (f.senderName && f.senderName.toLowerCase().includes(query)) ||
           (f.senderId && f.senderId.includes(query)) ||
           (f.fileName && f.fileName.toLowerCase().includes(query))
@@ -648,185 +1185,435 @@
   </script>
 
   <!-- Load IndexedDB.js BEFORE calling its functions -->
-    <script src="IndexedDB.js"></script>
+  <script src="IndexedDB.js"></script>
 
-    <script>
-      // ========== 💾 DATA BACKUP FUNCTIONS ==========
+  <script>
+    // ========== 💾 DATA BACKUP FUNCTIONS ==========
 
-      // Get current user UID from localStorage or URL params
-      function getCurrentUserUID() {
-        // Try URL params first
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlUID = urlParams.get('userUID') || urlParams.get('uid');
-        if (urlUID) return urlUID;
+    // Get current user UID from localStorage or URL params
+    function getCurrentUserUID() {
+      // Try URL params first
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUID = urlParams.get('userUID') || urlParams.get('uid');
+      if (urlUID) return urlUID;
 
-        // Try localStorage
-        const storedUID = localStorage.getItem('currentUserUID');
-        if (storedUID) return storedUID;
+      // Try localStorage
+      const storedUID = localStorage.getItem('currentUserUID');
+      if (storedUID) return storedUID;
 
-        return null;
+      return null;
+    }
+
+    // Initialize IndexedDB with user UID before loading stats
+    async function initAndLoadStats() {
+      const userUID = getCurrentUserUID();
+
+      if (!userUID) {
+        console.warn('⚠️ No user UID found, cannot load data');
+        document.getElementById('dbMessages').textContent = 'Chưa đăng nhập';
+        document.getElementById('dbFriends').textContent = '-';
+        document.getElementById('dbSize').textContent = '-';
+        return;
       }
 
-      // Initialize IndexedDB with user UID before loading stats
-      async function initAndLoadStats() {
-        const userUID = getCurrentUserUID();
+      console.log(`🔐 Loading data for user: ${userUID}`);
 
-        if (!userUID) {
-          console.warn('⚠️ No user UID found, cannot load data');
-          document.getElementById('dbMessages').textContent = 'Chưa đăng nhập';
-          document.getElementById('dbFriends').textContent = '-';
-          document.getElementById('dbSize').textContent = '-';
-          return;
-        }
-
-        console.log(`🔐 Loading data for user: ${userUID}`);
-
-        // Initialize IndexedDB with correct UID
-        if (typeof initIndexedDB === 'function') {
-          try {
-            await initIndexedDB(userUID);
-          } catch (e) {
-            console.error('Failed to init IndexedDB:', e);
-          }
-        }
-
-        await loadDataStats();
-      }
-
-      // Load data stats - now called AFTER IndexedDB.js is loaded
-      async function loadDataStats() {
+      // Initialize IndexedDB with correct UID
+      if (typeof initIndexedDB === 'function') {
         try {
-          // Use getDataStats from IndexedDB.js
-          if (typeof getDataStats === 'function') {
-            const stats = await getDataStats();
-            document.getElementById('dbMessages').textContent = (stats.messages || 0).toLocaleString();
-            document.getElementById('dbFriends').textContent = (stats.friends || 0).toLocaleString();
-            document.getElementById('dbSize').textContent = stats.dbSize || '0 KB';
-          } else {
-            // Fallback: manually query IndexedDB
-            console.log('⚠️ getDataStats not found, using fallback...');
-            await loadDataStatsFallback();
-          }
+          await initIndexedDB(userUID);
         } catch (e) {
-          console.error('Error loading data stats:', e);
+          console.error('Failed to init IndexedDB:', e);
+        }
+      }
+
+      await loadDataStats();
+    }
+
+    // Load data stats - now called AFTER IndexedDB.js is loaded
+    async function loadDataStats() {
+      try {
+        // Use getDataStats from IndexedDB.js
+        if (typeof getDataStats === 'function') {
+          const stats = await getDataStats();
+          document.getElementById('dbMessages').textContent = (stats.messages || 0).toLocaleString();
+          document.getElementById('dbFriends').textContent = (stats.friends || 0).toLocaleString();
+          document.getElementById('dbSize').textContent = stats.dbSize || '0 KB';
+        } else {
+          // Fallback: manually query IndexedDB
+          console.log('⚠️ getDataStats not found, using fallback...');
+          await loadDataStatsFallback();
+        }
+      } catch (e) {
+        console.error('Error loading data stats:', e);
+        document.getElementById('dbMessages').textContent = '?';
+        document.getElementById('dbFriends').textContent = '?';
+        document.getElementById('dbSize').textContent = '?';
+      }
+    }
+
+    // Fallback function - now uses per-user DB name
+    async function loadDataStatsFallback() {
+      const userUID = getCurrentUserUID();
+      const DB_NAME = userUID ? `ZaloChat_${userUID}` : 'ZaloChatDB';
+      console.log(`📊 Fallback loading from: ${DB_NAME}`);
+
+      return new Promise((resolve) => {
+        const request = indexedDB.open(DB_NAME);
+        request.onsuccess = (e) => {
+          const db = e.target.result;
+          let msgCount = 0, friendCount = 0;
+
+          // Count messages
+          if (db.objectStoreNames.contains('messages')) {
+            const msgTx = db.transaction('messages', 'readonly');
+            const msgStore = msgTx.objectStore('messages');
+            const countReq = msgStore.count();
+            countReq.onsuccess = () => {
+              msgCount = countReq.result || 0;
+              document.getElementById('dbMessages').textContent = msgCount.toLocaleString();
+            };
+          } else {
+            document.getElementById('dbMessages').textContent = '0';
+          }
+
+          // Count friends
+          if (db.objectStoreNames.contains('friends')) {
+            const frTx = db.transaction('friends', 'readonly');
+            const frStore = frTx.objectStore('friends');
+            const frCountReq = frStore.count();
+            frCountReq.onsuccess = () => {
+              friendCount = frCountReq.result || 0;
+              document.getElementById('dbFriends').textContent = friendCount.toLocaleString();
+            };
+          } else {
+            document.getElementById('dbFriends').textContent = '0';
+          }
+
+          // Estimate size
+          if (navigator.storage && navigator.storage.estimate) {
+            navigator.storage.estimate().then(est => {
+              const usedMB = (est.usage / (1024 * 1024)).toFixed(2);
+              document.getElementById('dbSize').textContent = usedMB + ' MB';
+            });
+          } else {
+            document.getElementById('dbSize').textContent = 'N/A';
+          }
+
+          resolve();
+        };
+        request.onerror = () => {
           document.getElementById('dbMessages').textContent = '?';
           document.getElementById('dbFriends').textContent = '?';
           document.getElementById('dbSize').textContent = '?';
-        }
+          resolve();
+        };
+      });
+    }
+
+    // Export data (Server-side)
+    async function exportData() {
+      window.location.href = '/api/admin/export-data';
+    }
+
+    // Clear just files
+    async function clearFilesOnly() {
+      if (!confirm('⚠️ CHỈ XÓA FILE?\n\n- Tin nhắn gốc sẽ được giữ lại\n- Toàn bộ file đính kèm/ảnh sẽ bị xóa\n- Không thể hoàn tác!\n\nBạn có chắc chắn?')) {
+        return;
       }
 
-      // Fallback function - now uses per-user DB name
-      async function loadDataStatsFallback() {
-        const userUID = getCurrentUserUID();
-        const DB_NAME = userUID ? `ZaloChat_${userUID}` : 'ZaloChatDB';
-        console.log(`📊 Fallback loading from: ${DB_NAME}`);
+      try {
+        const res = await fetch('/api/admin/delete-files-only', { method: 'POST' });
+        const data = await res.json();
 
-        return new Promise((resolve) => {
-          const request = indexedDB.open(DB_NAME);
-          request.onsuccess = (e) => {
-            const db = e.target.result;
-            let msgCount = 0, friendCount = 0;
+        if (data.success) {
+          alert('✅ Đã xóa file thành công!\nTin nhắn vẫn được giữ lại.');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          alert('❌ Lỗi: ' + data.error);
+        }
+      } catch (e) {
+        alert('❌ Lỗi kết nối server');
+      }
+    }
 
-            // Count messages
-            if (db.objectStoreNames.contains('messages')) {
-              const msgTx = db.transaction('messages', 'readonly');
-              const msgStore = msgTx.objectStore('messages');
-              const countReq = msgStore.count();
-              countReq.onsuccess = () => {
-                msgCount = countReq.result || 0;
-                document.getElementById('dbMessages').textContent = msgCount.toLocaleString();
-              };
-            } else {
-              document.getElementById('dbMessages').textContent = '0';
-            }
+    // Clear all data (Server-side)
+    async function clearAllData() {
+      if (!confirm('⚠️ XÓA TẤT CẢ DỮ LIỆU?\n\n- Tin nhắn, Bạn bè, File, Ảnh\n- Mọi thứ sẽ bị xóa sạch\n- Không thể hoàn tác!\n\nBạn có chắc chắn?')) {
+        return;
+      }
 
-            // Count friends
-            if (db.objectStoreNames.contains('friends')) {
-              const frTx = db.transaction('friends', 'readonly');
-              const frStore = frTx.objectStore('friends');
-              const frCountReq = frStore.count();
-              frCountReq.onsuccess = () => {
-                friendCount = frCountReq.result || 0;
-                document.getElementById('dbFriends').textContent = friendCount.toLocaleString();
-              };
-            } else {
-              document.getElementById('dbFriends').textContent = '0';
-            }
+      try {
+        const res = await fetch('/api/admin/delete-all', { method: 'POST' });
+        const data = await res.json();
 
-            // Estimate size
-            if (navigator.storage && navigator.storage.estimate) {
-              navigator.storage.estimate().then(est => {
-                const usedMB = (est.usage / (1024 * 1024)).toFixed(2);
-                document.getElementById('dbSize').textContent = usedMB + ' MB';
-              });
-            } else {
-              document.getElementById('dbSize').textContent = 'N/A';
-            }
+        if (data.success) {
+          alert('✅ Đã xóa tất cả dữ liệu!\nTrình duyệt sẽ tải lại.');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          alert('❌ Lỗi: ' + data.error);
+        }
+      } catch (e) {
+        alert('❌ Lỗi kết nối server');
+      }
+    }
 
-            resolve();
-          };
-          request.onerror = () => {
-            document.getElementById('dbMessages').textContent = '?';
-            document.getElementById('dbFriends').textContent = '?';
-            document.getElementById('dbSize').textContent = '?';
-            resolve();
-          };
+    // Load stats when IndexedDB.js is ready - USING UID-AWARE INIT
+    setTimeout(initAndLoadStats, 500);
+    // Refresh stats every 30s
+    setInterval(loadDataStats, 30000);
+
+    // ========== ✅ NEW GALLERY FUNCTIONS ==========
+
+    // Switch between gallery tabs
+    function switchGalleryTab(tab) {
+      currentGalleryTab = tab;
+
+      // Update active tab button
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      // Hide all views
+      document.getElementById('logs-view').style.display = 'none';
+      document.getElementById('files-view').style.display = 'none';
+      document.getElementById('images-view').style.display = 'none';
+
+      // Show selected view
+      document.getElementById(tab + '-view').style.display = 'block';
+
+      // Populate gallery if needed
+      if (tab === 'files') {
+        renderFilesGallery();
+      } else if (tab === 'images') {
+        renderImagesGallery();
+      }
+    }
+
+    // Populate user filter dropdown
+    function populateUserFilter() {
+      const userFilter = document.getElementById('userFilter');
+      userFilter.preventDefault = false;
+
+      allUsersSet.forEach(user => {
+        if (!Array.from(userFilter.options).some(opt => opt.value === user)) {
+          const option = document.createElement('option');
+          option.value = user;
+          option.textContent = '👤 ' + user;
+          userFilter.appendChild(option);
+        }
+      });
+    }
+
+    // Apply filter to gallery
+    // Apply filter to gallery
+    function applyGalleryFilter() {
+      if (currentGalleryTab === 'files') {
+        renderFilesGallery();
+      } else if (currentGalleryTab === 'images') {
+        renderImagesGallery();
+      } else if (currentGalleryTab === 'logs') {
+        renderFileLogs(null); // Re-render with current filter
+      }
+    }
+
+    // Render files gallery
+    function renderFilesGallery() {
+      const filterUser = document.getElementById('userFilter').value;
+      let filtered = allFilesData.filter(f => f.fileType !== 'image');
+
+      if (filterUser) {
+        filtered = filtered.filter(f => (f.senderName || f.senderId) === filterUser);
+      }
+
+      const gallery = document.getElementById('files-gallery');
+
+      if (filtered.length === 0) {
+        gallery.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-state-icon">📁</div><div class="empty-state-text">Không có file nào</div></div>';
+        return;
+      }
+
+      gallery.innerHTML = filtered.map(f => `
+          <div class="gallery-item" onclick="openFileModal(${JSON.stringify(f).replace(/"/g, '&quot;')})">
+            <div class="gallery-item-preview">${getFileIcon(f.fileType)}</div>
+            <div class="gallery-item-info">
+              <div class="gallery-item-name" title="${f.fileName}">${truncate(f.fileName, 20)}</div>
+              <div class="gallery-item-sender" title="${f.senderName || f.senderId}">${truncate(f.senderName || f.senderId, 20)}</div>
+            </div>
+          </div>
+        `).join('');
+    }
+
+    // Render images gallery
+    function renderImagesGallery() {
+      const filterUser = document.getElementById('userFilter').value;
+      let filtered = allImagesData;
+
+      if (filterUser) {
+        filtered = filtered.filter(f => (f.senderName || f.senderId) === filterUser);
+      }
+
+      const gallery = document.getElementById('images-gallery');
+
+      if (filtered.length === 0) {
+        gallery.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-state-icon">🖼️</div><div class="empty-state-text">Không có hình ảnh nào</div></div>';
+        return;
+      }
+
+      gallery.innerHTML = filtered.map(f => `
+          <div class="gallery-item" onclick="openFileModal(${JSON.stringify(f).replace(/"/g, '&quot;')})">
+            <div class="gallery-item-preview">
+              ${f.imageUrl ? `<img src="${f.imageUrl}" alt="${f.fileName}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3E🖼️%3C/text%3E%3C/svg%3E'">` : '🖼️'}
+            </div>
+            <div class="gallery-item-info">
+              <div class="gallery-item-name" title="${f.fileName}">${truncate(f.fileName, 20)}</div>
+              <div class="gallery-item-sender" title="${f.senderName || f.senderId}">${truncate(f.senderName || f.senderId, 20)}</div>
+            </div>
+          </div>
+        `).join('');
+    }
+
+    // Open file modal with preview
+    function openFileModal(file) {
+      const modal = document.getElementById('fileModal');
+      const modalTitle = document.getElementById('modal-title');
+      const modalPreview = document.getElementById('modal-preview');
+      const modalDetails = document.getElementById('modal-details');
+      const modalActions = document.getElementById('modal-actions');
+
+      // Set title
+      modalTitle.textContent = file.fileName || 'Chi Tiết File';
+
+      // Show preview
+      if (file.fileType === 'image' && file.imageUrl) {
+        modalPreview.innerHTML = `<img src="${file.imageUrl}" alt="${file.fileName}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22300%22%3E%3Crect fill=%22%23ddd%22 width=%22300%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%2232%22%3E🖼️ Không thể tải%3C/text%3E%3C/svg%3E'">`;
+      } else {
+        modalPreview.innerHTML = `<div style="text-align:center; padding:30px;"><div style="font-size:60px;">${getFileIcon(file.fileType)}</div></div>`;
+      }
+
+      // Show details
+      const fileSize = file.fileSize ? formatFileSize(file.fileSize) : 'N/A';
+      const fileType = file.fileType ? formatFileType(file.fileType) : 'Không xác định';
+      const timestamp = file.timestamp ? new Date(file.timestamp).toLocaleString() : 'N/A';
+      const senderName = file.senderName || file.senderId || 'Không xác định';
+
+      modalDetails.innerHTML = `
+          <div class="detail-row">
+            <div class="detail-label">📄 Tên File:</div>
+            <div class="detail-value">${file.fileName || 'N/A'}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">👤 Người Gửi:</div>
+            <div class="detail-value">${senderName}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">📊 Loại:</div>
+            <div class="detail-value">${fileType}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">💾 Kích Thước:</div>
+            <div class="detail-value">${fileSize}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">⏰ Ngày Gửi:</div>
+            <div class="detail-value">${timestamp}</div>
+          </div>
+        `;
+
+      // Show actions
+      let actions = '';
+      if (file.fileType === 'image' && file.imageUrl) {
+        actions = `
+            <a href="${file.imageUrl}" target="_blank" class="btn-modal btn-view">👁️ Xem Đầy Đủ</a>
+            <a href="${file.imageUrl}" download="${file.fileName}" class="btn-modal btn-download">⬇️ Tải Xuống</a>
+          `;
+      }
+      modalActions.innerHTML = actions || '<p style="text-align:center; color:#999;">Không có hành động nào</p>';
+
+      modal.classList.add('active');
+    }
+
+    // Close file modal
+    function closeFileModal(event) {
+      if (event && event.target.id !== 'fileModal') return;
+      document.getElementById('fileModal').classList.remove('active');
+    }
+
+    let allFileLogs = [];
+
+    // Update file logs view with current data
+    function renderFileLogs(logs) {
+      // Store logs if provided (from WS)
+      if (logs) {
+        allFileLogs = logs;
+        // Extract unique users for filter (only on new data)
+        logs.forEach(l => {
+          const user = l.isSent ? (l.receiverId || 'Partner') : (l.senderId || 'Unknown');
+          allUsersSet.add(user);
+        });
+        populateUserFilter();
+      }
+
+      const body = document.getElementById('file-logs-body-view');
+
+      // Apply Filter
+      const filterUser = document.getElementById('userFilter').value;
+      let displayLogs = allFileLogs;
+
+      if (filterUser) {
+        displayLogs = displayLogs.filter(l => {
+          const user = l.isSent ? (l.receiverId || 'Partner') : (l.senderId || 'Unknown');
+          return user === filterUser;
         });
       }
 
-      // Export data
-      async function exportData() {
-        if (typeof exportAllDataAsJSON === 'function') {
-          await exportAllDataAsJSON();
-        } else {
-          alert('❌ Export function not available');
-        }
+      if (!displayLogs || displayLogs.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">Chưa có log nào</td></tr>';
+        return;
       }
 
-      // Handle import file selection
-      async function handleImport(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+      body.innerHTML = displayLogs.map(l => {
+        const isSent = l.action === 'SENT';
+        const actionBadge = isSent
+          ? '<span class="status-badge bg-orange">Gửi đi</span>'
+          : '<span class="status-badge bg-green">Nhận về</span>';
+        const user = isSent ? (l.receiverId || 'Partner') : (l.senderId || 'Unknown');
 
-        if (typeof importDataFromJSON === 'function') {
-          try {
-            await importDataFromJSON(file);
-            // Reload page after successful import
-            setTimeout(() => window.location.reload(), 2000);
-          } catch (err) {
-            console.error('Import error:', err);
-          }
-        } else {
-          alert('❌ Import function not available');
-        }
+        return `
+            <tr onclick="openFileModal(${JSON.stringify(l).replace(/"/g, '&quot;')});" style="cursor:pointer;">
+              <td style="color:#666;font-size:12px; width: 140px;">${new Date(l.timestamp).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}</td>
+              <td style="font-size:13px; font-weight:500; color:#333;">${l.senderName || l.senderId}</td>
+              <td style="width: 80px;">${actionBadge}</td>
+              <td title="${l.fileName}" style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                ${l.fileType === 'image' ? '🖼️' : '📄'} ${l.fileName}
+              </td>
+            </tr>
+          `;
+      }).join('');
+    }
 
-        // Reset file input
-        event.target.value = '';
+    // Update file list to separate by type
+    function renderFileListGallery(files) {
+      allFilesData = files || [];
+      allImagesData = files ? files.filter(f => f.fileType === 'image') : [];
+      allFilesData = files ? files.filter(f => f.fileType !== 'image') : [];
+
+      // Extract unique users for filter
+      files?.forEach(f => {
+        allUsersSet.add(f.senderName || f.senderId);
+      });
+      populateUserFilter();
+
+      // Render current tab
+      if (currentGalleryTab === 'files') {
+        renderFilesGallery();
+      } else if (currentGalleryTab === 'images') {
+        renderImagesGallery();
       }
+    }
+  </script>
 
-      // Clear all data
-      async function clearAllData() {
-        if (!confirm('⚠️ Xóa TẤT CẢ dữ liệu?\n\nĐây là hành động không thể hoàn tác!\n\nBạn có chắc chắn?')) {
-          return;
-        }
-
-        if (typeof clearAllIndexedDBData === 'function') {
-          await clearAllIndexedDBData();
-          alert('✅ Đã xóa tất cả dữ liệu!\n\nVui lòng tải lại trang.');
-          setTimeout(() => window.location.reload(), 1000);
-        } else {
-          alert('❌ Clear function not available');
-        }
-      }
-
-      // Load stats when IndexedDB.js is ready - USING UID-AWARE INIT
-      setTimeout(initAndLoadStats, 500);
-      // Refresh stats every 30s
-      setInterval(loadDataStats, 30000);
-    </script>
-
-    <!-- Unified Header for consistent navigation -->
-    <script src="/assets/unified-header.js?v=4"></script>
+  <!-- Unified Header for consistent navigation -->
+  <script src="/assets/unified-header.js?v=4"></script>
 </body>
 
 </html>

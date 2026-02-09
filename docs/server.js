@@ -8,6 +8,7 @@ const { loginZalo } = require('./loginZalo.js');
 const { startWebSocketServer, triggerDB } = require('./system/websocket.js');
 const { loadFriends } = require('./chat-function/friends.js');
 const { executeRoutine } = require('./routineExecutor');
+const messageDB = require('./messageDB'); // Fix: Import messageDB
 
 // ✅ FIX: Patch BigInt serialization globally to prevent "Do not know how to serialize a BigInt"
 BigInt.prototype.toJSON = function () { return this.toString(); };
@@ -251,59 +252,117 @@ app.get('/api/images/:id', (req, res) => {
   }
 });
 
-// ✅ Proxy endpoint để download file từ Zalo CDN (bypass 403)
+// ✅ Proxy endpoint để download file từ Zalo CDN (bypass 403) & Local Files
 app.get('/api/proxy-file', async (req, res) => {
   try {
-    const fileUrl = req.query.url;
-    const fileName = req.query.name || 'file';
+    const targetUrl = req.query.url || req.query.path; // Support both url and path params
+    const fileName = req.query.name || req.query.filename || 'file'; // Support both name and filename
+    const mode = req.query.mode || 'download';
 
-    if (!fileUrl) {
-      return res.status(400).json({ error: 'Missing url parameter' });
+    if (!targetUrl) {
+      return res.status(400).json({ error: 'Missing url/path parameter' });
     }
 
-    console.log(`📥 Proxying file: ${fileName} from ${fileUrl}`);
+    // ==========================================================
+    // 1. HANDLE LOCAL FILES (if path is not http/https)
+    // ==========================================================
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      // Security: Prevent directory traversal
+      if (targetUrl.includes('..')) {
+        return res.status(403).send('Invalid path');
+      }
 
-    // Fetch file from Zalo CDN
+      const absolutePath = path.resolve(targetUrl);
+      if (fs.existsSync(absolutePath)) {
+        const finalFileName = fileName !== 'file' ? fileName : path.basename(absolutePath);
+        if (mode === 'view') {
+          res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(finalFileName)}"`);
+        } else {
+          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalFileName)}"`);
+        }
+        return res.download(absolutePath, finalFileName);
+      } else {
+        return res.status(404).send('File not found locally');
+      }
+    }
+
+    // ==========================================================
+    // 2. HANDLE REMOTE URLs (Zalo Proxy)
+    // ==========================================================
+    // Check cache/headers if needed
+
+    // Get Cookie from Zalo API state to bypass 403
+    let cookies = '';
+    if (apiState.api) {
+      if (apiState.api.jar && typeof apiState.api.jar.getCookieString === 'function') {
+        try { cookies = apiState.api.jar.getCookieString(targetUrl); } catch (e) { }
+      } else if (apiState.api.cookie) {
+        if (typeof apiState.api.cookie === 'object' && apiState.api.cookie.j) {
+          try { cookies = apiState.api.cookie.getCookieString(targetUrl); } catch (e) { }
+        } else {
+          cookies = apiState.api.cookie;
+        }
+      }
+    }
+
     const https = require('https');
     const http = require('http');
-    const protocol = fileUrl.startsWith('https') ? https : http;
 
-    protocol.get(fileUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': '*/*',
-        'Referer': 'https://chat.zalo.me/'
-      }
-    }, (response) => {
-      if (response.statusCode === 200) {
-        const contentType = response.headers['content-type'] || 'application/octet-stream';
+    const fetchFile = (urlStr, attempts = 0) => {
+      if (attempts > 5) return res.status(500).send('Too many redirects');
 
-        // ✅ Nếu mode=view thì inline, ngược lại download
-        if (req.query.mode === 'view') {
+      const isHttps = urlStr.startsWith('https:');
+      const client = isHttps ? https : http;
+
+      const options = {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://chat.zalo.me/',
+          'Origin': 'https://chat.zalo.me',
+          'Cookie': cookies || ''
+        }
+      };
+
+      client.get(urlStr, options, (proxyRes) => {
+        // Handle redirects internally to preserve headers
+        if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+          return fetchFile(proxyRes.headers.location, attempts + 1);
+        }
+
+        if (proxyRes.statusCode !== 200) {
+          // Try one more time without cookies if 403 (sometimes Zalo rejects invalid cookies)
+          if (proxyRes.statusCode === 403 && cookies && attempts === 0) {
+            cookies = ''; // Clear cookies and retry
+            return fetchFile(urlStr, attempts + 1);
+          }
+          return res.status(proxyRes.statusCode).send(`Proxy failed: ${proxyRes.statusCode}`);
+        }
+
+        const contentType = proxyRes.headers['content-type'] || 'application/octet-stream';
+        res.setHeader('Content-Type', contentType);
+
+        if (proxyRes.headers['content-length']) {
+          res.setHeader('Content-Length', proxyRes.headers['content-length']);
+        }
+
+        if (mode === 'view') {
           res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
         } else {
           res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
         }
-        res.setHeader('Content-Type', contentType);
-        if (response.headers['content-length']) {
-          res.setHeader('Content-Length', response.headers['content-length']);
-        }
-        response.pipe(res);
-      } else if (response.statusCode === 302 || response.statusCode === 301) {
-        // Follow redirect
-        const redirectUrl = response.headers.location;
-        res.redirect(`/api/proxy-file?url=${encodeURIComponent(redirectUrl)}&name=${encodeURIComponent(fileName)}&mode=${req.query.mode || 'download'}`);
-      } else {
-        console.error(`❌ Proxy failed: ${response.statusCode}`);
-        res.status(response.statusCode).json({ error: `Failed to fetch file: ${response.statusCode}` });
-      }
-    }).on('error', (err) => {
-      console.error('❌ Proxy error:', err.message);
-      res.status(500).json({ error: 'Failed to fetch file' });
-    });
-  } catch (error) {
-    console.error('❌ Proxy error:', error.message);
-    res.status(500).json({ error: 'Server error' });
+
+        proxyRes.pipe(res);
+      }).on('error', (err) => {
+        console.error('Proxy request error:', err);
+        if (!res.headersSent) res.status(500).send('Proxy request failed');
+      });
+    };
+
+    fetchFile(targetUrl);
+
+  } catch (e) {
+    console.error('Api Proxy File Error:', e);
+    if (!res.headersSent) res.status(500).send('Server Error');
   }
 });
 
@@ -351,6 +410,67 @@ try {
 } catch (error) {
   console.warn('⚠️ Could not load transaction stats routes:', error.message);
 }
+
+// ============================================
+// DATA MANAGEMENT API
+// ============================================
+
+// 1. Export Data (JSON)
+app.get('/api/admin/export-data', (req, res) => {
+  try {
+    const data = messageDB.getAllData();
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="zalo-backup-${Date.now()}.json"`);
+    res.send(JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error('Export error:', e);
+    res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+// 2. Delete All Data (Messages + Files)
+app.post('/api/admin/delete-all', (req, res) => {
+  try {
+    // Clear DB
+    messageDB.deleteAll();
+
+    // Clear Uploads Folder
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    if (fs.existsSync(uploadsDir)) {
+      fs.readdirSync(uploadsDir).forEach(f => {
+        try { fs.unlinkSync(path.join(uploadsDir, f)); } catch (e) { }
+      });
+    }
+
+    res.json({ success: true, message: 'All data deleted' });
+  } catch (e) {
+    console.error('Delete all error:', e);
+    res.status(500).json({ error: 'Delete all failed' });
+  }
+});
+
+// 3. Delete Files Only (Keep Messages)
+app.post('/api/admin/delete-files-only', (req, res) => {
+  try {
+    // Update DB (clear paths)
+    messageDB.deleteFilesOnly();
+
+    // Clear Uploads Folder
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    if (fs.existsSync(uploadsDir)) {
+      fs.readdirSync(uploadsDir).forEach(f => {
+        try { fs.unlinkSync(path.join(uploadsDir, f)); } catch (e) { }
+      });
+    }
+
+    res.json({ success: true, message: 'Files deleted, messages preserved' });
+  } catch (e) {
+    console.error('Delete files error:', e);
+    res.status(500).json({ error: 'Delete files failed' });
+  }
+});
+
+
 
 // 404 handler
 app.use((req, res) => {
@@ -424,6 +544,124 @@ const server = http.createServer(app);
 
 // Use PORT from environment variable (for Render) or default to 3000
 const PORT = process.env.PORT || 3000;
+
+// ✅ API Download Route (Fix 403 Forbidden & 404)
+app.get('/api/download', async (req, res) => {
+  try {
+    const filePath = req.query.path;
+    const downloadName = req.query.filename; // Optional explicit filename
+
+    if (!filePath) {
+      return res.status(400).send('Missing path');
+    }
+
+    // 1. Handle Remote URLs (Proxy Download)
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      const https = require('https');
+      const http = require('http');
+      const { URL } = require('url');
+
+      // DEBUG: detailed logging
+      console.log(`⬇️ Proxying download: ${filePath}`);
+
+      // Get Cookie from Zalo API state to bypass 403
+      let cookies = '';
+      if (apiState.api) {
+        // Try getting cookie from jar if available
+        if (apiState.api.jar && typeof apiState.api.jar.getCookieString === 'function') {
+          try { cookies = apiState.api.jar.getCookieString(filePath); } catch (e) { console.error('Error getting cookie from jar:', e); }
+        } else if (apiState.api.cookie) {
+          // Fallback to existing logic
+          if (typeof apiState.api.cookie === 'object' && apiState.api.cookie.j) {
+            try { cookies = apiState.api.cookie.getCookieString(filePath); } catch (e) { }
+          } else {
+            cookies = apiState.api.cookie;
+          }
+        }
+      }
+      console.log(`🍪 Cookies found: ${cookies ? 'YES' : 'NO'} (Length: ${cookies ? cookies.length : 0})`);
+
+      const fetchFile = (urlStr, attempts = 0) => {
+        if (attempts > 5) {
+          console.error('❌ Too many redirects');
+          return res.status(500).send('Too many redirects');
+        }
+
+        console.log(`🔄 Fetching (Attempt ${attempts + 1}): ${urlStr}`);
+        const urlObj = new URL(urlStr);
+        const client = urlObj.protocol === 'https:' ? https : http;
+
+        const options = {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://chat.zalo.me/',
+            'Origin': 'https://chat.zalo.me',
+            'Cookie': cookies || ''
+          }
+        };
+
+        client.get(urlStr, options, (proxyRes) => {
+          console.log(`📡 Response Status: ${proxyRes.statusCode}`);
+          console.log(`Header Location: ${proxyRes.headers.location || 'N/A'}`);
+
+          // Handle redirects internally
+          if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+            console.log(`➡️ Following redirect to: ${proxyRes.headers.location}`);
+            return fetchFile(proxyRes.headers.location, attempts + 1);
+          }
+
+          if (proxyRes.statusCode !== 200) {
+            console.error(`❌ Proxy failed with status: ${proxyRes.statusCode}`);
+            // Consume data to free memory
+            proxyRes.resume();
+            return res.status(proxyRes.statusCode).send(`Failed to fetch file from Zalo server (Status: ${proxyRes.statusCode})`);
+          }
+
+          // Set headers
+          const contentType = proxyRes.headers['content-type'];
+          const contentLength = proxyRes.headers['content-length'];
+
+          if (contentType) res.setHeader('Content-Type', contentType);
+          if (contentLength) res.setHeader('Content-Length', contentLength);
+
+          // Content-Disposition
+          if (downloadName) {
+            res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`);
+          } else {
+            res.setHeader('Content-Disposition', proxyRes.headers['content-disposition'] || 'attachment');
+          }
+
+          proxyRes.pipe(res);
+        }).on('error', (err) => {
+          console.error('Proxy Error:', err);
+          res.status(500).send('Error fetching remote file');
+        });
+      };
+
+      fetchFile(filePath);
+      return;
+    }
+
+    // 2. Handle Local Files
+    // Security sanitization - Prevent directory traversal
+    if (filePath.includes('..')) {
+      return res.status(403).send('Invalid path');
+    }
+
+    // Resolve absolute path
+    const absolutePath = path.resolve(filePath);
+
+    if (fs.existsSync(absolutePath)) {
+      const fileName = downloadName || path.basename(absolutePath);
+      res.download(absolutePath, fileName);
+    } else {
+      res.status(404).send('File not found locally');
+    }
+  } catch (e) {
+    console.error('Download error:', e);
+    if (!res.headersSent) res.status(500).send('Server Error');
+  }
+});
 
 // Start listening
 server.listen(PORT, () => {
@@ -551,6 +789,8 @@ server.listen(PORT, () => {
       console.error('❌ Scheduler error:', err.message);
     }
   }, 30 * 1000); // Check every 30 seconds
+
+
 
   // ✅ START WATCHDOG SERVICE
   const { startWatchdog } = require('./system/watchdog');

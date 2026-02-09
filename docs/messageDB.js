@@ -291,8 +291,38 @@ function getTopUsers(limit = 10) {
     if (!db) return { topMsg: [], topFiles: [] };
     try {
         const topMsg = db.prepare(`SELECT senderId, COUNT(*) as count FROM messages WHERE isSelf=0 GROUP BY senderId ORDER BY count DESC LIMIT ?`).all(limit);
-        const topFiles = db.prepare(`SELECT senderId, COUNT(*) as count FROM file_activity_logs WHERE action='RECEIVED' GROUP BY senderId ORDER BY count DESC LIMIT ?`).all(limit);
-        return { topMsg, topFiles };
+
+        // 1. Top Files (Exclude images)
+        const topFiles = db.prepare(`
+            SELECT senderId, attachmentName as fileName, timestamp, metadata, attachmentPath, 'RECEIVED' as action
+            FROM messages 
+            WHERE isSelf=0 AND attachmentType IN ('file', 'video', 'audio')
+            ORDER BY timestamp DESC 
+            LIMIT ?
+        `).all(limit);
+
+        // 2. Top Images
+        const topImages = db.prepare(`
+            SELECT senderId, attachmentName as fileName, timestamp, metadata, attachmentPath, 'RECEIVED' as action
+            FROM messages 
+            WHERE isSelf=0 AND attachmentType = 'image'
+            ORDER BY timestamp DESC 
+            LIMIT ?
+        `).all(limit);
+
+        // Parse metadata to get fileUrl/imageUrl
+        const parseMeta = (list) => list.map(item => {
+            let url = null;
+            if (item.metadata) {
+                try {
+                    const meta = JSON.parse(item.metadata);
+                    url = meta.fileData?.fileUrl || meta.imageData?.imageUrl || meta.imageUrl || null;
+                } catch (e) { }
+            }
+            return { ...item, fileUrl: url };
+        });
+
+        return { topMsg, topFiles: parseMeta(topFiles), topImages: parseMeta(topImages) };
     } catch (e) {
         return { topMsg: [], topFiles: [] };
     }
@@ -576,6 +606,47 @@ function deleteReaction(msgId, userId) {
     }
 }
 
+// Export all data
+function getAllData() {
+    if (!db) return { messages: [], fileLogs: [], receivedFiles: [], reactions: [] };
+    const messages = db.prepare('SELECT * FROM messages').all();
+    const fileLogs = db.prepare('SELECT * FROM file_activity_logs').all();
+    const receivedFiles = db.prepare('SELECT * FROM received_files').all();
+    const reactions = db.prepare('SELECT * FROM message_reactions').all();
+    return { messages, fileLogs, receivedFiles, reactions };
+}
+
+// Delete all messages + files
+function deleteAll() {
+    if (!db) return;
+    db.prepare('DELETE FROM messages').run();
+    db.prepare('DELETE FROM file_activity_logs').run();
+    db.prepare('DELETE FROM received_files').run();
+    db.prepare('DELETE FROM message_reactions').run();
+    db.exec('VACUUM');
+}
+
+// Delete files ONLY (keep message content)
+function deleteFilesOnly() {
+    if (!db) return;
+
+    // Update messages: Clear attachmentPath but keep metadata like fileName/size 
+    // so UI knows a file existed but is now gone
+    db.prepare(`
+        UPDATE messages 
+        SET attachmentPath = NULL
+        WHERE attachmentPath IS NOT NULL
+    `).run();
+
+    // Clear received_files lookup but keep logs? 
+    // User wants "files deleted", so received_files (which tracks specific file paths) should be cleared
+    db.prepare('DELETE FROM received_files').run();
+
+    db.exec('VACUUM');
+}
+
+
+
 module.exports = {
     init,
     saveMessage,
@@ -596,5 +667,9 @@ module.exports = {
     // Reactions
     saveReaction,
     getReactions,
-    deleteReaction
+    deleteReaction,
+    // Data Management
+    getAllData,
+    deleteAll,
+    deleteFilesOnly
 };

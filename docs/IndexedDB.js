@@ -1,5 +1,32 @@
+// ✅ Global variables initialization (using window object to prevent re-declaration errors)
+if (!window.dbInstance) window.dbInstance = null;
+if (!window.currentUserUID) window.currentUserUID = null;
+if (!window.allMessages) window.allMessages = new Map(); // Map of uid -> [messages]
+if (!window.messageStore) window.messageStore = new Map(); // Map of uid -> {lastMessage, timestamp}
+
 function isDBReady() {
-  return dbInstance && !dbInstance.closed;
+  return window.dbInstance && !window.dbInstance.closed;
+}
+
+// ✅ Get unique device ID
+function getDeviceId() {
+  let deviceId = localStorage.getItem('deviceId');
+  if (!deviceId) {
+    deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('deviceId', deviceId);
+  }
+  return deviceId;
+}
+
+// ✅ Get device name for display
+function getDeviceName() {
+  const userAgent = navigator.userAgent;
+  if (/Windows/.test(userAgent)) return 'Windows';
+  if (/Mac/.test(userAgent)) return 'Mac';
+  if (/Linux/.test(userAgent)) return 'Linux';
+  if (/iPhone|iPad|iPod/.test(userAgent)) return 'iOS';
+  if (/Android/.test(userAgent)) return 'Android';
+  return 'Unknown Device';
 }
 
 async function initIndexedDB(userUID) {
@@ -19,13 +46,13 @@ async function initIndexedDB(userUID) {
     };
 
     request.onsuccess = () => {
-      dbInstance = request.result;
-      currentUserUID = userUID;
+      window.dbInstance = request.result;
+      window.currentUserUID = userUID;
       localStorage.setItem('currentUserUID', userUID);
       console.log(`✅ IndexedDB initialized for user: ${userUID}`);
 
       loadAllMessagesFromDB();
-      resolve(dbInstance);
+      resolve(window.dbInstance);
     };
 
     request.onupgradeneeded = (event) => {
@@ -53,7 +80,7 @@ async function loadAllMessagesFromDB() {
   if (!isDBReady()) return;
 
   try {
-    const transaction = dbInstance.transaction(['messages'], 'readonly');
+    const transaction = window.dbInstance.transaction(['messages'], 'readonly');
     const store = transaction.objectStore('messages');
     const allRequest = store.getAll();
 
@@ -61,17 +88,18 @@ async function loadAllMessagesFromDB() {
       const messages = allRequest.result;
       console.log(`📊 Loading ${messages.length} messages from DB`);
 
-      allMessages.clear();
-      messageStore.clear();
+      window.allMessages.clear();
+      window.messageStore.clear();
 
       for (const msg of messages) {
         const uid = msg.uid;
-        if (!allMessages.has(uid)) {
-          allMessages.set(uid, []);
+        if (!window.allMessages.has(uid)) {
+          window.allMessages.set(uid, []);
         }
 
         // ✅ Giữ TOÀN BỘ message object (bao gồm imageUrl, type, fileData, etc.)
-        allMessages.get(uid).push({
+        // ✅ Also preserve device tracking fields
+        window.allMessages.get(uid).push({
           msgId: msg.msgId,
           content: msg.content || msg.msg || '',
           timestamp: msg.timestamp || msg.savedAt || 0,
@@ -84,26 +112,32 @@ async function loadAllMessagesFromDB() {
           imageData: msg.imageData,
           fileData: msg.fileData,
           gifData: msg.gifData,
-          stickerData: msg.stickerData
+          stickerData: msg.stickerData,
+          // ✅ Device tracking fields
+          deviceId: msg.deviceId,
+          deviceName: msg.deviceName,
+          hasFileDataLocally: msg.hasFileDataLocally,
+          fileDataDeviceId: msg.fileDataDeviceId,
+          fileDataDeviceName: msg.fileDataDeviceName
         });
 
         // ✅ Build messageStore for last message tracking
         const timestamp = msg.timestamp || msg.savedAt || 0;
         const content = msg.content || msg.msg || '';
-        const existing = messageStore.get(uid);
+        const existing = window.messageStore.get(uid);
         if (!existing || timestamp > existing.timestamp) {
-          messageStore.set(uid, {
+          window.messageStore.set(uid, {
             lastMessage: content,
             timestamp: timestamp
           });
         }
       }
 
-      console.log(`✅ Loaded ${allMessages.size} unique chats`);
-      console.log(`✅ MessageStore: ${messageStore.size} chats with timestamps`);
+      console.log(`✅ Loaded ${window.allMessages.size} unique chats`);
+      console.log(`✅ MessageStore: ${window.messageStore.size} chats with timestamps`);
 
       // ✅ Sort by timestamp on load
-      sortFriendsAfterLoad();
+      // sortFriendsAfterLoad(); // Function not defined, skipping
     };
   } catch (err) {
     console.error('❌ Error loading messages:', err);
@@ -114,7 +148,7 @@ async function autoSaveToIndexedDB(uid, message) {
   if (!isDBReady()) return;
 
   try {
-    const transaction = dbInstance.transaction(['messages'], 'readwrite');
+    const transaction = window.dbInstance.transaction(['messages'], 'readwrite');
     const store = transaction.objectStore('messages');
 
     const msgId = message.msgId || message.id || `${uid}-${message.timestamp}-${Math.random()}`;
@@ -125,23 +159,47 @@ async function autoSaveToIndexedDB(uid, message) {
 
       existingRequest.onsuccess = () => {
         if (!existingRequest.result) {
+          const deviceId = getDeviceId();
+          const deviceName = getDeviceName();
+          
+          // ✅ Mark if file data exists locally on this device
+          const hasFileData = !!(message.fileData?.fileUrl || message.imageData || message.gifData);
+          
           const data = {
             uid,
             msgId: msgId,
             ...message,
-            savedAt: Date.now()
+            savedAt: Date.now(),
+            // ✅ Device tracking
+            deviceId: deviceId,
+            deviceName: deviceName,
+            hasFileDataLocally: hasFileData,
+            fileDataDeviceId: hasFileData ? deviceId : undefined,
+            fileDataDeviceName: hasFileData ? deviceName : undefined
           };
           store.add(data);
+          console.log(`💾 Saved message to device: ${deviceName} (${deviceId}), has file data: ${hasFileData}`);
         }
       };
     } catch (e) {
+      const deviceId = getDeviceId();
+      const deviceName = getDeviceName();
+      const hasFileData = !!(message.fileData?.fileUrl || message.imageData || message.gifData);
+      
       const data = {
         uid,
         msgId: msgId,
         ...message,
-        savedAt: Date.now()
+        savedAt: Date.now(),
+        // ✅ Device tracking
+        deviceId: deviceId,
+        deviceName: deviceName,
+        hasFileDataLocally: hasFileData,
+        fileDataDeviceId: hasFileData ? deviceId : undefined,
+        fileDataDeviceName: hasFileData ? deviceName : undefined
       };
       store.add(data);
+      console.log(`💾 Saved message to device: ${deviceName} (${deviceId}), has file data: ${hasFileData}`);
     }
   } catch (err) {
     console.error('❌ Save error:', err);
@@ -149,20 +207,20 @@ async function autoSaveToIndexedDB(uid, message) {
 }
 
 function openStorageInfo() {
-  if (!currentUserUID) {
+  if (!window.currentUserUID) {
     alert('❌ User not logged in');
     return;
   }
-  window.open(`/storage-info.html?userUID=${currentUserUID}`, 'storage-info', 'width=1000,height=1200');
+  window.open(`/storage-info.html?userUID=${window.currentUserUID}`, 'storage-info', 'width=1000,height=1200');
 }
 
 function openAutoReplyViewer() {
-  if (!currentUserUID) {
+  if (!window.currentUserUID) {
     alert('❌ User not logged in');
     return;
   }
 
-  const url = `trigger-manager.html?userUID=${currentUserUID}&dbName=ZaloChat_${currentUserUID}`;
+  const url = `trigger-manager.html?userUID=${window.currentUserUID}&dbName=ZaloChat_${window.currentUserUID}`;
   window.open(url, '_blank');
 }
 
@@ -197,8 +255,8 @@ async function exportAllDataAsJSON() {
     const backup = {
       version: 1,
       timestamp: new Date().toISOString(),
-      userUID: currentUserUID,
-      dbName: `ZaloChat_${currentUserUID}`,
+      userUID: window.currentUserUID,
+      dbName: `ZaloChat_${window.currentUserUID}`,
       data: {
         messages: messages,
         friends: [] // Empty as we no longer store friends separately
@@ -216,7 +274,7 @@ async function exportAllDataAsJSON() {
 
     const a = document.createElement('a');
     a.href = url;
-    a.download = `zalo-backup-${currentUserUID}-${Date.now()}.json`;
+    a.download = `zalo-backup-${window.currentUserUID}-${Date.now()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -267,7 +325,7 @@ async function importDataFromJSON(file) {
         await clearAllIndexedDBData();
 
         // Import messages
-        const messagesTransaction = dbInstance.transaction(['messages'], 'readwrite');
+        const messagesTransaction = window.dbInstance.transaction(['messages'], 'readwrite');
         const messagesStore = messagesTransaction.objectStore('messages');
 
         for (const message of backup.data.messages) {
@@ -309,7 +367,7 @@ async function getDataStats() {
     // Count messages
     let messagesCount = 0;
     try {
-      const messagesTransaction = dbInstance.transaction(['messages'], 'readonly');
+      const messagesTransaction = window.dbInstance.transaction(['messages'], 'readonly');
       const messagesStore = messagesTransaction.objectStore('messages');
       messagesCount = await new Promise((resolve) => {
         const request = messagesStore.count();
@@ -323,7 +381,7 @@ async function getDataStats() {
     // Count unique conversations (as proxy for "friends")
     let friendsCount = 0;
     try {
-      const tx = dbInstance.transaction(['messages'], 'readonly');
+      const tx = window.dbInstance.transaction(['messages'], 'readonly');
       const store = tx.objectStore('messages');
       const allRequest = store.getAll();
 

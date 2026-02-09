@@ -593,9 +593,9 @@
           </button>
         </div>
 
-        <!-- ✅ Compact Button Grid (Moved outside #userInfo) -->
-        <div class="button-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-top:0px;">
-          <button onclick="openStorageInfo()" title="Thống kê & Quản lý"
+        <!-- ✅ Compact Button Grid -->
+        <div class="button-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-top:10px;">
+          <button onclick="window.open('storage-info.html', '_blank')" title="Thống kê & Quản lý"
             style="padding:10px; border:none; border-radius:8px; background:linear-gradient(135deg, #4CAF50, #2E7D32); color:white; cursor:pointer; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:4px;">
             <span style="font-size:18px;">📊</span>
             <span>Thống kê</span>
@@ -630,8 +630,8 @@
             👪 Nhóm
           </button>
         </div>
-        <button class="delete-mode-toggle" id="deleteModeBtn" onclick="toggleDeleteMode()" title="Chế độ xóa bạn bè">
-          Xóa bạn bè
+        <button class="delete-mode-toggle" id="deleteModeBtn" onclick="toggleDeleteMode()" title="Chế độ hành động">
+          Hành động
         </button>
       </div>
 
@@ -646,7 +646,7 @@
         </div>
         <div style="display:flex; gap:8px;">
           <button class="cancel-btn" onclick="cancelDeleteMode()">Hủy</button>
-          <button class="delete-btn" onclick="deleteSelectedFriends()">🗑️ Xóa</button>
+          <button class="delete-btn" onclick="deleteSelectedFriends()">🗑️ Xóa Bạn Bè</button>
         </div>
       </div>
 
@@ -684,17 +684,14 @@
         <div class="search-results-container" id="friendsResults"></div>
       </div>
 
-      <!-- ✅ GROUPS CONTAINER (New) -->
-      <div id="groupsContainer" class="search-content" style="display:none;">
+      <!-- ✅ GROUPS SEARCH -->
+      <div id="groupsSearch" class="search-content" style="display:none;">
         <div class="friends-search-box">
           <input type="text" id="groupsSearchInput" placeholder="🔍 Tìm nhóm..." autocomplete="off"
             onkeyup="searchGroups(this.value)">
         </div>
         <div class="search-results-container" id="groupsResults">
-          <div class="loading-friends">
-            <div class="spinner"></div>
-            <div>Đang tải danh sách nhóm...</div>
-          </div>
+          <!-- Empty - results will be rendered here from search -->
         </div>
       </div>
 
@@ -703,6 +700,14 @@
         <div class="loading-friends">
           <div class="spinner"></div>
           <div>Đang tải danh sách...</div>
+        </div>
+      </div>
+
+      <!-- ✅ GROUPS LIST -->
+      <div class="friends-list" id="groupsList" style="display:none;">
+        <div class="loading-friends">
+          <div class="spinner"></div>
+          <div>Đang tải danh sách nhóm...</div>
         </div>
       </div>
     </div>
@@ -860,11 +865,11 @@
   <script src="assets/websocket-helper.js"></script>
   <script src="/assets/unified-header.js?v=4"></script>
   <script src="chat-function/notifications.js"></script>
+  <script src="IndexedDB.js"></script>
   <script src="chat-function/load_data.js"></script>
   <script src="chat-function/conversation-history-handler.js"></script>
   <script src="chat-function/sort.js"></script>
   <script src="chat-function/file-handler.js"></script>
-  <script src="IndexedDB.js"></script>
   <script src="chat-function/logout.js"></script>
   <script src="chat-function/search.js"></script>
 
@@ -1097,7 +1102,11 @@
       // ✅ Clear groups UI
       const groupsResults = document.getElementById('groupsResults');
       if (groupsResults) {
-        groupsResults.innerHTML = '<div class="loading-friends"><div class="spinner"></div><div>Đang tải danh sách nhóm...</div></div>';
+        groupsResults.innerHTML = '';
+      }
+      const groupsList = document.getElementById('groupsList');
+      if (groupsList) {
+        groupsList.innerHTML = '<div class="loading-friends"><div class="spinner"></div><div>Đang tải danh sách nhóm...</div></div>';
       }
 
       console.log('✅ Dashboard data cleared');
@@ -1150,7 +1159,21 @@
           document.getElementById('userAvatar').src = data.user.avatar || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect fill='%23ddd' width='50' height='50'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'%3E👤%3C/text%3E%3C/svg%3E";
           document.getElementById('userUid').textContent = 'UID: ' + data.user.uid;
           document.getElementById('userInfo').style.display = 'flex';
-
+          // The following HTML block is intended for dashboard.html, not this JS file.
+          // Inserting it here would cause a syntax error.
+          // <div class="user-info" id="userInfo">
+          // <img id="userAvatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect fill='%23ddd' width='50' height='50'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'%3E👤%3C/text%3E%3C/svg%3E" alt="Avatar">
+          // <div id="userName">Đang tải...</div>
+          // <div id="userUid">UID: ...</div>
+          // <div style="display:flex; gap:5px; margin-top:5px;">
+          //   <button class="logout-btn" onclick="logout()">
+          //     <i class="fas fa-sign-out-alt"></i> Đăng xuất
+          //   </button>
+          //   <button class="logout-btn" style="background: #0068FF;" onclick="window.open('storage-info.html', '_blank')">
+          //     <i class="fas fa-database"></i> Dữ liệu
+          //   </button>
+          // </div>
+          // </div>
           initIndexedDB(newUserUID).then(async () => {
             // 📖 Restore messageStore from localStorage FIRST
             restoreMessageStoreFromLocalStorage();
@@ -1264,6 +1287,18 @@
           renderGroups();
         }
 
+        if (data.type === 'all_last_messages') {
+          console.log(`📊 Received last messages for ${Object.keys(data.data || {}).length} conversations`);
+          if (data.data) {
+            Object.keys(data.data).forEach(key => {
+              messageStore.set(key, data.data[key]);
+            });
+            saveMessageStoreToLocalStorage();
+            if (friendsRendered) renderFriendsVirtual();
+            if (groupsLoaded) renderGroups();
+          }
+        }
+
         if (data.type === 'messages_history') {
           if (selectedFriend && data.uid === selectedFriend.userId) {
             console.log(`📨 Received ${data.messages?.length} messages`);
@@ -1297,13 +1332,36 @@
           const uid = data.uid || data.message?.threadId || selectedFriend?.userId;
           if (!uid) return;
 
-          const isDuplicate = currentMessages.some(m => m.msgId === data.message.msgId);
+          // ✅ Check if this is a reply to a local echo we created
+          const localEchoIndex = currentMessages.findIndex(m => m._localTimestamp === data.message.timestamp || m.cliMsgId === data.message.cliMsgId);
 
-          if (!isDuplicate) {
-            if (selectedFriend && uid === selectedFriend.userId) {
+          if (localEchoIndex >= 0) {
+            // ✅ FIX RACING CONDITION: If new_message already added the real message, OR if we are updating, do it once.
+            const alreadyExistsElsewhere = currentMessages.some((m, idx) => idx !== localEchoIndex && (m.msgId === data.message.msgId || (m.cliMsgId === data.message.cliMsgId && !m._localTimestamp)));
+
+            if (alreadyExistsElsewhere) {
+              console.log(`🗑️ Removing local echo at index ${localEchoIndex} because real message already exists`);
+              currentMessages.splice(localEchoIndex, 1);
+            } else {
+              // Replace the local echo with the real message from server
+              console.log(`🔄 Updating local echo at index ${localEchoIndex} with server confirmation`);
+              currentMessages[localEchoIndex] = data.message;
+            }
+            renderMessages();
+            autoSaveToIndexedDB(uid, data.message);
+          } else {
+            // If no local echo found, check for duplicate before adding (e.g. if new_message already handled it)
+            const isDuplicate = currentMessages.some(m => m.msgId === data.message.msgId || (m.cliMsgId === data.message.cliMsgId && m.msgId));
+            if (isDuplicate) {
+              console.log(`⚠️ Duplicate message ignored in sent_ok: ${data.message.msgId}`);
+            } else if (selectedFriend && uid === selectedFriend.userId) {
               currentMessages.push(data.message);
               renderMessages();
               autoSaveToIndexedDB(uid, data.message);
+            }
+
+            if (typeof renderFriendsVirtual === 'function') {
+              renderFriendsVirtual();
             }
           }
 
@@ -1407,7 +1465,17 @@
           const senderAvatar = sender?.avatar || '';
 
           if (selectedFriend && uid === selectedFriend.userId) {
-            const isDuplicate = currentMessages.some(m => m.msgId === data.message.msgId);
+            // ✅ Check for duplicate by msgId (standard check)
+            let isDuplicate = currentMessages.some(m => m.msgId === data.message.msgId);
+
+            // ✅ EXTRA CHECK: If it's a self message, check if we already have a local echo for it
+            if (!isDuplicate && data.message.isSelf) {
+              isDuplicate = currentMessages.some(m =>
+                (m._localTimestamp && m._localTimestamp === data.message.timestamp) ||
+                (m.cliMsgId && data.message.cliMsgId && m.cliMsgId === data.message.cliMsgId)
+              );
+              if (isDuplicate) console.log(`🚫 Ignoring self-message echo via broadcast: ${data.message.msgId}`);
+            }
 
             if (!isDuplicate) {
               const msgToAdd = {
@@ -1538,7 +1606,24 @@
           alert('❌ Lỗi xóa bạn bè: ' + data.error);
         }
 
-        // ✅ XỬ LÝ BATCH REMOVE RESULT (from remove_friends_batch handler)
+        if (data.type === 'delete_all_response') {
+          if (data.success) {
+            alert('✅ Đã xóa toàn bộ dữ liệu thành công!');
+            // ✅ Clear Frontend Cache
+            localStorage.removeItem('messageStore_' + (currentUserId || 'default'));
+            localStorage.removeItem('lastChatWith');
+            messageStore.clear();
+            currentMessages = [];
+
+            // Re-render
+            renderMessages();
+            if (typeof renderFriendsVirtual === 'function') renderFriendsVirtual();
+
+            location.reload(); // Reload to ensure clean state
+          } else {
+            alert('❌ Lỗi: ' + data.error);
+          }
+        } // ✅ XỬ LÝ BATCH REMOVE RESULT (from remove_friends_batch handler)
         if (data.type === 'batch_remove_result') {
           console.log('✅ Batch remove result:', data);
           if (data.success && data.success.length > 0) {
@@ -1897,18 +1982,6 @@
       selectFriend(userId, displayName, avatar);
     }
 
-    // Enter to send
-    document.addEventListener('DOMContentLoaded', () => {
-      const input = document.getElementById('messageInput');
-      if (input) {
-        input.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-          }
-        });
-      }
-    });
 
 
     function formatTime(timestamp) {
@@ -2141,6 +2214,8 @@
         showToast('Không thể kết nối server. Vui lòng thử lại.', 'error');
       }
     }
+
+
 
     // Handle remove friend responses
     function handleFriendRemoved(data) {
@@ -2433,7 +2508,8 @@
       const groupsTabBtn = document.getElementById('groupsTabBtn');
       const friendsSearch = document.getElementById('friendsSearch');
       const friendsList = document.getElementById('friendsList');
-      const groupsContainer = document.getElementById('groupsContainer');
+      const groupsSearch = document.getElementById('groupsSearch');
+      const groupsList = document.getElementById('groupsList');
       const deleteModeBtn = document.getElementById('deleteModeBtn');
 
       if (tab === 'friends') {
@@ -2445,7 +2521,8 @@
         groupsTabBtn.style.color = '#333';
         friendsSearch.style.display = 'block';
         friendsList.style.display = 'block';
-        groupsContainer.style.display = 'none';
+        groupsSearch.style.display = 'none';
+        groupsList.style.display = 'none';
         deleteModeBtn.style.display = 'block';
       } else {
         groupsTabBtn.classList.add('active');
@@ -2456,8 +2533,12 @@
         friendsTabBtn.style.color = '#333';
         friendsSearch.style.display = 'none';
         friendsList.style.display = 'none';
-        groupsContainer.style.display = 'block';
+        groupsSearch.style.display = 'block';
+        groupsList.style.display = 'block';
         deleteModeBtn.style.display = 'none';
+
+        // Render groups list
+        renderGroups();
 
         // Request groups if not loaded
         if (!groupsLoaded && ws && ws.readyState === WebSocket.OPEN) {
@@ -2467,29 +2548,67 @@
     }
 
     function renderGroups() {
-      const container = document.getElementById('groupsResults');
+      // Determine which container to render to
+      const searchQuery = document.getElementById('groupsSearchInput')?.value || '';
+      const isSearching = searchQuery.trim().length > 0;
+      const container = isSearching
+        ? document.getElementById('groupsResults')
+        : document.getElementById('groupsList');
+
       if (!container) return;
 
       if (filteredGroups.length === 0) {
-        container.innerHTML = '<div class="notification-empty">Không tìm thấy nhóm nào</div>';
+        container.innerHTML = isSearching
+          ? '<div class="notification-empty">Không tìm thấy nhóm nào</div>'
+          : '<div class="loading-friends"><div style="color:#999; padding:20px;">Không có nhóm nào</div></div>';
         return;
       }
 
-      container.innerHTML = filteredGroups.map(g => `
-        <div class="friend-item" onclick="selectGroup('${g.groupId}', '${escapeJs(g.name)}', '${g.avatar}')"
-      style="display:flex; align-items:center; padding:12px; cursor:pointer; border-bottom:1px solid #eee;">
-          <div style="position:relative;">
-            <img src="${g.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E'}" 
-              style="width:50px; height:50px; border-radius:50%; object-fit:cover;" 
-              onerror="this.onerror=null;">
-            <span style="position:absolute; bottom:-2px; right:-2px; background:#9c27b0; color:white; font-size:10px; padding:2px 4px; border-radius:8px;">👪</span>
+      container.innerHTML = filteredGroups.map(g => {
+        const msgInfo = messageStore.get(g.groupId);
+        const hasMessages = !!msgInfo;
+        const unreadCount = window.unreadConversations ? (window.unreadConversations.get(g.groupId) || 0) : 0;
+        const isUnread = unreadCount > 0;
+
+        const memberCount = g.totalMember || '?';
+        const preview = hasMessages
+          ? `<span class="has-message">${escapeHtml(msgInfo.lastMessage.substring(0, 30))}${msgInfo.lastMessage.length > 30 ? '...' : ''}</span>`
+          : `<span style="color:#999; font-size:12px;">Nhân đề chat • <span style="color:#666; font-weight:500;">${memberCount} thành viên</span></span>`;
+
+        const timeStr = hasMessages
+          ? `<span class="message-time">${formatTime(msgInfo.timestamp)}</span>`
+          : '';
+
+        const unreadBadge = isUnread
+          ? `<span class="unread-count-badge" style="background:#0068FF; color:white; font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:6px; min-width:18px; text-align:center;">${unreadCount > 99 ? '99+' : unreadCount}</span>`
+          : '';
+
+        const isActive = (typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === g.groupId);
+
+        return `
+          <div class="group-item friend-item ${hasMessages ? 'has-messages' : ''} ${isUnread ? 'unread' : ''} ${isActive ? 'active' : ''}" 
+               style="${isUnread ? 'background: linear-gradient(90deg, rgba(0,104,255,0.1) 0%, white 100%); border-left: 3px solid #0068FF;' : ''}"
+               onclick="selectGroup('${g.groupId}', '${escapeJs(g.name)}', '${g.avatar}')">
+            <div class="group-avatar-wrapper" style="position:relative; flex-shrink:0;">
+              <img class="group-avatar" src="${g.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E'}" 
+                onerror="this.onerror=null;">
+              <span class="group-badge" style="position:absolute; bottom:-2px; right:-2px; background:#9c27b0; color:white; font-size:10px; padding:2px 4px; border-radius:8px; border:1px solid white;">👪</span>
+            </div>
+            <div class="group-info info">
+              <div class="group-name name">
+                <span class="group-title" style="color:#333; font-weight:600; font-size:14px;">${escapeHtml(g.name)}</span>
+                <div style="display:flex; align-items:center; gap:4px; margin-left:auto;">
+                  ${unreadBadge}
+                  ${timeStr}
+                </div>
+              </div>
+              <div class="group-preview preview" style="${isUnread ? 'font-weight:600; color:#0068FF;' : ''}">
+                ${preview}
+              </div>
+            </div>
           </div>
-          <div style="margin-left:12px; flex:1;">
-            <div style="font-weight:600; color:#333;">${escapeHtml(g.name)}</div>
-            <div style="font-size:12px; color:#888;">${g.totalMember || '?'} thành viên</div>
-          </div>
-        </div>
-        `).join('');
+        `;
+      }).join('');
     }
 
     function searchGroups(query) {
@@ -2533,6 +2652,9 @@
           isGroup: true
         }));
       }
+
+      // ✅ Re-render groups to update "active" highlight
+      renderGroups();
 
       console.log(`👪 Selected group: ${groupName} (${groupId})`);
     }

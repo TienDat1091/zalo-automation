@@ -117,12 +117,16 @@ function buildStaticContext(apiState, senderId, message = null) {
   const now = new Date();
   const weekdays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 
+  // ✅ For strangers, try to get name from message data (dName field)
+  const strangerName = message?.data?.dName || message?.data?.senderName;
+  const displayName = friend?.displayName || friend?.zaloName || friend?.name || strangerName || 'Người dùng';
+
   return {
     // Sender info
-    zalo_name: friend?.displayName || friend?.zaloName || friend?.name || 'Người dùng',
+    zalo_name: displayName,
     zalo_id: senderId || '',
     zalo_phone: friend?.phoneNumber || friend?.phone || '',
-    zalo_avatar: friend?.avatar || friend?.thumbAvatar || '',
+    zalo_avatar: friend?.avatar || friend?.thumbAvatar || message?.data?.avatar || '',
     zalo_gender: friend?.gender !== undefined ? String(friend.gender) : '',
     is_friend: friend ? 'true' : 'false',
 

@@ -9,362 +9,419 @@
     <link rel="stylesheet" href="/assets/unified-header.css?v=4">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-light: #EEF2FF;
+            --success: #10B981;
+            --surface: #ffffff;
+            --background: #F3F4F6;
+            --text-main: #111827;
+            --text-sub: #6B7280;
+            --border: #E5E7EB;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 16px;
+        }
+
         body {
-            background: #f0f2f5;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding-top: 64px;
+            background: var(--background);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            padding-top: 0 !important;
+            margin: 0 !important;
             min-height: 100vh;
-            overflow-y: auto;
+            color: var(--text-main);
+            overflow-y: auto !important;
+            height: auto !important;
         }
 
         .container {
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
-        }
+            padding: 0 24px 40px;
 
-        .settings-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-
-        .settings-grid .settings-section:first-child {
-            grid-column: 1 / -1;
-        }
-
-        @media (max-width: 768px) {
-            .settings-grid {
-                grid-template-columns: 1fr;
-            }
+            /* Override style_dashboard.css conflicts */
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
+            background: transparent !important;
+            grid-template-columns: none !important;
         }
 
         .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
+            margin-bottom: 32px;
+            text-align: center;
         }
 
         .page-header h1 {
-            color: #333;
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text-main);
             margin: 0;
+            letter-spacing: -0.5px;
+        }
+
+        .page-header p {
+            color: var(--text-sub);
+            margin-top: 8px;
+        }
+
+        /* Layout Structure */
+        .settings-grid {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 24px;
+            flex-direction: column;
+            gap: 40px;
         }
 
         .settings-section {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            margin-bottom: 20px;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .section-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 16px 20px;
-            font-weight: 600;
-            font-size: 16px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border);
         }
 
-        .settings-list {
-            padding: 16px;
-        }
-
-        .setting-item {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 16px;
-            border-radius: 10px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid #eee;
-        }
-
-        .setting-item:hover {
-            background: #f8f9ff;
-            border-color: #667eea;
-        }
-
-        .setting-item.enabled {
-            background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
-            border-color: #4caf50;
-        }
-
-        .setting-icon {
-            width: 48px;
-            height: 48px;
+        .section-header span {
+            background: var(--primary-light);
+            color: var(--primary);
+            width: 40px;
+            height: 40px;
             border-radius: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 24px;
-            flex-shrink: 0;
         }
 
-        .setting-info {
-            flex: 1;
-            min-width: 0;
+        .settings-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
         }
 
-        .setting-name {
-            font-weight: 600;
-            color: #333;
-            font-size: 15px;
-            margin-bottom: 4px;
-        }
-
-        .setting-desc {
-            font-size: 13px;
-            color: #666;
-        }
-
-        .setting-actions {
+        /* Card Styling */
+        .setting-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
             display: flex;
-            align-items: center;
-            gap: 12px;
+            flex-direction: column;
         }
 
-        .status-badge {
-            font-size: 11px;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-weight: 600;
+        .setting-card:hover {
+            box-shadow: var(--shadow);
+            transform: translateY(-4px);
+            border-color: var(--primary);
         }
 
-        .status-badge.on {
-            background: #4caf50;
-            color: white;
+        .setting-card.active {
+            border-left: 4px solid var(--success);
         }
 
-        .status-badge.off {
-            background: #e0e0e0;
-            color: #666;
+        .card-body {
+            display: flex;
+            gap: 16px;
+            flex: 1;
         }
 
-        .config-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            background: white;
-            cursor: pointer;
-            font-size: 16px;
+        .card-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: var(--primary-light);
+            color: var(--primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .setting-card.active .card-icon {
+            background: #ECFDF5;
+            color: var(--success);
+        }
+
+        .card-info h3 {
+            margin: 0 0 6px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .card-info p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--text-sub);
+            line-height: 1.5;
+        }
+
+        .card-footer {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Toggle Switch */
+        .switch-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: #E5E7EB;
+            border-radius: 20px;
+            transition: 0.3s;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        input[type="checkbox"]:checked+.toggle-switch {
+            background: var(--success);
+        }
+
+        input[type="checkbox"]:checked+.toggle-switch::after {
+            transform: translateX(22px);
+        }
+
+        /* Buttons */
+        .config-btn {
+            padding: 8px 16px;
+            background: transparent;
+            color: var(--text-sub);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .config-btn:hover {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+            background: var(--background);
+            color: var(--text-main);
+            border-color: #D1D5DB;
         }
 
-        /* Modal styles */
+        /* Modals (Updated) */
         .modal-backdrop {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .modal-backdrop.show {
             display: flex;
-        }
-
-        .modal-box {
-            background: white;
-            border-radius: 12px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-
-        .modal-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-            opacity: 0.6;
-        }
-
-        .modal-close:hover {
             opacity: 1;
         }
 
+        .modal-box {
+            background: var(--surface);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-backdrop.show .modal-box {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            background: var(--surface);
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 20px;
+            color: var(--text-sub);
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--background);
+            color: var(--text-main);
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .modal-body {
-            padding: 20px;
+            padding: 24px;
         }
 
         .modal-footer {
-            padding: 12px 20px;
-            border-top: 1px solid #eee;
+            padding: 20px 24px;
+            background: #F9FAFB;
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: flex-end;
-            gap: 8px;
+            gap: 12px;
         }
 
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 14px;
+            background: #EFF6FF;
+            color: #1E40AF;
+            border: 1px solid #DBEAFE;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #1E3A8A;
         }
 
         .form-label {
             display: block;
-            font-size: 13px;
+            color: var(--text-main);
             font-weight: 600;
-            color: #333;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            font-size: 14px;
         }
 
         .form-input {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 13px;
+            padding: 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 10px;
+            transition: 0.2s;
             font-family: inherit;
-            box-sizing: border-box;
+            font-size: 14px;
+            color: var(--text-main);
+            background: #F9FAFB;
         }
 
         .form-input:focus {
             outline: none;
-            border-color: #667eea;
+            background: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
         }
 
         .btn {
             padding: 10px 20px;
-            border-radius: 6px;
+            border-radius: 10px;
+            font-weight: 600;
             font-size: 14px;
-            font-weight: 500;
             cursor: pointer;
+            transition: 0.2s;
             border: none;
-        }
-
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #5568d3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
+            background: white;
+            color: var(--text-main);
+            border: 1px solid var(--border);
         }
 
         .btn-secondary:hover {
-            background: #e0e0e0;
+            background: var(--background);
         }
 
-        .info-box {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 16px;
-            font-size: 13px;
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
         }
 
-        .info-box.blue {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            color: #1565c0;
+        .btn-primary:hover {
+            background: #4338CA;
+            transform: translateY(-1px);
         }
 
-        .info-box.orange {
-            background: #fff3e0;
-            border-left: 4px solid #ff9800;
-            color: #e65100;
-        }
+        @media (max-width: 640px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
 
-        .ttl-option {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            padding: 10px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            transition: all 0.2s;
-            margin-bottom: 8px;
-        }
-
-        .ttl-option:hover {
-            background: #f5f5f5;
-        }
-
-        .ttl-option input[type="radio"] {
-            width: 18px;
-            height: 18px;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-
-        /* Reaction option buttons */
-        .reaction-option {
-            font-size: 24px;
-            width: 44px;
-            height: 44px;
-            border: 2px solid #eee;
-            border-radius: 12px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .reaction-option:hover {
-            border-color: #667eea;
-            transform: scale(1.1);
-        }
-
-        .reaction-option.selected {
-            border-color: #667eea;
-            background: #e8f0fe;
-            transform: scale(1.1);
+            .modal-box {
+                width: 100%;
+                height: 100%;
+                max-height: 100%;
+                border-radius: 0;
+            }
         }
     </style>
 </head>
@@ -923,15 +980,23 @@
 
         function renderSettingItem(trigger) {
             return `
-        <div class="setting-item ${trigger.enabled ? 'enabled' : ''}" onclick="toggleSetting('${trigger.id}')">
-          <div class="setting-icon">${trigger.icon}</div>
-          <div class="setting-info">
-            <div class="setting-name">${trigger.name}</div>
-            <div class="setting-desc">${trigger.description}</div>
+        <div class="setting-card ${trigger.enabled ? 'active' : ''}">
+          <div class="card-body">
+             <div class="card-icon">${trigger.icon}</div>
+             <div class="card-info">
+               <h3>${trigger.name}</h3>
+               <p>${trigger.description}</p>
+             </div>
           </div>
-          <div class="setting-actions">
-            <span class="status-badge ${trigger.enabled ? 'on' : 'off'}">${trigger.enabled ? 'BẬT' : 'TẮT'}</span>
-            <button class="config-btn" onclick="event.stopPropagation(); openConfig('${trigger.id}')" title="Cài đặt">⚙️</button>
+          <div class="card-footer">
+            <label class="switch-label">
+              <input type="checkbox" ${trigger.enabled ? 'checked' : ''} onchange="toggleSetting('${trigger.id}')" style="display:none;">
+              <div class="toggle-switch"></div>
+              <span>${trigger.enabled ? 'Đang bật' : 'Đang tắt'}</span>
+            </label>
+            <button class="config-btn" onclick="openConfig('${trigger.id}')">
+              <i class="fas fa-cog"></i> Cấu hình
+            </button>
           </div>
         </div>
       `;

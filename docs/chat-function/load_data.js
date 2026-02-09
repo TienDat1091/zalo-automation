@@ -7,6 +7,16 @@
 // Key: userId, Value: count of unread messages
 window.unreadConversations = window.unreadConversations || new Map();
 
+// ✅ Helper: Get unique device ID
+function getDeviceId() {
+  let deviceId = localStorage.getItem('deviceId');
+  if (!deviceId) {
+    deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('deviceId', deviceId);
+  }
+  return deviceId;
+}
+
 // ✅ Helper: Escape strings for use in onclick attributes
 function escapeJs(str) {
   if (!str) return '';
@@ -393,21 +403,62 @@ function renderMessages() {
     } else if (msgType === 'file' && msg.fileData) {
       const fileIcon = { pdf: '📄', word: '📝', excel: '📊', powerpoint: '📽️', archive: '📦', audio: '🎵', video: '🎬', image: '🖼️' }[msg.fileData.fileType] || '📎';
       const fileSize = msg.fileData.fileSize ? formatFileSizeLD(msg.fileData.fileSize) : '';
+
+      // ✅ Check if file data exists locally on current device
+      const hasFileDataLocally = msg.hasFileDataLocally;
+      const fileDataDeviceName = msg.fileDataDeviceName;
+      const currentDeviceId = getDeviceId ? getDeviceId() : localStorage.getItem('deviceId');
+      const hasFileUrl = msg.fileData && msg.fileData.fileUrl; // New check for URL availability
+      const isFileOnThisDevice = msg.fileDataDeviceId === currentDeviceId || hasFileDataLocally || hasFileUrl;
+
       // ✅ View URL (inline) và Download URL
       const viewUrl = msg.fileData.fileUrl ? `/api/proxy-file?url=${encodeURIComponent(msg.fileData.fileUrl)}&name=${encodeURIComponent(msg.fileData.fileName || 'file')}&mode=view` : '#';
       const downloadUrl = msg.fileData.fileUrl ? `/api/proxy-file?url=${encodeURIComponent(msg.fileData.fileUrl)}&name=${encodeURIComponent(msg.fileData.fileName || 'file')}&mode=download` : '#';
 
+      let attachmentContent = '';
+
+      if (isFileOnThisDevice) {
+        // File is available on current device
+        attachmentContent = `
+          <div style="display:flex;align-items:center;gap:8px;background:#f5f5f5;padding:10px 14px;border-radius:8px;">
+            <span style="font-size:20px;">${fileIcon}</span>
+            <span style="flex:1;color:#333;font-size:13px;">${escapeHtml(msg.fileData.fileName || 'File')}</span>
+            ${fileSize ? '<span style="color:#888;font-size:11px;">(' + fileSize + ')</span>' : ''}
+            <a href="${viewUrl}" target="_blank" title="Xem" style="color:#0068FF;font-size:12px;text-decoration:none;">👁️ Xem</a>
+            <a href="${downloadUrl}" download="${escapeHtml(msg.fileData.fileName || 'file')}" title="Tải" style="color:#0068FF;font-size:12px;text-decoration:none;">⬇️ Tải</a>
+          </div>
+        `;
+      } else if (fileDataDeviceName) {
+        // File is saved on another device
+        attachmentContent = `
+          <div style="display:flex;align-items:center;gap:8px;background:#fff3cd;padding:10px 14px;border-radius:8px;border-left:3px solid #ffc107;">
+            <span style="font-size:18px;">⚠️</span>
+            <div style="flex:1;">
+              <div style="color:#333;font-size:13px;font-weight:500;">📁 ${escapeHtml(msg.fileData.fileName || 'File')}</div>
+              <div style="color:#666;font-size:11px;margin-top:2px;">💾 File đã lưu vào thiết bị khác: <strong>${escapeHtml(fileDataDeviceName)}</strong></div>
+              ${fileSize ? '<span style="color:#888;font-size:11px;">Dung lượng: ' + fileSize + '</span>' : ''}
+            </div>
+          </div>
+        `;
+      } else {
+        // File metadata available but no data on any device
+        attachmentContent = `
+          <div style="display:flex;align-items:center;gap:8px;background:#f8d7da;padding:10px 14px;border-radius:8px;border-left:3px solid #dc3545;">
+            <span style="font-size:18px;">❌</span>
+            <div style="flex:1;">
+              <div style="color:#721c24;font-size:13px;font-weight:500;">📁 ${escapeHtml(msg.fileData.fileName || 'File')}</div>
+              <div style="color:#721c24;font-size:11px;margin-top:2px;">Dữ liệu file không khả dụng trên bất kỳ thiết bị nào</div>
+            </div>
+          </div>
+        `;
+      }
+
       attachmentHtml = `
       <div class="message-attachment" style="margin-top:8px;">
-        <div style="display:flex;align-items:center;gap:8px;background:#f5f5f5;padding:10px 14px;border-radius:8px;">
-          <span style="font-size:20px;">${fileIcon}</span>
-          <span style="flex:1;color:#333;font-size:13px;">${escapeHtml(msg.fileData.fileName || 'File')}</span>
-          ${fileSize ? '<span style="color:#888;font-size:11px;">(' + fileSize + ')</span>' : ''}
-          <a href="${viewUrl}" target="_blank" title="Xem" style="color:#0068FF;font-size:12px;text-decoration:none;">👁️ Xem</a>
-          <a href="${downloadUrl}" download="${escapeHtml(msg.fileData.fileName || 'file')}" title="Tải" style="color:#0068FF;font-size:12px;text-decoration:none;">⬇️ Tải</a>
-        </div>
-        </div>
+        ${attachmentContent}
+      </div>
       `;
+
     } else if (msgType === 'gif' && msg.imageUrl) {
       attachmentHtml = `
       <div class="message-attachment" style="margin-top:8px;">
@@ -545,7 +596,7 @@ function escapeJs(str) {
 }
 
 function sendMessage() {
-  console.log('📤 sendMessage() được g��i');
+  console.log('📤 sendMessage() được gọi');
 
   if (!selectedFriend) {
     console.log('⚠️ Chưa chọn người nhận');
@@ -569,6 +620,33 @@ function sendMessage() {
     const fileData = window.currentAttachment;
     console.log(`📎 Sending ${fileData.type}: ${fileData.name}`);
 
+    const timestamp = Date.now();
+
+    // ✅ Create message object for immediate display (optimistic update)
+    // Use a special marker to identify this as a local echo that will be replaced
+    const tempMessage = {
+      msgId: `local_${timestamp}`, // Temporary local ID, will be replaced with server msgId
+      cliMsgId: `local_${timestamp}`,
+      senderId: currentUserId,
+      content: text || '',
+      msg: text || '',
+      timestamp: timestamp,
+      isSelf: true,
+      type: fileData.type,
+      _localTimestamp: timestamp, // Track original timestamp to match with sent_ok
+      fileData: {
+        fileName: fileData.name,
+        fileType: fileData.mimeType,
+        fileSize: 0, // Will be updated when received from server
+        fileUrl: fileData.data // Use base64 data for preview
+      }
+    };
+
+    // Add to current messages and render immediately
+    currentMessages.push(tempMessage);
+    renderMessages();
+
+    // Send to server
     ws.send(JSON.stringify({
       type: fileData.type === 'image' ? 'send_image' : 'send_file',
       to: String(selectedFriend.userId),
@@ -577,25 +655,44 @@ function sendMessage() {
       fileData: fileData.data,
       fileName: fileData.name,
       fileType: fileData.mimeType,
-      timestamp: Date.now()
+      timestamp: timestamp
     }));
-
-    // Note: removeAttachment() will be called when receiving 'sent_ok' from server
 
     input.value = '';
     input.focus();
-    console.log('✅ Đã gửi file/image, đợi server confirm...');
+    console.log('✅ Đã gửi file/image, tin nhắn đã hiển thị');
     return;
   }
 
   // Send text message only
   console.log('➡️ Gửi tin nhắn qua WebSocket');
+
+  const timestamp = Date.now();
+
+  // ✅ Create local message object for immediate display (optimistic update)
+  const tempMessage = {
+    msgId: `local_${timestamp}`, // Temporary local ID, will be replaced with server msgId
+    cliMsgId: `local_${timestamp}`,
+    senderId: currentUserId,
+    content: text,
+    msg: text,
+    timestamp: timestamp,
+    isSelf: true,
+    type: 'text',
+    _localTimestamp: timestamp // Track original timestamp to match with sent_ok
+  };
+
+  // Add to current messages and render immediately
+  currentMessages.push(tempMessage);
+  renderMessages();
+
   ws.send(JSON.stringify({
     type: 'send_message',
     uid: String(selectedFriend.userId),
     to: String(selectedFriend.userId),
     text: text,
-    content: text
+    content: text,
+    timestamp: timestamp
   }));
 
   input.value = '';
