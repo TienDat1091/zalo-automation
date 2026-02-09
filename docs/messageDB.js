@@ -623,6 +623,8 @@ function deleteAll() {
     db.prepare('DELETE FROM file_activity_logs').run();
     db.prepare('DELETE FROM received_files').run();
     db.prepare('DELETE FROM message_reactions').run();
+    // ✅ Reset Auto-Increment Counters
+    db.prepare('DELETE FROM sqlite_sequence').run();
     db.exec('VACUUM');
 }
 

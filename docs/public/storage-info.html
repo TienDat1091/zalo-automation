@@ -1338,6 +1338,7 @@
     }
 
     // Clear all data (Server-side)
+    // Clear all data (Server-side)
     async function clearAllData() {
       if (!confirm('⚠️ XÓA TẤT CẢ DỮ LIỆU?\n\n- Tin nhắn, Bạn bè, File, Ảnh\n- Mọi thứ sẽ bị xóa sạch\n- Không thể hoàn tác!\n\nBạn có chắc chắn?')) {
         return;
@@ -1349,7 +1350,13 @@
 
         if (data.success) {
           alert('✅ Đã xóa tất cả dữ liệu!\nTrình duyệt sẽ tải lại.');
-          setTimeout(() => window.location.reload(), 1000);
+          // ✅ Clear Frontend Cache
+          const currentUserId = new URLSearchParams(window.location.search).get('userUID');
+          localStorage.removeItem('messageStore_' + (currentUserId || 'default'));
+          localStorage.removeItem('lastChatWith');
+          localStorage.removeItem('strangers_' + (currentUserId || 'default')); // Clear stranger cache too
+
+          setTimeout(() => window.location.reload(), 500);
         } else {
           alert('❌ Lỗi: ' + data.error);
         }
