@@ -377,18 +377,56 @@ async function processAutoReply(apiState, message) {
             });
             fullPrompt += 'Assistant:';
 
+            // ✅ SMART ACTIONS LOGIC
+            let effectiveSystemPrompt = aiMode.systemPrompt || '';
+            const useSmartActions = aiMode.smartActions === true;
+
+            if (useSmartActions) {
+              const now = new Date();
+              effectiveSystemPrompt += `\n\n[SYSTEM INSTRUCTION]\nYOU HAVE ACCESS TO SMART ACTIONS. IF THE USER REQUESTS TO SCHEDULE A TASK OR REMINDER:\n1. RETURN ONLY A JSON OBJECT (NO EXTRA TEXT).\n2. COMPLY WITH THIS FORMAT: {"action": "schedule_task", "time": "YYYY-MM-DD HH:mm", "content": "Task description"}.\n3. "time" MUST be in 'YYYY-MM-DD HH:mm' format. Current time is: ${now.toLocaleString('vi-VN')}. CALCULATE relative times (tomorrow, next week) based on this.\n4. IF NO ACTION IS NEEDED, REPLY NORMALLY (TEXT ONLY).`;
+            }
+
             // Call local callGeminiAPI
             const response = await callGeminiAPI(
-              aiMode.apiKey,
-              aiMode.model,
+              aiMode.apiKey || '', // Handle potentially missing apiKey
+              aiMode.model || 'gemini-1.5-flash',
               fullPrompt,
-              aiMode.systemPrompt,
+              effectiveSystemPrompt,
               aiMode.temperature
             );
 
             if (response && response.text) {
+              let finalText = response.text;
+
+              // ✅ CHECK FOR SMART ACTION JSON
+              if (useSmartActions) {
+                try {
+                  // Clean potential markdown code blocks
+                  const cleaned = finalText.replace(/```json/g, '').replace(/```/g, '').trim();
+                  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+                    const actionData = JSON.parse(cleaned);
+
+                    if (actionData.action === 'schedule_task') {
+                      console.log('📅 AI Triggered Smart Action:', actionData);
+
+                      const targetTime = new Date(actionData.time).getTime();
+                      if (!isNaN(targetTime)) {
+                        // Import triggerDB if strictly needed inside this scope, but it's global in this file
+                        triggerDB.createScheduledTask(userUID, senderId, 'User', actionData.content, 'text', targetTime);
+                        finalText = `✅ Đã đặt lịch nhắc: "${actionData.content}" vào lúc ${actionData.time}`;
+                      } else {
+                        finalText = `⚠️ Tôi không hiểu thời gian bạn muốn đặt (${actionData.time}). Vui lòng thử lại rõ ràng hơn.`;
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.warn('⚠️ Failed to parse AI Smart Action JSON:', e.message);
+                  // Ignore error and send original text
+                }
+              }
+
               // Add AI response to history
-              conversationHistory.push({ role: 'assistant', content: response.text });
+              conversationHistory.push({ role: 'assistant', content: finalText });
               aiMode.conversationHistory = conversationHistory;
 
               // Send response
@@ -617,15 +655,13 @@ async function processAutoReply(apiState, message) {
           }, debounceMs);
 
           fileBatchMap.set(senderId, batch);
-          return; // Skip immediate reply - will be handled by batch processor
+          autoReplyState.stats.replied++; // Count as replied since batch will handle it
+          return; // ✅ Exit early - file batch will handle the response
         }
       }
 
-      // ✅ ENHANCEMENT: Allow file/image messages to fall through to default auto-reply
-      // Previously: return early to avoid processing files as text
-      // Now: Let files/images continue to default auto-reply trigger
-      console.log('📎 File/Image received but no specific file trigger matched. Checking default auto-reply...');
-      // return; // ❌ COMMENTED OUT - Now allows auto-reply on file/image messages
+      // ✅ No file trigger matched - fallthrough to check regular auto-reply
+      console.log('📎 File/Image received but no file trigger matched. Checking default auto-reply...');
     }
 
     // ========== CHECK AUTO REPLY TRIGGERS (User vs Group) ==========

@@ -639,6 +639,15 @@
                         Kích hoạt tính năng này
                     </label>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="aiSmartActions" style="margin-right:6px;">
+                        ⚡ Bật Smart Actions (Tự động đặt lịch, v.v.)
+                    </label>
+                    <div style="font-size:11px; color:#999; margin-top:4px;">
+                        Khi bật, AI có thể tự động thực hiện hành động (như đặt lịch hẹn) thay vì chỉ trả lời.
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="hideAiConversationModal()">Hủy</button>
@@ -1175,6 +1184,7 @@
             document.getElementById('aiSystemPrompt').value = trigger.systemPrompt || '';
             document.getElementById('aiTimeout').value = trigger.timeoutMinutes || 30;
             document.getElementById('aiEnabled').checked = trigger.enabled;
+            document.getElementById('aiSmartActions').checked = trigger.smartActions || false; // ✅ Load Smart Actions
             document.getElementById('aiConversationModal').classList.add('show');
         }
 
@@ -1189,6 +1199,7 @@
             trigger.systemPrompt = document.getElementById('aiSystemPrompt').value.trim();
             trigger.timeoutMinutes = parseInt(document.getElementById('aiTimeout').value) || 30;
             trigger.enabled = document.getElementById('aiEnabled').checked;
+            trigger.smartActions = document.getElementById('aiSmartActions').checked; // ✅ Save Smart Actions
 
             ws.send(JSON.stringify({
                 type: 'update_builtin_trigger',
