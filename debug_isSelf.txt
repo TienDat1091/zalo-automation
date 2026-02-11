@@ -427,3 +427,6 @@ Lưu ý: hãy giữ token này an toàn và bảo mật, vì bất kỳ ai có t
 [23:12:26] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
 [23:14:33] RECV: Type=0 Content="H" IsSelf=false UID=undefined MyUID=716585949090695726
 [23:14:43] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[01:47:15] RECV: Type=text Content="😀" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[01:47:15] processSelfTrigger CALLED for "😀"
+[02:02:31] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=284707033025009316
