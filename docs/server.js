@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const session = require('express-session');
+// const session = require('express-session'); // Removed for Render deployment fix
 
 const { loginZalo } = require('./loginZalo.js');
 const { startWebSocketServer, triggerDB } = require('./system/websocket.js');
@@ -48,20 +48,9 @@ const apiState = {
 // apiState.loginZalo wrapper removed (using direct loginZalo call)
 
 // Session & Zalo Session Middleware
+// Session middleware removed for deployment stability
 const isSecure = process.env.RENDER || process.env.NODE_ENV === 'production';
-
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'zalo-automation-secret-2026',
-  resave: false,
-  saveUninitialized: true, // Create session for new users
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
-    secure: isSecure ? true : false, // Secure MUST be true on Render (HTTPS)
-    httpOnly: true,
-    sameSite: 'lax'
-  },
-  proxy: true // Trust the proxy
-}));
+// app.use(session({...})); removed
 
 // Session attachment middleware removed
 
