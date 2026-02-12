@@ -920,9 +920,7 @@
     let confirmResolve = null;
 
     // ========== MESSAGE STORE PERSISTENCE ==========
-    /**
-     * Save messageStore to localStorage for persistence across page refreshes
-     */
+    // Save messageStore to localStorage for persistence across page refreshes
     function saveMessageStoreToLocalStorage() {
       try {
         const data = {};
@@ -936,9 +934,7 @@
       }
     }
 
-    /**
-     * Restore messageStore from localStorage on page load
-     */
+    // Restore messageStore from localStorage on page load
     function restoreMessageStoreFromLocalStorage() {
       try {
         const stored = localStorage.getItem('messageStore_' + (currentUserId || 'default'));
@@ -1466,8 +1462,19 @@
           const senderAvatar = sender?.avatar || '';
 
           if (selectedFriend && uid === selectedFriend.userId) {
-            // ✅ Check for duplicate by msgId (standard check)
-            let isDuplicate = currentMessages.some(m => m.msgId === data.message.msgId);
+            // ✅ FIX: Improved duplicate check for images
+            let isDuplicate = currentMessages.some(m => {
+              if (m.msgId !== data.message.msgId) return false;
+
+              // For images, also check if URL is different (multiple images can have same msgId)
+              if (data.message.type === 'image' && m.type === 'image') {
+                const existingUrl = m.imageUrl || m.imageData?.hdUrl || m.imageData?.normalUrl;
+                const newUrl = data.message.imageUrl || data.message.imageData?.hdUrl || data.message.imageData?.normalUrl;
+                return existingUrl === newUrl; // Only duplicate if same URL
+              }
+
+              return true; // Same msgId for non-images = duplicate
+            });
 
             // ✅ EXTRA CHECK: If it's a self message, check if we already have a local echo for it
             if (!isDuplicate && data.message.isSelf) {
@@ -2650,14 +2657,14 @@
         ws.send(JSON.stringify({
           type: 'get_messages',
           uid: groupId,
-          isGroup: true
+          p: true
         }));
       }
 
       // ✅ Re-render groups to update "active" highlight
       renderGroups();
 
-      console.log(`👪 Selected group: ${groupName} (${groupId})`);
+      console.log(`👪 Selected group: ${groupName} `);
     }
 
 
@@ -2829,7 +2836,7 @@
       currentImageScale += delta;
       if (currentImageScale < 0.5) currentImageScale = 0.5;
       if (currentImageScale > 3) currentImageScale = 3;
-      document.getElementById('viewerImage').style.transform = `scale(${currentImageScale})`;
+      document.getElementById('view erImage').style.transform = `scale(${currentImageScale})`;
     }
 
     function resetZoom() {

@@ -10,6 +10,12 @@ const https = require('https');
 const http = require('http');
 
 // ========================================
+// FILE BATCHING FOR AUTO-REPLY
+// ========================================
+// Prevents duplicate auto-replies when users send multiple files/images
+const fileBatchMap = new Map(); // senderId -> { files: [], timer: null, replied: false }
+
+// ========================================
 // FILE DOWNLOAD UTILITY
 // ========================================
 async function downloadFile(url, filename, senderId) {
@@ -63,7 +69,7 @@ async function downloadFile(url, filename, senderId) {
   }
 }
 
-const fileBatchMap = new Map(); // senderId -> { files: [], timer: null }
+
 const autoReactionBatchMap = new Map(); // senderId -> { firstMsg: {}, lastMsg: {}, timer: null, cooldownUntil: 0 }
 
 const autoReplyState = {
@@ -664,13 +670,87 @@ async function processAutoReply(apiState, message) {
       console.log('📎 File/Image received but no file trigger matched. Checking default auto-reply...');
     }
 
-    // ========== CHECK AUTO REPLY TRIGGERS (User vs Group) ==========
-    // ✅ NEW: Read from builtin_triggers_state table (system-settings.html)
+    // ========== CHECK AUTO REPLY SETTINGS ==========
     const builtinKey = isGroup ? 'builtin_auto_reply_group' : 'builtin_auto_reply_user';
     const autoReplySettings = triggerDB.getBuiltInTriggerState(userUID, builtinKey);
 
-    // If auto-reply is enabled via system settings, reply immediately
-    if (autoReplySettings && autoReplySettings.enabled) {
+    // ========== FILE BATCHING FOR AUTO-REPLY ==========
+    // Check if message is file/image (to batch them and prevent duplicates)
+    const isFileOrImage = typeof content === 'object';
+
+    if (isFileOrImage && autoReplySettings && autoReplySettings.enabled) {
+      console.log('📎 File/Image detected - adding to batch...');
+
+      // Get or create batch for this sender
+      let batch = fileBatchMap.get(senderId) || { files: [], timer: null, replied: false };
+
+      // Add current file to batch
+      batch.files.push({
+        type: content.type || 'unknown',
+        name: content.title || content.filename || 'file'
+      });
+
+      // Clear existing timer
+      if (batch.timer) {
+        clearTimeout(batch.timer);
+        console.log(`⏱️ Timer reset - ${batch.files.length} files in batch`);
+      }
+
+      // Set new debounce timer (2 seconds)
+      batch.timer = setTimeout(async () => {
+        const batchData = fileBatchMap.get(senderId);
+        if (!batchData || batchData.replied) {
+          fileBatchMap.delete(senderId);
+          return;
+        }
+
+        console.log(`📦 Processing batched files (${batchData.files.length} items) for ${senderId}`);
+
+        // Check cooldown
+        const cooldownKey = `${senderId}_${builtinKey}`;
+        const lastReplyTime = autoReplyState.cooldowns.get(cooldownKey);
+        const now = Date.now();
+        const cooldownMs = autoReplySettings.cooldown || 30000;
+        const elapsed = lastReplyTime ? (now - lastReplyTime) : cooldownMs + 1;
+
+        if (elapsed >= cooldownMs) {
+          let replyContent = autoReplySettings.response || 'Xin chào!';
+
+          // Build context with file count
+          const context = {
+            ...buildStaticContext(apiState, senderId, ''),
+            sender_id: senderId,
+            file_count: batchData.files.length
+          };
+          const vars = triggerDB.getAllVariables(userUID, senderId);
+          vars.forEach(v => { context[v.variableName] = v.variableValue; });
+
+          replyContent = substituteVariables(replyContent, context);
+
+          await sendMessage(apiState, senderId, replyContent, userUID);
+          autoReplyState.cooldowns.set(cooldownKey, now);
+          autoReplyState.stats.replied++;
+          console.log(`✅ Batched auto-reply sent for ${batchData.files.length} files!`);
+
+          batchData.replied = true;
+        } else {
+          console.log(`⏳ Cooldown active for batch - skipping reply`);
+        }
+
+        // Clean up batch
+        fileBatchMap.delete(senderId);
+      }, 2000); // 2 second debounce
+
+      // Save updated batch
+      fileBatchMap.set(senderId, batch);
+
+      console.log(`📎 File added to batch: ${batch.files.length} total, waiting 2s for more...`);
+      return; // ✅ Exit early - don't trigger auto-reply for individual files
+    }
+
+    // ========== TEXT MESSAGE AUTO-REPLY (NON-BATCHED) ==========
+    // If auto-reply is enabled and it's a text message, reply immediately
+    if (autoReplySettings && autoReplySettings.enabled && !isFileOrImage) {
       const cooldownKey = `${senderId}_${builtinKey}`;
       const lastReplyTime = autoReplyState.cooldowns.get(cooldownKey);
       const now = Date.now();
