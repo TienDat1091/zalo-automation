@@ -1,76 +1,12 @@
 // loginZalo.js - INTEGRATED WITH AUTO REPLY + IMAGE SUPPORT
 // ✅ FIX: Hỗ trợ gửi ảnh bằng imageMetadataGetter
 // ✅ FIX: Xử lý nhận ảnh từ user
-// ✅ FIX: Proxy support + Credential saving cho Render deployment
 const { Zalo } = require('zca-js');
 const { processAutoReply } = require('./autoReply.js');
 const messageDB = require('./messageDB'); // SQLite message storage
 const { fetchAndBroadcastStrangerInfo } = require('./strangerInfoFetcher'); // Fetch stranger info
 const fs = require('fs');
 const path = require('path');
-
-// ========================================
-// PROXY SUPPORT - For Render deployment
-// ========================================
-let proxyAgent = null;
-const PROXY_URL = process.env.PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-
-if (PROXY_URL) {
-  try {
-    if (PROXY_URL.startsWith('socks')) {
-      const { SocksProxyAgent } = require('socks-proxy-agent');
-      proxyAgent = new SocksProxyAgent(PROXY_URL);
-      console.log(`✅ SOCKS Proxy loaded: ${PROXY_URL.replace(/:([^:@]+)@/, ':***@')}`);
-    } else {
-      const { HttpsProxyAgent } = require('https-proxy-agent');
-      proxyAgent = new HttpsProxyAgent(PROXY_URL);
-      console.log(`✅ HTTP Proxy loaded: ${PROXY_URL.replace(/:([^:@]+)@/, ':***@')}`);
-    }
-  } catch (e) {
-    console.error('❌ Failed to setup proxy:', e.message);
-    console.error('   Install: npm install https-proxy-agent socks-proxy-agent');
-  }
-} else {
-  console.log('ℹ️ No proxy configured. Set PROXY_URL env to use proxy (recommended for Render).');
-}
-
-// ========================================
-// CREDENTIAL MANAGEMENT - Save/Load
-// ========================================
-const CREDENTIALS_FILE = path.join(__dirname, 'zalo-credentials.json');
-
-function saveCredentials(credentials) {
-  try {
-    fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2), 'utf8');
-    console.log('💾 Credentials saved to zalo-credentials.json');
-  } catch (e) {
-    console.error('❌ Failed to save credentials:', e.message);
-  }
-}
-
-function loadCredentials() {
-  try {
-    if (fs.existsSync(CREDENTIALS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(CREDENTIALS_FILE, 'utf8'));
-      if (data && data.cookie && data.imei && data.userAgent) {
-        console.log('📂 Loaded saved credentials from zalo-credentials.json');
-        return data;
-      }
-    }
-  } catch (e) {
-    console.warn('⚠️ Failed to load credentials:', e.message);
-  }
-  return null;
-}
-
-function clearCredentials() {
-  try {
-    if (fs.existsSync(CREDENTIALS_FILE)) {
-      fs.unlinkSync(CREDENTIALS_FILE);
-      console.log('🗑️ Credentials file deleted');
-    }
-  } catch (e) { }
-}
 
 // ========================================
 // IMAGE METADATA GETTER (Required for sending images)
@@ -1094,229 +1030,121 @@ async function handleSmartFriendRequest(apiState, userId) {
 }
 
 // ========================================
-// LOGIN FUNCTION - Với imageMetadataGetter + Proxy + Credential Saving
+// LOGIN FUNCTION - Với imageMetadataGetter
 // ========================================
-
-const MAX_LOGIN_RETRIES = 3;
-const RETRY_DELAY_MS = 5000;
-
-// Helper: sleep
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Helper: Setup post-login state (shared between QR and credential login)
-async function setupPostLogin(targetState) {
-  targetState.isLoggedIn = true;
-
-  console.log('🎉 Đăng nhập thành công! Session ready.');
-  console.log('📷 Image sending:', sharp ? 'ENABLED (sharp loaded)' : 'LIMITED (sharp not installed)');
-  if (proxyAgent) console.log('🌐 Proxy: ACTIVE');
-
-  const uid = targetState.api.getOwnId().toString();
-  const info = await targetState.api.getUserInfo(uid);
-  const profile = info.changed_profiles?.[uid] || info;
-
-  targetState.currentUser = {
-    uid,
-    name: profile.displayName || profile.zaloName || "Không rõ tên",
-    avatar: profile.avatar || `https://graph.zalo.me/v2.0/avatar/${uid}?size=240`
-  };
-
-  console.log(`👤 Logged in as: ${targetState.currentUser.name} (${uid})`);
-
-  // ✅ Ensure built-in triggers exist for this user
-  try {
-    const triggerDB = require('./triggerDB');
-    triggerDB.ensureUserTriggers(uid);
-    console.log('✅ Checked/Initialized triggers for user:', uid);
-
-    // 🔄 RESTORE AUTO-REPLY STATE FROM DB
-    const autoReplyModule = require('./autoReply');
-
-    // 1. Personal Auto-Reply
-    const savedPersonal = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_personal');
-    if (savedPersonal && savedPersonal.enabled !== undefined) {
-      autoReplyModule.autoReplyState.enabled = savedPersonal.enabled;
-      console.log(`🔄 Restored Personal Auto-Reply State: ${savedPersonal.enabled ? 'ON' : 'OFF'}`);
-    }
-
-    // 2. Bot OA Auto-Reply
-    const savedBot = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_bot');
-    if (savedBot) {
-      targetState.botAutoReplyEnabled = savedBot.enabled;
-      if (savedBot.botToken) targetState.botToken = savedBot.botToken;
-      console.log(`🔄 Restored Bot OA Auto-Reply State: ${savedBot.enabled ? 'ON' : 'OFF'}`);
-    }
-
-  } catch (e) {
-    console.warn('⚠️ Init triggers/restore state failed:', e.message);
-  }
-
-  // Load friends list for Smart Features
-  try {
-    console.log('👥 Loading friends list...');
-    const friendsFn = targetState.api.getFriends;
-    if (typeof friendsFn === 'function') {
-      targetState.friends = await friendsFn();
-      console.log(`✅ Loaded ${targetState.friends?.length || 0} friends.`);
-    }
-  } catch (e) { console.warn('⚠️ Could not load friends:', e.message); }
-
-  // Broadcast user info to all connected clients
-  if (targetState.clients) {
-    const json = JSON.stringify({
-      type: 'current_user',
-      user: targetState.currentUser
-    });
-    targetState.clients.forEach(ws => {
-      if (ws.readyState === 1) ws.send(json);
-    });
-  }
-
-  // Setup listeners (Auto reply, etc.)
-  setupMessageListener(targetState);
-  setupFriendRequestListener(targetState);
-}
 
 // Main login function
 async function loginZalo(apiState) {
   const targetState = apiState; // Use global state directly
 
   console.log('🚀 Starting Zalo Login (Single-User Mode)');
-  if (proxyAgent) {
-    console.log('🌐 Using proxy for login');
-  } else if (process.env.RENDER) {
-    console.warn('⚠️ Running on Render WITHOUT proxy! Login may fail.');
-    console.warn('   Set PROXY_URL env variable with a VN proxy to fix.');
-    console.warn('   Example: socks5://user:pass@vn-proxy-ip:port');
-  }
 
-  // Check if already logged in
-  if (targetState.api) {
-    console.log('✅ Already logged in!');
-    return targetState.api;
-  }
-
-  // Build Zalo options
-  const zaloOptions = {
-    imageMetadataGetter: imageMetadataGetter,
-    logging: true
-  };
-
-  // ✅ Add proxy agent if available
-  if (proxyAgent) {
-    zaloOptions.agent = proxyAgent;
-  }
-
-  const zalo = new Zalo(zaloOptions);
-
-  // ========================================
-  // STRATEGY 1: Try saved credentials first
-  // ========================================
-  const savedCreds = loadCredentials();
-  if (savedCreds) {
-    console.log('🔑 Attempting login with saved credentials...');
-    for (let attempt = 1; attempt <= MAX_LOGIN_RETRIES; attempt++) {
-      try {
-        targetState.api = await zalo.login(savedCreds);
-        console.log('✅ Login with saved credentials successful!');
-        await setupPostLogin(targetState);
-        return targetState.api;
-      } catch (error) {
-        console.error(`❌ Credential login attempt ${attempt}/${MAX_LOGIN_RETRIES} failed:`, error.message);
-        if (attempt < MAX_LOGIN_RETRIES) {
-          console.log(`⏳ Retrying in ${RETRY_DELAY_MS / 1000}s...`);
-          await sleep(RETRY_DELAY_MS);
-        }
-      }
-    }
-    console.warn('⚠️ Saved credentials expired or invalid. Switching to QR login...');
-    clearCredentials();
-  }
-
-  // ========================================
-  // STRATEGY 2: QR Code Login with credential saving
-  // ========================================
-  for (let attempt = 1; attempt <= MAX_LOGIN_RETRIES; attempt++) {
-    try {
-      console.log(`🔄 QR Login attempt ${attempt}/${MAX_LOGIN_RETRIES}...`);
-      console.log('📱 Đang tạo mã QR đăng nhập...');
-
-      // ✅ Use callback to capture credentials for saving
-      const { LoginQRCallbackEventType } = require('zca-js');
-      let capturedCredentials = null;
-
-      targetState.api = await zalo.loginQR(null, (event) => {
-        switch (event.type) {
-          case LoginQRCallbackEventType.QRCodeGenerated:
-            console.log('📱 QR Code generated! Saving to qr.png...');
-            event.actions.saveToFile('qr.png');
-            break;
-
-          case LoginQRCallbackEventType.QRCodeExpired:
-            console.log('⏰ QR Code expired, generating new one...');
-            event.actions.retry();
-            break;
-
-          case LoginQRCallbackEventType.QRCodeScanned:
-            console.log('✅ QR Code scanned! Waiting for confirmation...');
-            break;
-
-          case LoginQRCallbackEventType.QRCodeDeclined:
-            console.log('❌ QR Code declined! Generating new one...');
-            event.actions.retry();
-            break;
-
-          case LoginQRCallbackEventType.GotLoginInfo:
-            console.log('🔑 Got login info! Saving credentials...');
-            capturedCredentials = event.data;
-            // Save credentials immediately
-            saveCredentials({
-              cookie: event.data.cookie,
-              imei: event.data.imei,
-              userAgent: event.data.userAgent
-            });
-            break;
-        }
-      });
-
-      // Clean up QR code file
-      try { fs.unlinkSync('qr.png'); } catch (e) { }
-
-      console.log('✅ QR Login thành công!');
-      await setupPostLogin(targetState);
+  try {
+    // Check if already logged in
+    if (targetState.api) {
+      console.log('✅ Already logged in!');
       return targetState.api;
-
-    } catch (error) {
-      console.error(`❌ QR Login attempt ${attempt}/${MAX_LOGIN_RETRIES} failed:`, error.message);
-
-      // Provide specific guidance based on error
-      if (error.message === "Can't login" || error.message === "Can't get account info") {
-        console.error('╔═══════════════════════════════════════════════════════════════╗');
-        console.error('║ 🚨 ZALO REJECTED THE SESSION                                ║');
-        console.error('║                                                               ║');
-        console.error('║ This usually happens when:                                    ║');
-        console.error('║ 1. Server IP is outside Vietnam (e.g., Render US/EU)          ║');
-        console.error('║ 2. Too many login attempts from different IPs                 ║');
-        console.error('║                                                               ║');
-        console.error('║ SOLUTIONS:                                                    ║');
-        console.error('║ • Set PROXY_URL env with a VN proxy                           ║');
-        console.error('║   Example: socks5://user:pass@vn-ip:port                      ║');
-        console.error('║ • Or deploy on a VN server/VPS                                ║');
-        console.error('╚═══════════════════════════════════════════════════════════════╝');
-      }
-
-      if (attempt < MAX_LOGIN_RETRIES) {
-        console.log(`⏳ Retrying in ${RETRY_DELAY_MS / 1000}s...`);
-        await sleep(RETRY_DELAY_MS);
-      } else {
-        console.error('❌ All login attempts failed!');
-        // Don't throw - server should keep running for retry via /force-new-login
-        console.log('ℹ️ Server is still running. Visit /force-new-login to try again.');
-      }
     }
+
+    console.log('🔄 Đang tạo mã QR đăng nhập...');
+
+    // ✅ Khởi tạo Zalo với imageMetadataGetter để hỗ trợ gửi ảnh
+    const zalo = new Zalo({
+      imageMetadataGetter: imageMetadataGetter
+    });
+
+    // Login QR (will generate qr.png in CWD)
+    targetState.api = await zalo.loginQR();
+
+    // Xóa file QR
+    // Clean up QR code file
+    try {
+      fs.unlinkSync('qr.png');
+    } catch (e) { }
+
+    // ✅ Multi-device support enabled - no IP locking or force logout
+    // All connected clients will receive the current_user broadcast
+
+    targetState.isLoggedIn = true;
+
+    console.log('🎉 Đăng nhập thành công! Session ready.');
+    console.log('📷 Image sending:', sharp ? 'ENABLED (sharp loaded)' : 'LIMITED (sharp not installed)');
+
+    const uid = targetState.api.getOwnId().toString();
+    const info = await targetState.api.getUserInfo(uid);
+    const profile = info.changed_profiles?.[uid] || info;
+
+    targetState.currentUser = {
+      uid,
+      name: profile.displayName || profile.zaloName || "Không rõ tên",
+      avatar: profile.avatar || `https://graph.zalo.me/v2.0/avatar/${uid}?size=240`
+    };
+
+    // ✅ Ensure built-in triggers exist for this user
+    try {
+      const triggerDB = require('./triggerDB');
+      triggerDB.ensureUserTriggers(uid);
+      console.log('✅ Checked/Initialized triggers for user:', uid);
+
+      // 🔄 RESTORE AUTO-REPLY STATE FROM DB
+      const autoReplyModule = require('./autoReply');
+
+      // 1. Personal Auto-Reply
+      const savedPersonal = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_personal');
+      if (savedPersonal && savedPersonal.enabled !== undefined) {
+        autoReplyModule.autoReplyState.enabled = savedPersonal.enabled;
+        console.log(`🔄 Restored Personal Auto-Reply State: ${savedPersonal.enabled ? 'ON' : 'OFF'}`);
+      }
+
+      // 2. Bot OA Auto-Reply
+      const savedBot = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_bot');
+      if (savedBot) {
+        targetState.botAutoReplyEnabled = savedBot.enabled;
+        if (savedBot.botToken) targetState.botToken = savedBot.botToken;
+        console.log(`🔄 Restored Bot OA Auto-Reply State: ${savedBot.enabled ? 'ON' : 'OFF'}`);
+
+        // Note: Polling will be started by WebSocket 'get_bot_auto_reply_status' 
+        // or we need to expose startBotPolling here.
+        // For now, trusting the UI to trigger the check.
+      }
+
+    } catch (e) {
+      console.warn('⚠️ Init triggers/restore state failed:', e.message);
+    }
+
+    // Load friends list for Smart Features
+    try {
+      console.log('👥 Loading friends list...');
+      const friendsFn = targetState.api.getFriends;
+      if (typeof friendsFn === 'function') {
+        targetState.friends = await friendsFn();
+        console.log(`✅ Loaded ${targetState.friends?.length || 0} friends.`);
+      }
+    } catch (e) { console.warn('⚠️ Could not load friends:', e.message); }
+
+    // Setup listeners (Auto reply, etc.)
+    // Note: Single-user mode - listeners attached to global apiState
+
+    // Broadcast user info to all connected clients
+    if (targetState.clients) {
+      const json = JSON.stringify({
+        type: 'current_user',
+        user: targetState.currentUser
+      });
+      targetState.clients.forEach(ws => {
+        if (ws.readyState === 1) ws.send(json);
+      });
+    }
+
+    // Setup listeners (Auto reply, etc.)
+    setupMessageListener(targetState);
+    setupFriendRequestListener(targetState);
+
+  } catch (error) {
+    console.error('❌ Login failed:', error);
+    throw error;
   }
+  // finally block removed - no sessionManager to unlock
 }
 
 module.exports = {
@@ -1325,6 +1153,5 @@ module.exports = {
   setupFriendRequestListener,
   handleSmartFriendRequest,
   broadcast,
-  imageMetadataGetter,
-  clearCredentials
+  imageMetadataGetter
 };

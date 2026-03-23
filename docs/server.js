@@ -93,12 +93,6 @@ app.get('/session-locked', (req, res) => {
 app.get('/force-new-login', async (req, res) => {
   console.log('🔄 Force new login requested - preparing QR...');
 
-  // Clear saved credentials so QR login is forced
-  try {
-    const { clearCredentials } = require('./loginZalo.js');
-    clearCredentials();
-  } catch (e) { }
-
   // Set pending takeover flag - old session still works
   apiState.pendingTakeover = true;
 
