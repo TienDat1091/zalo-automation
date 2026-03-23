@@ -39,6 +39,9 @@ logs/
 public/uploads/
 public/downloads/
 
+# Zalo credentials (SENSITIVE!)
+zalo-credentials.json
+
 # Temporary files
 tmp/
 temp/
