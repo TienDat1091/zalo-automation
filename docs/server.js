@@ -800,13 +800,4 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Global error handlers to prevent Render server from crashing (Status 1)
-process.on('uncaughtException', (err) => {
-  console.error('🔥 Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('🔥 Unhandled Promise Rejection at:', promise, 'reason:', reason);
-});
-
 module.exports = { app, apiState };
