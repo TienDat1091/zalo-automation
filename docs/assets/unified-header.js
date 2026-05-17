@@ -116,6 +116,15 @@
             this.highlightActiveNav();
             this.connectWebSocket();
 
+            // ✅ OPTIMIZATION: Restore cached user info immediately (no WS wait)
+            try {
+                const cachedUser = sessionStorage.getItem('zalo_user_cache');
+                if (cachedUser) {
+                    const user = JSON.parse(cachedUser);
+                    this.updateUser(user, true); // true = skip re-cache
+                }
+            } catch (e) { /* ignore */ }
+
             // Load CSS if not present
             if (!document.querySelector('link[href*="unified-header.css"]')) {
                 const link = document.createElement('link');
@@ -133,36 +142,90 @@
         }
 
         connectWebSocket() {
-            // Reuse existing connection logic if possible, or create new listener
-            // Ideally we hook into the existing window.ws if available
+            // ✅ OPTIMIZATION: Try to reuse existing page WebSocket to avoid duplicate connections
+            const self = this;
 
-            const initWS = () => {
-                this.ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
-                this.ws.onopen = () => {
-                    this.ws.send(JSON.stringify({ type: 'get_current_user' }));
-                    this.ws.send(JSON.stringify({ type: 'get_auto_reply_status' }));
-                    this.ws.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
-                    document.getElementById('uh-status-dot').className = 'uh-status-dot online';
-                };
-
-                this.ws.onmessage = (e) => {
+            // Method to hook into an existing WS
+            const hookIntoWS = (existingWS) => {
+                self.ws = existingWS;
+                console.log('🔗 Unified Header: Reusing existing WebSocket connection');
+                
+                // Wrap existing onmessage to also handle header messages
+                const originalOnMessage = existingWS.onmessage;
+                existingWS.onmessage = (e) => {
+                    // Call original handler first
+                    if (originalOnMessage) originalOnMessage.call(existingWS, e);
+                    // Then handle header messages
                     try {
                         const data = JSON.parse(e.data);
-                        this.handleMessage(data);
-                    } catch (err) { console.error(err); }
+                        self.handleMessage(data);
+                    } catch (err) { /* ignore */ }
                 };
 
-                this.ws.onclose = () => {
-                    document.getElementById('uh-status-dot').className = 'uh-status-dot';
-                    setTimeout(initWS, 5000);
+                // Update status dot
+                if (existingWS.readyState === WebSocket.OPEN) {
+                    document.getElementById('uh-status-dot').className = 'uh-status-dot online';
+                    // Request user info if not yet received
+                    if (!self.currentUser) {
+                        existingWS.send(JSON.stringify({ type: 'get_current_user' }));
+                        existingWS.send(JSON.stringify({ type: 'get_auto_reply_status' }));
+                        existingWS.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
+                    }
                 }
+
+                const originalOnClose = existingWS.onclose;
+                existingWS.onclose = (e) => {
+                    if (originalOnClose) originalOnClose.call(existingWS, e);
+                    document.getElementById('uh-status-dot').className = 'uh-status-dot';
+                };
             };
 
-            // If page already has WS (most do), we try to hook into it or just start our own lightweight one
-            // Current pages use different WS variable names or scopes. Safe to have a dedicated one for header?
-            // Or better: try to hijack the existing onmessage? 
-            // Let's run a dedicated one for reliability to avoid breaking page logic
-            initWS();
+            // Expose hook for pages to register their WS
+            window._uhRegisterWS = (ws) => hookIntoWS(ws);
+
+            // Check if page already has a WS (common variable names)
+            const checkExistingWS = () => {
+                if (window.ws && window.ws instanceof WebSocket) {
+                    hookIntoWS(window.ws);
+                    return true;
+                }
+                return false;
+            };
+
+            // Try immediately, then retry a few times (page WS may init after header)
+            if (!checkExistingWS()) {
+                let retries = 0;
+                const retryInterval = setInterval(() => {
+                    retries++;
+                    if (checkExistingWS() || retries >= 10) {
+                        clearInterval(retryInterval);
+                        // If still no page WS found after retries, create our own lightweight one
+                        if (!self.ws) {
+                            console.log('🔌 Unified Header: Creating own WebSocket (no page WS found)');
+                            const initOwnWS = () => {
+                                self.ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
+                                self.ws.onopen = () => {
+                                    self.ws.send(JSON.stringify({ type: 'get_current_user' }));
+                                    self.ws.send(JSON.stringify({ type: 'get_auto_reply_status' }));
+                                    self.ws.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
+                                    document.getElementById('uh-status-dot').className = 'uh-status-dot online';
+                                };
+                                self.ws.onmessage = (e) => {
+                                    try {
+                                        const data = JSON.parse(e.data);
+                                        self.handleMessage(data);
+                                    } catch (err) { /* ignore */ }
+                                };
+                                self.ws.onclose = () => {
+                                    document.getElementById('uh-status-dot').className = 'uh-status-dot';
+                                    setTimeout(initOwnWS, 5000);
+                                };
+                            };
+                            initOwnWS();
+                        }
+                    }
+                }, 200); // Check every 200ms for up to 2 seconds
+            }
         }
 
         handleMessage(data) {
@@ -192,11 +255,22 @@
             }
         }
 
-        updateUser(user) {
+        updateUser(user, skipCache = false) {
             this.currentUser = user;
             document.getElementById('uh-user-name').textContent = user.name || 'User';
             document.getElementById('uh-user-uid').textContent = user.uid || '---';
             if (user.avatar) document.getElementById('uh-avatar').src = user.avatar;
+
+            // ✅ OPTIMIZATION: Cache user info for instant header rendering
+            if (!skipCache) {
+                try {
+                    sessionStorage.setItem('zalo_user_cache', JSON.stringify({
+                        name: user.name,
+                        uid: user.uid,
+                        avatar: user.avatar
+                    }));
+                } catch (e) { /* ignore */ }
+            }
         }
 
         // --- SHARED TOGGLE LOGIC ---
@@ -400,6 +474,8 @@
             const confirmed = await this.askConfirm('Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?', '🚪 Đăng xuất');
             if (confirmed) {
                 console.log('🚀 Redirecting to logout...');
+                // ✅ Clear all session caches on logout
+                try { sessionStorage.clear(); } catch (e) { /* ignore */ }
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(JSON.stringify({ type: 'logout' }));
                 }

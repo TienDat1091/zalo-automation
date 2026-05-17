@@ -44,6 +44,22 @@ module.exports = {
   VariableType,
   InputValidation,
 
+  // Helper: ensure db is initialized before any operation
+  _ensureDB() {
+    if (db) return true;
+    console.warn('⚠️ Database is null, attempting re-initialization...');
+    try {
+      db = dbModule.initDB();
+      db.pragma('journal_mode = WAL');
+      dbModule.createTables(db);
+      console.log('✅ Database re-initialized successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Database re-initialization failed:', error.message);
+      return false;
+    }
+  },
+
   init() {
     try {
       db = dbModule.initDB();
@@ -3035,12 +3051,14 @@ module.exports = {
   // ========================================
   getPendingScheduledTasks(userId, currentTime) {
     try {
+      if (!this._ensureDB()) return [];
       return db.prepare("SELECT * FROM scheduled_tasks WHERE userId = ? AND status = 'pending' AND enabled = 1 AND executeTime <= ?").all(userId, currentTime);
     } catch (e) { console.error('❌ Get pending tasks error:', e.message); return []; }
   },
 
   getAllScheduledTasks(userId) {
     try {
+      if (!this._ensureDB()) return [];
       return db.prepare("SELECT * FROM scheduled_tasks WHERE userId = ? ORDER BY executeTime ASC").all(userId);
     } catch (e) { console.error('❌ Get all tasks error:', e.message); return []; }
   },

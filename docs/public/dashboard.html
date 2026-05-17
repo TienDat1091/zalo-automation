@@ -919,6 +919,39 @@
     // ✅ Custom confirm modal
     let confirmResolve = null;
 
+    // ✅ OPTIMIZATION: Restore friends/groups from sessionStorage for instant rendering
+    (function restoreFromSessionCache() {
+      try {
+        const cachedFriends = sessionStorage.getItem('zalo_friends_cache');
+        if (cachedFriends) {
+          const parsed = JSON.parse(cachedFriends);
+          if (parsed && parsed.length > 0) {
+            console.log(`⚡ Instant load: ${parsed.length} friends from sessionStorage`);
+            friends = parsed;
+            allFriends = [...friends];
+            filteredFriends = [...friends];
+            friendsRendered = true;
+            // Defer render to after DOM is ready
+            setTimeout(() => renderFriendsVirtual(), 0);
+          }
+        }
+        const cachedGroups = sessionStorage.getItem('zalo_groups_cache');
+        if (cachedGroups) {
+          const parsed = JSON.parse(cachedGroups);
+          if (parsed && parsed.length > 0) {
+            console.log(`⚡ Instant load: ${parsed.length} groups from sessionStorage`);
+            groups = parsed;
+            allGroups = [...groups];
+            filteredGroups = [...groups];
+            groupsLoaded = true;
+            setTimeout(() => renderGroups(), 0);
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ sessionStorage cache restore failed:', e.message);
+      }
+    })();
+
     // ========== MESSAGE STORE PERSISTENCE ==========
     // Save messageStore to localStorage for persistence across page refreshes
     function saveMessageStoreToLocalStorage() {
@@ -1105,6 +1138,12 @@
       if (groupsList) {
         groupsList.innerHTML = '<div class="loading-friends"><div class="spinner"></div><div>Đang tải danh sách nhóm...</div></div>';
       }
+      // ✅ Clear session cache on account switch
+      try {
+        sessionStorage.removeItem('zalo_friends_cache');
+        sessionStorage.removeItem('zalo_groups_cache');
+        sessionStorage.removeItem('zalo_user_cache');
+      } catch (e) { /* ignore */ }
 
       console.log('✅ Dashboard data cleared');
     }
@@ -1221,6 +1260,11 @@
             });
           }
 
+          // ✅ OPTIMIZATION: Save to sessionStorage for instant cross-page load
+          try {
+            sessionStorage.setItem('zalo_friends_cache', JSON.stringify(friends));
+          } catch (e) { /* sessionStorage full or unavailable */ }
+
           console.log('✅ Rendering friends list immediately...');
           friendsRendered = true;
 
@@ -1281,6 +1325,12 @@
           allGroups = [...groups];
           filteredGroups = [...groups];
           groupsLoaded = true;
+
+          // ✅ OPTIMIZATION: Save to sessionStorage for instant cross-page load
+          try {
+            sessionStorage.setItem('zalo_groups_cache', JSON.stringify(groups));
+          } catch (e) { /* sessionStorage full or unavailable */ }
+
           renderGroups();
         }
 
