@@ -973,10 +973,15 @@ body.dark-mode .uh-confirm-modal {
 
 body.dark-mode .uh-dropdown-header,
 body.dark-mode .uh-confirm-header,
-body.dark-mode .uh-confirm-footer,
 body.dark-mode .uh-menu-divider {
     border-color: var(--dm-border) !important;
     color: var(--dm-text) !important;
+}
+
+body.dark-mode .uh-confirm-footer {
+    border-color: var(--dm-border) !important;
+    color: var(--dm-text) !important;
+    background: rgba(0, 0, 0, 0.2) !important;
 }
 
 body.dark-mode .uh-menu-item {
