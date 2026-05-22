@@ -773,10 +773,23 @@ async function processAutoReply(apiState, message) {
         // Substitute
         replyContent = substituteVariables(replyContent, context);
 
-        await sendMessage(apiState, senderId, replyContent, userUID);
-        autoReplyState.cooldowns.set(cooldownKey, now);
-        autoReplyState.stats.replied++;
-        console.log(`✅ Auto-reply sent! Next reply available in ${Math.floor(cooldownMs / 1000)}s`);
+        // ⏳ Check replyDelay
+        const replyDelayMs = autoReplySettings.replyDelay || 0;
+
+        const doSend = async () => {
+          await sendMessage(apiState, senderId, replyContent, userUID);
+          autoReplyState.cooldowns.set(cooldownKey, now);
+          autoReplyState.stats.replied++;
+          console.log(`✅ Auto-reply sent! Next reply available in ${Math.floor(cooldownMs / 1000)}s`);
+        };
+
+        if (replyDelayMs > 0) {
+          console.log(`⏱️ Auto-reply delayed by ${replyDelayMs / 1000}s before sending...`);
+          setTimeout(doSend, replyDelayMs);
+        } else {
+          await doSend();
+        }
+
         return; // Exit after auto-message reply
       } else {
         const waitTime = Math.ceil((cooldownMs - elapsed) / 1000);

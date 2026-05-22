@@ -4,6 +4,7 @@
 const { Zalo } = require('zca-js');
 const { processAutoReply } = require('./autoReply.js');
 const messageDB = require('./messageDB'); // SQLite message storage
+const triggerDB = require('./triggerDB');
 const { fetchAndBroadcastStrangerInfo } = require('./strangerInfoFetcher'); // Fetch stranger info
 const fs = require('fs');
 const path = require('path');
@@ -134,6 +135,33 @@ function getImageDimensions(buffer) {
   return { width: 0, height: 0 };
 }
 
+function logIncomingMessageActivity(apiState, senderId, msgObj, isGroup) {
+  if (msgObj.isSelf) return; // Do not log self messages
+  
+  const userUID = apiState.currentUser?.uid || 'system';
+  const friend = apiState.friendsMap?.get(senderId) || apiState.friends?.find(f => f.userId === senderId);
+  const senderName = friend ? (friend.displayName || friend.name) : (isGroup ? 'Nhóm Zalo' : `Người dùng Zalo (${senderId})`);
+  
+  const action = 'RECEIVE_MESSAGE';
+  const entityType = 'message';
+  const entityID = null;
+  const entityName = senderName;
+  const details = msgObj.content || (msgObj.type === 'image' ? '[Hình ảnh]' : '[Media]');
+  
+  // Save to database
+  triggerDB.logActivity(userUID, action, entityType, entityID, entityName, details);
+  
+  // Broadcast live new_activity_log to unified-header
+  broadcast(apiState, {
+    type: 'new_activity_log',
+    log: {
+      title: isGroup ? `💬 Tin nhắn nhóm mới` : `💬 Tin nhắn mới`,
+      description: `Từ ${senderName}: ${details.substring(0, 100)}`,
+      type: 'info'
+    }
+  });
+}
+
 // ========================================
 // BROADCAST HELPER
 // ========================================
@@ -223,6 +251,9 @@ function setupMessageListener(apiState) {
           uid: senderId,
           message: msgObj
         });
+
+        // ✅ Ghi log tin nhắn đến và broadcast activity_log
+        logIncomingMessageActivity(apiState, senderId, msgObj, isGroup);
 
         // ✅ Broadcast conversation update to sync multi-device ordering
         broadcast(apiState, {
@@ -484,6 +515,9 @@ function setupMessageListener(apiState) {
           message: msgObj
         });
 
+        // ✅ Ghi log tin nhắn đến và broadcast activity_log
+        logIncomingMessageActivity(apiState, senderId, msgObj, isGroup);
+
         // ✅ Broadcast conversation update to sync multi-device ordering
         broadcast(apiState, {
           type: 'conversation_updated',
@@ -678,7 +712,7 @@ async function setupFriendRequestListener(apiState) {
               }
 
               const newFriend = {
-                userId: event.data,
+                userId: String(event.data),
                 displayName: userData?.displayName || userData?.zaloName || userData?.name || "Người dùng Zalo",
                 avatar: userData?.avatar || userData?.avatarUrl || `https://graph.zalo.me/v2.0/avatar?user_id=${event.data}&width=120&height=120`,
                 zaloName: userData?.zaloName || ""
@@ -687,8 +721,11 @@ async function setupFriendRequestListener(apiState) {
               console.log('✅ Parsed new friend:', newFriend);
 
               // Add to cache if not exists
-              if (!apiState.friends.find(f => f.userId === event.data)) {
+              if (!apiState.friends.find(f => String(f.userId) === String(event.data))) {
                 apiState.friends.push(newFriend);
+                if (apiState.friendsMap) {
+                  apiState.friendsMap.set(String(event.data), newFriend);
+                }
                 console.log(`✅ Added ${newFriend.displayName} (${event.data}) to local friend cache`);
 
                 // Removed redundant independent auto-delete logic 
@@ -697,26 +734,38 @@ async function setupFriendRequestListener(apiState) {
             } catch (e) {
               console.warn("⚠️ Failed to fetch new friend info, adding placeholder:", e.message);
               // Fallback placeholder with better avatar
-              apiState.friends.push({
-                userId: event.data,
+              const placeholderFriend = {
+                userId: String(event.data),
                 displayName: "Người dùng mới",
                 avatar: `https://graph.zalo.me/v2.0/avatar?user_id=${event.data}&width=120&height=120`
-              });
+              };
+              apiState.friends.push(placeholderFriend);
+              if (apiState.friendsMap) {
+                apiState.friendsMap.set(String(event.data), placeholderFriend);
+              }
             }
           }
           break;
 
         case FriendEventType.REMOVE:
           console.log(`👋 Friend removed: ${event.data}`);
+          const removedFriendId = String(event.data);
           if (apiState.currentUser?.uid) {
-            triggerDB.logActivity(apiState.currentUser.uid, 'friend_removed', 'user', event.data, 'Người dùng', `Đã hủy kết bạn với: ${event.data}`);
+            triggerDB.logActivity(apiState.currentUser.uid, 'friend_removed', 'user', removedFriendId, 'Người dùng', `Đã hủy kết bạn với: ${removedFriendId}`);
           }
           // Remove from cached list
           if (apiState.friends) {
-            apiState.friends = apiState.friends.filter(f => f.userId !== event.data);
-            console.log(`✅ Removed ${event.data} from local friend cache`);
+            apiState.friends = apiState.friends.filter(f => String(f.userId) !== removedFriendId);
+            console.log(`✅ Removed ${removedFriendId} from local friend cache`);
           }
-          // Also remove from message store if needed?
+          if (apiState.friendsMap) {
+            apiState.friendsMap.delete(removedFriendId);
+          }
+          // Also broadcast friend_removed event to update all frontend sessions
+          broadcast(apiState, {
+            type: 'friend_removed',
+            friendId: removedFriendId
+          });
           break;
 
         case FriendEventType.REQUEST:
@@ -927,10 +976,18 @@ async function handleSmartFriendRequest(apiState, userId) {
       // ✅ AUTO DELETE IF ENABLED - Read from builtin_triggers_state
       const autoDeleteSettings = triggerDB.getBuiltInTriggerState(apiState.currentUser.uid, 'builtin_auto_delete_messages');
       if (autoDeleteSettings && autoDeleteSettings.enabled && apiState.api.updateAutoDeleteChat) {
-        let ttl = parseInt(autoDeleteSettings.response) || 86400000;
-        if (ttl > 0) {
-          console.log(`🗑️ Auto-Delete: Enabling ${ttl}ms timer for ${userId}`);
-          try { await apiState.api.updateAutoDeleteChat(ttl, userId); } catch (e) { }
+        // Check if user is in the selected users list
+        const selectedUsers = autoDeleteSettings.selectedUsers || [];
+        const shouldApplyAutoDelete = selectedUsers.length === 0 || selectedUsers.includes(userId);
+        
+        if (shouldApplyAutoDelete) {
+          let ttl = parseInt(autoDeleteSettings.response) || 86400000;
+          if (ttl > 0) {
+            console.log(`🗑️ Auto-Delete: Enabling ${ttl}ms timer for ${userId}`);
+            try { await apiState.api.updateAutoDeleteChat(ttl, userId); } catch (e) { }
+          }
+        } else {
+          console.log(`ℹ️ Auto-Delete: User ${userId} not in selected list, skipping`);
         }
       }
 
@@ -1039,28 +1096,83 @@ async function loginZalo(apiState) {
 
   console.log('🚀 Starting Zalo Login (Single-User Mode)');
 
-  try {
-    // Check if already logged in
-    if (targetState.api) {
-      console.log('✅ Already logged in!');
-      return targetState.api;
-    }
+  // Check if already logged in or login in progress
+  if (targetState.api) {
+    console.log('✅ Already logged in!');
+    return targetState.api;
+  }
+  if (targetState.loginInProgress) {
+    console.log('⏳ Login process is already in progress, ignoring duplicate trigger.');
+    return;
+  }
 
-    console.log('🔄 Đang tạo mã QR đăng nhập...');
+  targetState.loginInProgress = true;
+
+  try {
 
     // ✅ Khởi tạo Zalo với imageMetadataGetter để hỗ trợ gửi ảnh
     const zalo = new Zalo({
       imageMetadataGetter: imageMetadataGetter
     });
 
-    // Login QR (will generate qr.png in CWD)
-    targetState.api = await zalo.loginQR();
+    const CREDENTIALS_PATH = path.join(__dirname, 'data', 'credentials.json');
+    let loggedIn = false;
 
-    // Xóa file QR
-    // Clean up QR code file
+    // Thử đăng nhập bằng credentials lưu từ trước
+    if (fs.existsSync(CREDENTIALS_PATH)) {
+      try {
+        console.log('🔑 Tìm thấy thông tin đăng nhập đã lưu, đang khôi phục phiên...');
+        const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+        
+        targetState.api = await zalo.login(credentials);
+        console.log('✅ Đăng nhập bằng phiên đã lưu thành công!');
+        loggedIn = true;
+      } catch (err) {
+        console.warn('⚠️ Phiên đăng nhập đã lưu không hợp lệ hoặc hết hạn:', err.message);
+        try {
+          fs.unlinkSync(CREDENTIALS_PATH);
+          console.log('🗑️ Đã xóa file credentials cũ.');
+        } catch (unlinkErr) {}
+      }
+    }
+
+    if (!loggedIn) {
+      console.log('🔄 Đang tạo mã QR đăng nhập...');
+      
+      // Login QR không callback để giữ hành vi mặc định (tự lưu QR, tự retry khi hết hạn)
+      targetState.api = await zalo.loginQR();
+    }
+
+    // Xóa file QR nếu có
     try {
       fs.unlinkSync('qr.png');
     } catch (e) { }
+
+    // ✅ Patch Zalo API functions for BigInt parameter compatibility
+    if (targetState.api) {
+      patchZaloApi(targetState.api);
+    }
+
+    // ✅ Lưu credentials sau khi đăng nhập thành công (cả QR và credentials login)
+    try {
+      const ctx = targetState.api.getContext();
+      if (ctx && ctx.imei && ctx.cookie) {
+        const credentials = {
+          imei: ctx.imei,
+          cookie: ctx.cookie.toJSON().cookies,
+          userAgent: ctx.userAgent,
+          language: ctx.language || 'vi'
+        };
+        const dataDir = path.dirname(CREDENTIALS_PATH);
+        if (!fs.existsSync(dataDir)) {
+          fs.mkdirSync(dataDir, { recursive: true });
+        }
+        fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2), 'utf8');
+        console.log('✅ Đã lưu thông tin phiên đăng nhập vào data/credentials.json');
+      }
+    } catch (saveErr) {
+      console.warn('⚠️ Không thể lưu credentials:', saveErr.message);
+    }
 
     // ✅ Multi-device support enabled - no IP locking or force logout
     // All connected clients will receive the current_user broadcast
@@ -1079,6 +1191,14 @@ async function loginZalo(apiState) {
       name: profile.displayName || profile.zaloName || "Không rõ tên",
       avatar: profile.avatar || `https://graph.zalo.me/v2.0/avatar/${uid}?size=240`
     };
+
+    // ✅ Initialize Message Database for this user
+    try {
+      messageDB.init(uid);
+      console.log('✅ MessageDB initialized for user:', uid);
+    } catch (dbErr) {
+      console.error('❌ Failed to initialize MessageDB for user:', uid, dbErr.message);
+    }
 
     // ✅ Ensure built-in triggers exist for this user
     try {
@@ -1140,11 +1260,91 @@ async function loginZalo(apiState) {
     setupMessageListener(targetState);
     setupFriendRequestListener(targetState);
 
+    targetState.loginInProgress = false;
+
   } catch (error) {
+    targetState.loginInProgress = false;
     console.error('❌ Login failed:', error);
     throw error;
   }
   // finally block removed - no sessionManager to unlock
+}
+
+// ✅ Helper to patch API functions to format ID parameters without quotes (BigInt compatibility)
+function patchZaloApi(api) {
+  if (!api) return;
+  try {
+    const ctx = api.getContext();
+    const utils = require('zca-js/dist/cjs/utils.cjs');
+
+    // Override removeFriend
+    api.removeFriend = async function (friendId) {
+      const cleanId = friendId.toString().split('_')[0].replace(/\D/g, '');
+      const serviceURL = utils.makeURL(ctx, `${api.zpwServiceMap.friend[0]}/api/friend/remove`);
+      const payloadStr = `{"fid":${cleanId},"imei":${JSON.stringify(ctx.imei)}}`;
+      const encryptedParams = utils.encodeAES(ctx.secretKey, payloadStr);
+      if (!encryptedParams) throw new Error("Failed to encrypt params");
+      const response = await utils.request(ctx, serviceURL, {
+        method: "POST",
+        body: new URLSearchParams({
+          params: encryptedParams,
+        }),
+      });
+      return utils.resolveResponse(ctx, response);
+    };
+
+    // Override blockUser
+    api.blockUser = async function (userId) {
+      const cleanId = userId.toString().split('_')[0].replace(/\D/g, '');
+      const serviceURL = utils.makeURL(ctx, `${api.zpwServiceMap.friend[0]}/api/friend/block`);
+      const payloadStr = `{"fid":${cleanId},"imei":${JSON.stringify(ctx.imei)}}`;
+      const encryptedParams = utils.encodeAES(ctx.secretKey, payloadStr);
+      if (!encryptedParams) throw new Error("Failed to encrypt params");
+      const response = await utils.request(ctx, serviceURL, {
+        method: "POST",
+        body: new URLSearchParams({
+          params: encryptedParams,
+        }),
+      });
+      return utils.resolveResponse(ctx, response);
+    };
+
+    // Override unblockUser
+    api.unblockUser = async function (userId) {
+      const cleanId = userId.toString().split('_')[0].replace(/\D/g, '');
+      const serviceURL = utils.makeURL(ctx, `${api.zpwServiceMap.friend[0]}/api/friend/unblock`);
+      const payloadStr = `{"fid":${cleanId},"imei":${JSON.stringify(ctx.imei)}}`;
+      const encryptedParams = utils.encodeAES(ctx.secretKey, payloadStr);
+      if (!encryptedParams) throw new Error("Failed to encrypt params");
+      const response = await utils.request(ctx, serviceURL, {
+        method: "POST",
+        body: new URLSearchParams({
+          params: encryptedParams,
+        }),
+      });
+      return utils.resolveResponse(ctx, response);
+    };
+
+    // Override undoFriendRequest
+    api.undoFriendRequest = async function (friendId) {
+      const cleanId = friendId.toString().split('_')[0].replace(/\D/g, '');
+      const serviceURL = utils.makeURL(ctx, `${api.zpwServiceMap.friend[0]}/api/friend/undo`);
+      const payloadStr = `{"fid":${cleanId}}`;
+      const encryptedParams = utils.encodeAES(ctx.secretKey, payloadStr);
+      if (!encryptedParams) throw new Error("Failed to encrypt params");
+      const response = await utils.request(ctx, serviceURL, {
+        method: "POST",
+        body: new URLSearchParams({
+          params: encryptedParams,
+        }),
+      });
+      return utils.resolveResponse(ctx, response);
+    };
+
+    console.log("🛠️ Zalo API methods successfully patched for BigInt compatibility.");
+  } catch (err) {
+    console.error("❌ Failed to patch Zalo API methods:", err.message);
+  }
 }
 
 module.exports = {

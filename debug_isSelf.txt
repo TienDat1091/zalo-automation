@@ -432,3 +432,85 @@ Lưu ý: hãy giữ token này an toàn và bảo mật, vì bất kỳ ai có t
 [02:02:31] RECV: Type=0 Content="/ai-on" IsSelf=false UID=undefined MyUID=284707033025009316
 [00:34:21] RECV: Type=text Content="hi" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
 [00:34:21] processSelfTrigger CALLED for "hi"
+[01:29:39] RECV: Type=0 Content="df" IsSelf=false UID=undefined MyUID=284707033025009316
+[01:30:10] RECV: Type=text Content="😇" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[01:30:10] processSelfTrigger CALLED for "😇"
+[21:53:00] RECV: Type=0 Content="Xin chào, cảm ơn anh chị Mẹ 2 đã in tại Tien Dat In Pho to, nhà em ở 1292 Nguyễn Bỉnh Khiêm, Đông Hải 2, Hải Phòng ạ
+
+Anh chị cần có thể gửi trước, nhà em sẽ sắp xếp để cho mọi người lấy ạ.
+
+Giá in nhà em: 
+1 - 2 tờ: 5k
+3 - 6 tờ: 10k
+7 - 8 tờ: 15k
+(Các tờ tiếp theo: +2k)
+
+Chúc quý khách thượng lộ bình an !" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:55:47] RECV: Type=0 Content="Djd" IsSelf=false UID=undefined MyUID=716585949090695726
+[21:56:11] RECV: Type=0 Content="Dat" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:42:46] RECV: Type=0 Content="Hcfj" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:42:48] RECV: Type=0 Content="X" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:42:50] RECV: Type=0 Content="Xbx" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:56:32] RECV: Type=text Content="fd" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[22:56:32] processSelfTrigger CALLED for "fd"
+[22:57:19] RECV: Type=0 Content="Bdjxj" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:58:04] RECV: Type=0 Content="Vb" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:15:39] RECV: Type=text Content="g" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[23:15:39] processSelfTrigger CALLED for "g"
+[23:38:11] RECV: Type=text Content="fgd" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[23:38:12] processSelfTrigger CALLED for "fgd"
+[21:24:13] RECV: Type=text Content="ghg" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[21:24:13] processSelfTrigger CALLED for "ghg"
+[21:24:28] RECV: Type=text Content="g" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[21:24:28] processSelfTrigger CALLED for "g"
+[21:24:47] RECV: Type=text Content="m" IsSelf=true UID=284707033025009316 MyUID=284707033025009316
+[21:24:47] processSelfTrigger CALLED for "m"
+[21:24:50] RECV: Type=0 Content="Chc" IsSelf=false UID=undefined MyUID=284707033025009316
+[21:29:39] RECV: Type=0 Content="Dnfj" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:43:01] RECV: Type=text Content="😕" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[23:43:01] processSelfTrigger CALLED for "😕"
+[23:43:02] RECV: Type=0 Content="Xin chào, cảm ơn anh chị Mẹ 2 đã in tại Tien Dat In Pho to, nhà em ở 1292 Nguyễn Bỉnh Khiêm, Đông Hải 2, Hải Phòng 
+
+Giá in nhà em: 
+1 - 2 tờ: 5k
+3 - 6 tờ: 10k
+7 - 8 tờ: 15k
+(Các tờ tiếp theo: +2k)
+Chúc quý khách vạn dặm bình an !" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:43:02] RECV: Type=0 Content="Xin chào, cảm ơn anh chị Mẹ 2 đã in tại Tien Dat In Pho to, nhà em ở 1292 Nguyễn Bỉnh Khiêm, Đông Hải 2, Hải Phòng 
+
+Giá in nhà em: 
+1 - 2 tờ: 5k
+3 - 6 tờ: 10k
+7 - 8 tờ: 15k
+(Các tờ tiếp theo: +2k)
+Chúc quý khách vạn dặm bình an !" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:01:47] RECV: Type=0 Content="Bb" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:07:08] RECV: Type=0 Content="Bb" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:07:13] RECV: Type=0 Content="Nj" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:07:15] RECV: Type=0 Content="Cc" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:07:18] RECV: Type=0 Content="Vvv" IsSelf=false UID=undefined MyUID=716585949090695726
+[18:34:51] RECV: Type=0 Content="Chxh" IsSelf=false UID=undefined MyUID=716585949090695726
+[23:24:24] RECV: Type=0 Content="Hi" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:08:20] RECV: Type=0 Content="Xin chào, cảm ơn anh chị Mẹ 2 đã in tại Tien Dat In Pho to, nhà em ở 1292 Nguyễn Bỉnh Khiêm, Đông Hải 2, Hải Phòng 
+
+Giá in nhà em: 
+1 - 2 tờ: 5k
+3 - 6 tờ: 10k
+7 - 8 tờ: 15k
+(Các tờ tiếp theo: +2k)
+Chúc quý khách vạn dặm bình an !" IsSelf=false UID=undefined MyUID=716585949090695726
+[00:08:20] RECV: Type=0 Content="Xin chào, cảm ơn anh chị Mẹ 2 đã in tại Tien Dat In Pho to, nhà em ở 1292 Nguyễn Bỉnh Khiêm, Đông Hải 2, Hải Phòng 
+
+Giá in nhà em: 
+1 - 2 tờ: 5k
+3 - 6 tờ: 10k
+7 - 8 tờ: 15k
+(Các tờ tiếp theo: +2k)
+Chúc quý khách vạn dặm bình an !" IsSelf=false UID=undefined MyUID=716585949090695726
+[22:27:09] RECV: Type=text Content="hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[22:27:09] processSelfTrigger CALLED for "hi"
+[22:27:26] RECV: Type=text Content="hi" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[22:27:26] processSelfTrigger CALLED for "hi"
+[22:49:55] RECV: Type=text Content="jhk" IsSelf=true UID=716585949090695726 MyUID=716585949090695726
+[22:49:55] processSelfTrigger CALLED for "jhk"

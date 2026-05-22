@@ -81,30 +81,23 @@ function setupGitAuth() {
  * Restore database from GitHub if exists
  */
 function restoreFromGithub() {
-  if (!fs.existsSync(DB_PATH)) {
-    console.log('📥 Database not found locally, attempting restore from GitHub...');
+  console.log('📥 Attempting to restore/update database from GitHub...');
+  try {
+    // Pull latest changes
+    execSync('git pull origin main', {
+      cwd: path.join(__dirname, '..', '..'),
+      stdio: 'pipe'
+    });
 
-    try {
-      // Pull latest changes
-      execSync('git pull origin main', {
-        cwd: path.join(__dirname, '..', '..'),
-        stdio: 'pipe'
-      });
+    const dbExists = fs.existsSync(DB_PATH);
 
-      if (fs.existsSync(DB_PATH)) {
-        console.log('✅ Database restored from GitHub');
-        return true;
-      } else {
-        console.log('ℹ️  No backup found in GitHub, starting fresh');
-        return false;
-      }
-    } catch (error) {
-      console.log('ℹ️  Could not restore from GitHub:', error.message);
-      return false;
+    if (dbExists) {
+      console.log('✅ Database restored/updated from GitHub');
     }
-  } else {
-    console.log('✅ Database found locally');
-    return true;
+    return dbExists;
+  } catch (error) {
+    console.log('ℹ️  Could not pull from GitHub (using local files if available):', error.message);
+    return fs.existsSync(DB_PATH);
   }
 }
 
@@ -140,14 +133,17 @@ function backupToGithub() {
 
   try {
     // Check if database exists
-    if (!fs.existsSync(DB_PATH)) {
+    const dbExists = fs.existsSync(DB_PATH);
+
+    if (!dbExists) {
       console.log('⚠️  No database to backup');
       return;
     }
 
     // Check if database has changed
-    const currentHash = getFileHash(DB_PATH);
-    if (currentHash === lastBackupHash) {
+    const dbHash = getFileHash(DB_PATH);
+
+    if (dbHash === lastBackupHash) {
       console.log('ℹ️  Database unchanged, skipping backup');
       return;
     }
@@ -155,16 +151,17 @@ function backupToGithub() {
     console.log('📤 Backing up database to GitHub...');
 
     const repoRoot = path.join(__dirname, '..', '..');
+    const filesToAdd = ['docs/data/triggers.db'];
 
-    // Add database file
-    execSync('git add docs/data/triggers.db', {
+    // Add files to git
+    execSync(`git add ${filesToAdd.join(' ')}`, {
       cwd: repoRoot,
       stdio: 'pipe'
     });
 
     // Check if there are changes to commit
     try {
-      const status = execSync('git status --porcelain docs/data/triggers.db', {
+      const status = execSync(`git status --porcelain ${filesToAdd.join(' ')}`, {
         cwd: repoRoot,
         encoding: 'utf8'
       });
@@ -190,7 +187,7 @@ function backupToGithub() {
       stdio: 'pipe'
     });
 
-    lastBackupHash = currentHash;
+    lastBackupHash = dbHash;
     console.log(`✅ Database backed up to GitHub at ${timestamp}`);
   } catch (error) {
     console.error('❌ Backup failed:', error.message);

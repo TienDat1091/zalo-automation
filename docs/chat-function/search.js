@@ -138,9 +138,14 @@ function searchInFriendsList(query, resultsDiv) {
         <div class="result-friend">
           <img src="${friend.avatar || 'https://via.placeholder.com/50'}" 
                onerror="this.src='https://via.placeholder.com/50'"
-               alt="Avatar">
+               alt="Avatar"
+               onclick="event.stopPropagation(); showFriendDetailsModal('${friend.userId}', '${escapeJs(friend.displayName || 'Người dùng Zalo')}', '${friend.avatar || ''}', false)"
+               style="cursor:pointer;">
           <div class="result-friend-info">
-            <div class="result-friend-name">${highlightText(friend.displayName || 'Người dùng Zalo', query)}</div>
+            <div class="result-friend-name">
+              ${highlightText(friend.displayName || 'Người dùng Zalo', query)}
+              ${friend.tag ? `<span class="friend-tag-badge" style="display:inline-block; font-size:10px; background:#2ec4b6; color:white; padding:2px 8px; border-radius:10px; font-weight:500; margin-left:6px; vertical-align:middle;">${escapeHtml(friend.tag)}</span>` : ''}
+            </div>
             <div class="result-friend-uid">UID: ${friend.userId}</div>
           </div>
         </div>
@@ -197,7 +202,9 @@ function handlePhoneSearchResult(user) {
       <div class="result-friend">
         <img src="${user.avatar || 'https://via.placeholder.com/50'}" 
              onerror="this.src='https://via.placeholder.com/50'"
-             alt="Avatar">
+             alt="Avatar"
+             onclick="event.stopPropagation(); showFriendDetailsModal('${user.uid}', '${escapeJs(displayName)}', '${user.avatar || ''}', true)"
+             style="cursor:pointer;">
         <div class="result-friend-info">
           <div class="result-friend-name">${escapeHtml(displayName)}</div>
           <div class="result-friend-uid">${gender} • UID: ${user.uid}</div>

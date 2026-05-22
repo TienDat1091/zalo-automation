@@ -298,6 +298,118 @@
             width: 400px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
         }
+
+        /* ==================== DARK MODE ==================== */
+        body.dark-mode {
+            background: #0b1220;
+            color: #e8eef8;
+        }
+
+        body.dark-mode .sidebar {
+            background: #111b2d;
+            border-right: 1px solid #1e2d4a;
+        }
+
+        body.dark-mode .sidebar-header {
+            border-bottom: 1px solid #1e2d4a;
+            color: #f8fafc;
+        }
+
+        body.dark-mode .search-users input {
+            background: #172338;
+            border: 1px solid #22314c;
+            color: #f8fafc;
+        }
+
+        body.dark-mode .user-item {
+            border-bottom: 1px solid #1e2d4a;
+        }
+
+        body.dark-mode .user-item:hover {
+            background: #172338;
+        }
+
+        body.dark-mode .user-item.active {
+            background: #22314c;
+        }
+
+        body.dark-mode .user-name {
+            color: #f8fafc;
+        }
+
+        body.dark-mode .user-last-msg {
+            color: #9eb0ca;
+        }
+
+        body.dark-mode .main-chat {
+            background: #0b1220;
+        }
+
+        body.dark-mode .chat-header {
+            background: #111b2d;
+            border-bottom: 1px solid #1e2d4a;
+        }
+
+        body.dark-mode .chat-title h3 {
+            color: #f8fafc;
+        }
+
+        body.dark-mode .chat-title p {
+            color: #9eb0ca;
+        }
+
+        body.dark-mode .messages-area {
+            background: #0b1220;
+        }
+
+        body.dark-mode .message.received .bubble {
+            background: #172338;
+            color: #e8eef8;
+            border: 1px solid #22314c;
+        }
+
+        body.dark-mode .message.sent .bubble {
+            background: #2563eb;
+            color: white;
+        }
+
+        body.dark-mode .input-area {
+            background: #111b2d;
+            border-top: 1px solid #1e2d4a;
+        }
+
+        body.dark-mode .chat-input {
+            background: #172338;
+            border: 1px solid #22314c;
+            color: #f8fafc;
+        }
+
+        body.dark-mode .modal-content {
+            background: #111b2d;
+            color: #cbd5e1;
+            border: 1px solid #1e2d4a;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        body.dark-mode .modal-content h3 {
+            color: #f8fafc;
+        }
+
+        body.dark-mode .modal-content input {
+            background: #172338;
+            border: 1px solid #22314c;
+            color: #f8fafc;
+        }
+
+        body.dark-mode .btn-secondary {
+            background: #22314c;
+            color: #cbd5e1;
+        }
+
+        body.dark-mode .btn-secondary:hover {
+            background: #2d3f60;
+            color: #f8fafc;
+        }
     </style>
 </head>
 
@@ -521,7 +633,7 @@
         async function clearHistory() {
             if (!currentThreadId) return;
             // Confirm Modal later? For now direct action
-            if (confirm('⚠️ Bạn có chắc muốn xóa cuộc trò chuyện này?\n\nNgười dùng và toàn bộ tin nhắn sẽ bị xóa khỏi danh sách.')) {
+            if (await confirm('⚠️ Bạn có chắc muốn xóa cuộc trò chuyện này?\n\nNgười dùng và toàn bộ tin nhắn sẽ bị xóa khỏi danh sách.')) {
                 const userIdToDelete = currentThreadId;
 
                 // Delete from local IndexedDB
@@ -815,7 +927,7 @@
                 m.onclick = null; // Disable backdrop click
             } else {
                 cancelBtn.style.display = 'block';
-                m.onclick = (e) => { if (e.target === m) closeConfigModal(); };
+                m.onclick = null; // Disable backdrop click as requested
             }
         }
         function closeConfigModal() { document.getElementById('configModal').style.display = 'none'; }
@@ -868,7 +980,7 @@
         }
 
         async function clearAllData() {
-            if (confirm('⚠️ CẢNH BÁO: Hành động này sẽ xóa toàn bộ tin nhắn và danh bạ đã lưu TRÊN TRÌNH DUYỆT này.\n\nBạn có chắc chắn không?')) {
+            if (await confirm('⚠️ CẢNH BÁO: Hành động này sẽ xóa toàn bộ tin nhắn và danh bạ đã lưu TRÊN TRÌNH DUYỆT này.\n\nBạn có chắc chắn không?')) {
                 await localDB.clearAll();
                 contactsMap.clear();
                 refreshContactList();

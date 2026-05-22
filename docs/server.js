@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const socketIO = require('socket.io');
 // const session = require('express-session'); // Removed for Render deployment fix
 
 const { loginZalo } = require('./loginZalo.js');
@@ -530,6 +531,36 @@ app.use((req, res) => {
 
 // Create HTTP server from Express
 const server = http.createServer(app);
+
+// Initialize Socket.IO for real-time theme synchronization
+const io = socketIO(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  console.log('✅ Socket.IO client connected:', socket.id);
+
+  // Handle theme changes - broadcast to all connected clients
+  socket.on('theme_changed', (data) => {
+    console.log('🎨 Theme changed:', data.theme);
+    // Broadcast to all clients except sender
+    socket.broadcast.emit('theme_changed', {
+      theme: data.theme
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ Socket.IO client disconnected:', socket.id);
+  });
+
+  socket.on('error', (err) => {
+    console.error('❌ Socket.IO error:', err);
+  });
+});
 
 // Use PORT from environment variable (for Render) or default to 3000
 const PORT = process.env.PORT || 3000;

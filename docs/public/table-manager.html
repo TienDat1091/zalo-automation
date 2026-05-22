@@ -5,6 +5,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Table Manager - Quản lý bảng dữ liệu</title>
+  <link rel="stylesheet" href="/assets/unified-header.css?v=4">
+  <script>
+    (function () {
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+        document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('dark-mode'); });
+      }
+    })();
+  </script>
   <style>
     * {
       margin: 0;
@@ -1096,8 +1105,8 @@
       send({ type: 'get_activity_logs', limit: 100 });
     }
 
-    function clearLogs() {
-      if (confirm('Xóa tất cả log?')) {
+    async function clearLogs() {
+      if (await confirm('Xóa tất cả log?')) {
         send({ type: 'clear_activity_logs' });
       }
     }
@@ -1176,8 +1185,8 @@
       }
     }
 
-    function deleteTable(tableID) {
-      if (confirm('Bạn có chắc muốn xóa bảng này?')) {
+    async function deleteTable(tableID) {
+      if (await confirm('Bạn có chắc muốn xóa bảng này?')) {
         send({ type: 'delete_table', tableID: tableID });
       }
     }
@@ -1220,9 +1229,9 @@
       closeModal('editColumnModal');
     }
 
-    function deleteColumn() {
+    async function deleteColumn() {
       if (!state.editingColumnId) return;
-      if (confirm('Xóa cột này?')) {
+      if (await confirm('Xóa cột này?')) {
         send({ type: 'delete_table_column', tableID: state.currentTableId, columnID: state.editingColumnId });
         closeModal('editColumnModal');
       }
@@ -1253,9 +1262,9 @@
       renderSpreadsheet();
     }
 
-    function deleteSelectedRows() {
+    async function deleteSelectedRows() {
       if (state.selectedRows.size === 0) { showToast('⚠️ Chưa chọn hàng nào', 'info'); return; }
-      if (confirm(`Xóa ${state.selectedRows.size} hàng?`)) {
+      if (await confirm(`Xóa ${state.selectedRows.size} hàng?`)) {
         send({ type: 'delete_table_rows', tableID: state.currentTableId, rowIDs: Array.from(state.selectedRows) });
         state.selectedRows.clear();
       }
@@ -1337,3 +1346,4 @@
 </body>
 
 </html>
+

@@ -127,6 +127,137 @@
             font-size: 13px;
             color: #444;
         }
+
+        /* ========== DARK MODE SUPPORT ========== */
+        body.dark-mode .routine-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        body.dark-mode .routine-card {
+            background: #111b2d;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid #1e2d4a;
+            transition: all 0.3s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            color: #cbd5e1;
+        }
+
+        body.dark-mode .routine-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        body.dark-mode .routine-info h3 {
+            color: #f8fafc;
+        }
+
+        body.dark-mode .routine-info p {
+            color: #9eb0ca;
+        }
+
+        body.dark-mode .routine-time {
+            background: #172338;
+            color: #5aa2ff;
+            border: 1px solid #22314c;
+        }
+
+        body.dark-mode .int-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: #172338;
+            color: #9eb0ca;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid #22314c;
+        }
+
+        body.dark-mode .int-badge.active {
+            background: #1a472a;
+            color: #60d960;
+            border: 1px solid #2d5c2d;
+        }
+
+        body.dark-mode .routine-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #1e2d4a;
+        }
+
+        body.dark-mode .status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        body.dark-mode .config-section {
+            background: #172338;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #22314c;
+        }
+
+        body.dark-mode .config-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #f8fafc;
+        }
+
+        body.dark-mode .switch-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        body.dark-mode .switch-label {
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+
+        body.dark-mode .action-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: #22314c;
+            color: #5aa2ff;
+        }
+
+        body.dark-mode .action-btn:hover {
+            background: #2d3f60;
+        }
+
+        body.dark-mode .spinner {
+            border: 3px solid #22314c;
+            border-top: 3px solid #5aa2ff;
+        }
     </style>
 </head>
 
@@ -432,7 +563,7 @@
             const editId = document.getElementById('editRoutineId').value;
 
             if (!name || !time || !target.value) {
-                alert('Vui lòng điền đủ thông tin cơ bản!');
+                showAlert('Vui lòng điền đủ thông tin cơ bản!');
                 return;
             }
 
@@ -464,8 +595,8 @@
             ws.send(JSON.stringify({ type: 'update_automation_routine', id, updates: { enabled } }));
         }
 
-        function deleteRoutine(id) {
-            if (confirm('Bạn có chắc muốn xóa routine này?')) {
+        async function deleteRoutine(id) {
+            if (await showConfirm('Bạn có chắc muốn xóa routine này?')) {
                 ws.send(JSON.stringify({ type: 'delete_automation_routine', id }));
             }
         }
@@ -478,6 +609,7 @@
 
         document.addEventListener('DOMContentLoaded', connectWS);
     </script>
+    <script src="/assets/custom-dialog.js"></script>
 </body>
 
 </html>

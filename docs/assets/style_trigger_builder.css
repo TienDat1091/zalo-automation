@@ -794,6 +794,161 @@ body {
   border-left: 3px solid #ff9800;
 }
 
+/* ================================================
+   DARK MODE STYLES FOR TRIGGER BUILDER
+   ================================================ */
+body.dark-mode {
+  background: #0b1220;
+  color: #e8eef8;
+}
+
+body.dark-mode .header {
+  background: #111c2f;
+  border-color: #22314c;
+}
+
+body.dark-mode .header-title {
+  color: #e8eef8;
+}
+
+body.dark-mode .panel,
+body.dark-mode .block,
+body.dark-mode .trigger-item {
+  background: #172338;
+  border-color: #22314c;
+  color: #e8eef8;
+}
+
+body.dark-mode .panel:hover {
+  background: #1f2f45;
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="number"],
+body.dark-mode input[type="date"],
+body.dark-mode select,
+body.dark-mode textarea {
+  background: #172338;
+  color: #e8eef8;
+  border-color: #22314c;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #7f93b2;
+}
+
+body.dark-mode .sidebar {
+  background: #111c2f;
+  border-color: #22314c;
+}
+
+body.dark-mode .sidebar-item {
+  color: #e8eef8;
+}
+
+body.dark-mode .sidebar-item:hover {
+  background: #172338;
+}
+
+body.dark-mode .sidebar-item.active {
+  background: #22314c;
+  color: #5aa2ff;
+}
+
+body.dark-mode .modal-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+body.dark-mode .modal-content {
+  background: #111c2f;
+  border-color: #22314c;
+  color: #e8eef8;
+}
+
+body.dark-mode .modal-header {
+  background: #172338;
+  border-color: #22314c;
+}
+
+body.dark-mode .modal-title {
+  color: #e8eef8;
+}
+
+body.dark-mode .btn,
+body.dark-mode button {
+  background: #172338;
+  color: #e8eef8;
+  border-color: #22314c;
+}
+
+body.dark-mode .btn:hover,
+body.dark-mode button:hover {
+  background: #1f2f45;
+}
+
+body.dark-mode .btn-primary,
+body.dark-mode button.primary {
+  background: #5aa2ff;
+  color: #000;
+  border-color: #5aa2ff;
+}
+
+body.dark-mode .btn-primary:hover,
+body.dark-mode button.primary:hover {
+  background: #7bb4ff;
+}
+
+body.dark-mode .btn-danger,
+body.dark-mode button.danger {
+  background: #d32f2f;
+  color: white;
+}
+
+body.dark-mode .btn-danger:hover,
+body.dark-mode button.danger:hover {
+  background: #f44336;
+}
+
+body.dark-mode .table {
+  border-color: #22314c;
+}
+
+body.dark-mode .table th {
+  background: #111c2f;
+  color: #e8eef8;
+  border-color: #22314c;
+}
+
+body.dark-mode .table td {
+  border-color: #22314c;
+  color: #e8eef8;
+}
+
+body.dark-mode .table tr:hover {
+  background: #172338;
+}
+
+body.dark-mode .label {
+  color: #e8eef8;
+}
+
+body.dark-mode .text-muted {
+  color: #7f93b2;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+  background: #0b1220;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: #22314c;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #2d4264;
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;

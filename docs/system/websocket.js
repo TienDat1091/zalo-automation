@@ -648,16 +648,10 @@ function startWebSocketServer(apiState, httpServer) {
       // 🔄 No current user - start login process if not already running
       if (!apiState.isLoggedIn && !apiState.loginInProgress) {
         console.log('📱 No user logged in, starting login process...');
-        apiState.loginInProgress = true;
-
         const { loginZalo } = require('../loginZalo');
         loginZalo(apiState)
-          .then(() => {
-            apiState.loginInProgress = false;
-          })
           .catch(err => {
             console.error('❌ Auto-login failed:', err.message);
-            apiState.loginInProgress = false;
           });
       }
 
@@ -699,8 +693,219 @@ function startWebSocketServer(apiState, httpServer) {
           const { targetId, enabled } = msg;
           const userUID = apiState.currentUser?.uid;
           if (userUID && targetId) {
-            triggerDB.setUserSetting(userUID, targetId, 'auto_reply_enabled', enabled);
-            console.log(`🔄 Updated auto-reply setting for ${targetId}: ${enabled}`);
+            const success = triggerDB.setUserSetting(userUID, targetId, 'auto_reply_enabled', enabled);
+            if (success) {
+              console.log(`👤 User Auto-Reply Toggle: ${targetId} -> ${enabled}`);
+              ws.send(JSON.stringify({ type: 'user_auto_reply_updated', targetId, enabled }));
+              
+              // Log Activity to SQLite
+              triggerDB.logActivity(
+                userUID,
+                enabled ? 'ENABLE_AUTO_REPLY' : 'DISABLE_AUTO_REPLY',
+                'user_setting',
+                null,
+                targetId,
+                `Đã ${enabled ? 'bật' : 'tắt'} trả lời tự động cho ${targetId}`
+              );
+
+              // Broadcast Activity Log
+              broadcast(apiState, {
+                type: 'new_activity_log',
+                log: {
+                  title: `🤖 Auto Reply ${enabled ? 'Bật' : 'Tắt'}`,
+                  description: `Đã ${enabled ? 'bật' : 'tắt'} trả lời tự động cho ${targetId}`,
+                  type: 'info'
+                }
+              });
+            }
+          }
+          return;
+        }
+
+        // ============================================
+        // FRIEND MODAL ACTIONS
+        // ============================================
+        if (msg.type === 'block_user') {
+          if (!apiState.api || !apiState.isLoggedIn) {
+            ws.send(JSON.stringify({ type: 'block_user_result', success: false, error: 'Chưa đăng nhập Zalo!' }));
+            return;
+          }
+          const { userId } = msg;
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'block_user_result', success: false, error: 'Thiếu userId!' }));
+            return;
+          }
+          try {
+            console.log(`🚫 Đang chặn user: ${userId}`);
+            await apiState.api.blockUser(userId);
+            
+            // Log to activity_logs
+            const userUID = apiState.currentUser?.uid || 'system';
+            triggerDB.logActivity(userUID, 'BLOCK_USER', 'friend', null, userId, `Đã chặn người dùng UID: ${userId}`);
+            
+            // Broadcast events
+            broadcast(apiState, {
+              type: 'block_user_result',
+              success: true,
+              userId: userId
+            });
+            broadcast(apiState, {
+              type: 'friend_event',
+              eventType: 'BLOCK',
+              userId: userId
+            });
+          } catch (err) {
+            console.error('❌ Block user error:', err.message);
+            ws.send(JSON.stringify({ type: 'block_user_result', success: false, error: err.message || 'Không thể chặn người dùng' }));
+          }
+          return;
+        }
+
+        if (msg.type === 'unblock_user') {
+          if (!apiState.api || !apiState.isLoggedIn) {
+            ws.send(JSON.stringify({ type: 'unblock_user_result', success: false, error: 'Chưa đăng nhập Zalo!' }));
+            return;
+          }
+          const { userId } = msg;
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'unblock_user_result', success: false, error: 'Thiếu userId!' }));
+            return;
+          }
+          try {
+            console.log(`👥 Đang bỏ chặn user: ${userId}`);
+            await apiState.api.unblockUser(userId);
+            
+            // Log to activity_logs
+            const userUID = apiState.currentUser?.uid || 'system';
+            triggerDB.logActivity(userUID, 'UNBLOCK_USER', 'friend', null, userId, `Đã bỏ chặn người dùng UID: ${userId}`);
+            
+            // Broadcast events
+            broadcast(apiState, {
+              type: 'unblock_user_result',
+              success: true,
+              userId: userId
+            });
+            broadcast(apiState, {
+              type: 'friend_event',
+              eventType: 'UNBLOCK',
+              userId: userId
+            });
+          } catch (err) {
+            console.error('❌ Unblock user error:', err.message);
+            ws.send(JSON.stringify({ type: 'unblock_user_result', success: false, error: err.message || 'Không thể bỏ chặn người dùng' }));
+          }
+          return;
+        }
+
+        if (msg.type === 'change_friend_alias') {
+          if (!apiState.api || !apiState.isLoggedIn) {
+            ws.send(JSON.stringify({ type: 'friend_alias_changed', success: false, error: 'Chưa đăng nhập Zalo!' }));
+            return;
+          }
+          const { userId, alias } = msg;
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'friend_alias_changed', success: false, error: 'Thiếu userId!' }));
+            return;
+          }
+          try {
+            if (alias && alias.trim()) {
+              console.log(`✏️ Đang đổi tên gợi nhớ của ${userId} thành: ${alias}`);
+              await apiState.api.changeFriendAlias(alias.trim(), userId);
+            } else {
+              console.log(`🗑️ Đang xóa tên gợi nhớ của ${userId}`);
+              await apiState.api.removeFriendAlias(userId);
+            }
+            
+            // Log to activity_logs
+            const userUID = apiState.currentUser?.uid || 'system';
+            triggerDB.logActivity(
+              userUID,
+              'CHANGE_ALIAS',
+              'friend',
+              null,
+              userId,
+              alias && alias.trim() ? `Đã đổi tên gợi nhớ của ${userId} thành: ${alias}` : `Đã xóa tên gợi nhớ của ${userId}`
+            );
+            
+            // Broadcast success
+            broadcast(apiState, {
+              type: 'friend_alias_changed',
+              success: true,
+              userId: userId,
+              alias: alias || ''
+            });
+
+            // Force reload friends list to sync updated names to client
+            await loadFriends(apiState, ws, true);
+          } catch (err) {
+            console.error('❌ Change alias error:', err.message);
+            ws.send(JSON.stringify({ type: 'friend_alias_changed', success: false, error: err.message || 'Không thể đổi tên gợi nhớ' }));
+          }
+          return;
+        }
+
+        if (msg.type === 'save_friend_tag') {
+          const userUID = apiState.currentUser?.uid;
+          if (!userUID) {
+            ws.send(JSON.stringify({ type: 'friend_tag_changed', success: false, error: 'Chưa đăng nhập!' }));
+            return;
+          }
+          const { userId, tag } = msg;
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'friend_tag_changed', success: false, error: 'Thiếu userId!' }));
+            return;
+          }
+          try {
+            console.log(`🏷️ Đang lưu tag cho bạn bè ${userId}: ${tag}`);
+            
+            // Save to SQLite
+            const success = triggerDB.setUserSetting(userUID, userId, 'friend_mark', tag || '');
+            
+            if (success) {
+              // Log to activity_logs
+              triggerDB.logActivity(
+                userUID,
+                'SET_FRIEND_TAG',
+                'friend',
+                null,
+                userId,
+                tag ? `Đã gắn thẻ [${tag}] cho bạn bè ${userId}` : `Đã gỡ thẻ của bạn bè ${userId}`
+              );
+              
+              // Update server memory cache so we don't have to reload from Zalo
+              if (apiState.friends) {
+                const friend = apiState.friends.find(f => f.userId === userId);
+                if (friend) {
+                  friend.tag = tag || '';
+                }
+              }
+              if (apiState.friendsMap) {
+                const friend = apiState.friendsMap.get(userId);
+                if (friend) {
+                  friend.tag = tag || '';
+                }
+              }
+              
+              // Broadcast tag change
+              broadcast(apiState, {
+                type: 'friend_tag_changed',
+                success: true,
+                userId: userId,
+                tag: tag || ''
+              });
+              
+              // Broadcast updated friends list
+              broadcast(apiState, {
+                type: 'friends_list',
+                total: (apiState.friends || []).length,
+                friends: apiState.friends || []
+              });
+            } else {
+              ws.send(JSON.stringify({ type: 'friend_tag_changed', success: false, error: 'Không thể lưu tag vào cơ sở dữ liệu' }));
+            }
+          } catch (err) {
+            console.error('❌ Save tag error:', err.message);
+            ws.send(JSON.stringify({ type: 'friend_tag_changed', success: false, error: err.message || 'Lỗi khi lưu tag' }));
           }
           return;
         }
@@ -832,11 +1037,42 @@ function startWebSocketServer(apiState, httpServer) {
                 triggerId: msg.triggerId
               }));
 
+              // Log Activity to SQLite
+              triggerDB.logActivity(
+                userUID,
+                'UPDATE_SETTING',
+                'setting',
+                null,
+                msg.triggerId,
+                `Đã chỉnh sửa cài đặt hệ thống: ${msg.triggerId}`
+              );
+
               // Broadcast update to other tabs
               broadcast(apiState, {
                 type: 'builtin_triggers',
                 triggers: { [getFrontendKey(msg.triggerId)]: updated }
               });
+
+              // ✅ Apply auto-delete settings immediately to all selected users on Zalo
+              if (msg.triggerId === 'builtin_auto_delete_messages' && apiState.api && apiState.isLoggedIn) {
+                const ttl = parseInt(msg.data.response) ?? 86400000;
+                const selectedUsers = msg.data.selectedUsers || [];
+                if (selectedUsers.length > 0) {
+                  console.log(`⚙️ Applying auto-delete TTL=${ttl}ms to ${selectedUsers.length} selected users immediately...`);
+                  (async () => {
+                    for (const userId of selectedUsers) {
+                      try {
+                        console.log(`   Applying TTL=${ttl} to user ${userId}`);
+                        await apiState.api.updateAutoDeleteChat(ttl, userId, ThreadType.User);
+                        await new Promise(r => setTimeout(r, 600)); // Rate limit buffer
+                      } catch (e) {
+                        console.error(`   ⚠️ Failed to set auto-delete for user ${userId}:`, e.message);
+                      }
+                    }
+                    console.log(`⚙️ Finished applying auto-delete settings.`);
+                  })();
+                }
+              }
             }
           }
           return;
@@ -886,6 +1122,52 @@ function startWebSocketServer(apiState, httpServer) {
             ws.send(JSON.stringify({
               type: 'file_list',
               files: [],
+              error: error.message
+            }));
+          }
+          return;
+        }
+
+        // ============================================
+        // GET CONTACTS (For Auto Delete User Selection)
+        // ============================================
+        if (msg.type === 'get_contacts') {
+          try {
+            let contacts = [];
+            
+            // Use cached friends list
+            if (apiState?.friends && Array.isArray(apiState.friends)) {
+              contacts = apiState.friends;
+            } else if (apiState?.api && apiState?.isLoggedIn) {
+              // If not cached, try to load now
+              console.log('📞 Contacts not cached, attempting to load...');
+              try {
+                const rawFriends = await apiState.api.getFriendList?.(0, 0) || await apiState.api.getAllFriends?.();
+                if (Array.isArray(rawFriends)) {
+                  contacts = rawFriends.map(user => ({
+                    userId: String(user.userId || user.uid || user.id || '').trim(),
+                    displayName: (user.displayName || user.name || user.fullName || 'Người dùng Zalo').trim(),
+                    avatar: user.avatar || user.avatarUrl || `https://graph.zalo.me/v2.0/avatar?user_id=${user.userId || user.uid || user.id}&width=120&height=120`
+                  })).filter(f => f.userId && f.userId.length > 5);
+                  apiState.friends = contacts;
+                }
+              } catch (loadErr) {
+                console.warn('⚠️ Failed to load friends:', loadErr.message);
+              }
+            }
+            
+            ws.send(JSON.stringify({
+              type: 'contacts_list',
+              contacts: contacts,
+              count: contacts.length
+            }));
+            
+            console.log(`📞 Sent ${contacts.length} contacts to client`);
+          } catch (error) {
+            console.error('❌ Error fetching contacts:', error.message);
+            ws.send(JSON.stringify({
+              type: 'contacts_list',
+              contacts: [],
               error: error.message
             }));
           }
@@ -1070,6 +1352,50 @@ function startWebSocketServer(apiState, httpServer) {
             type: 'all_last_messages',
             data: lastMessagesObj
           }));
+        }
+
+        // ============================================
+        // GET LAST ONLINE STATUS
+        // ============================================
+        else if (msg.type === 'get_last_online') {
+          const uid = String(msg.uid);
+          if (!apiState.api || !apiState.isLoggedIn) {
+            ws.send(JSON.stringify({
+              type: 'last_online_response',
+              uid: uid,
+              error: 'Chưa đăng nhập Zalo'
+            }));
+            return;
+          }
+
+          if (typeof apiState.api.lastOnline !== 'function') {
+            console.warn('⚠️ api.lastOnline is not a function in this version of zca-js');
+            ws.send(JSON.stringify({
+              type: 'last_online_response',
+              uid: uid,
+              error: 'Thư viện Zalo không hỗ trợ tính năng này'
+            }));
+            return;
+          }
+
+          console.log(`📡 Fetching last online status for user: ${uid}`);
+          apiState.api.lastOnline(uid)
+            .then(res => {
+              console.log(`✅ Last online response for ${uid}:`, JSON.stringify(res));
+              ws.send(JSON.stringify({
+                type: 'last_online_response',
+                uid: uid,
+                data: res
+              }));
+            })
+            .catch(err => {
+              console.error(`❌ Error fetching last online for ${uid}:`, err);
+              ws.send(JSON.stringify({
+                type: 'last_online_response',
+                uid: uid,
+                error: err.message || 'Lỗi khi lấy trạng thái hoạt động'
+              }));
+            });
         }
 
         // ============================================
@@ -1287,6 +1613,16 @@ function startWebSocketServer(apiState, httpServer) {
           if (newTrigger) {
             console.log('➕ Created trigger:', newTrigger.triggerID);
 
+            // Log Activity to SQLite
+            triggerDB.logActivity(
+              apiState.currentUser.uid,
+              'CREATE_TRIGGER',
+              'trigger',
+              newTrigger.triggerID,
+              newTrigger.triggerName,
+              `Đã tạo kịch bản tự động mới: ${newTrigger.triggerName}`
+            );
+
             // Trigger backup after create
             setTimeout(() => backup.backupNow(), 2000);
 
@@ -1345,6 +1681,16 @@ function startWebSocketServer(apiState, httpServer) {
           if (updatedTrigger) {
             console.log('✏️ Updated trigger:', triggerID);
 
+            // Log Activity to SQLite
+            triggerDB.logActivity(
+              apiState.currentUser.uid,
+              'UPDATE_TRIGGER',
+              'trigger',
+              triggerID,
+              updatedTrigger.triggerName,
+              `Đã chỉnh sửa kịch bản: ${updatedTrigger.triggerName}`
+            );
+
             // Trigger backup after update
             setTimeout(() => backup.backupNow(), 2000);
 
@@ -1395,6 +1741,16 @@ function startWebSocketServer(apiState, httpServer) {
           if (deleted) {
             console.log('🗑️ Deleted trigger:', triggerID);
 
+            // Log Activity to SQLite
+            triggerDB.logActivity(
+              apiState.currentUser.uid,
+              'DELETE_TRIGGER',
+              'trigger',
+              triggerID,
+              null,
+              `Đã xóa kịch bản ID #${triggerID}`
+            );
+
             // Trigger backup after delete
             setTimeout(() => backup.backupNow(), 2000);
 
@@ -1444,6 +1800,16 @@ function startWebSocketServer(apiState, httpServer) {
 
           if (toggledTrigger) {
             console.log('🔄 Toggled trigger:', triggerID, '→', toggledTrigger.enabled ? 'ON' : 'OFF');
+
+            // Log Activity to SQLite
+            triggerDB.logActivity(
+              apiState.currentUser.uid,
+              toggledTrigger.enabled ? 'ENABLE_TRIGGER' : 'DISABLE_TRIGGER',
+              'trigger',
+              triggerID,
+              toggledTrigger.triggerName,
+              `Đã ${toggledTrigger.enabled ? 'bật' : 'tắt'} kịch bản: ${toggledTrigger.triggerName}`
+            );
 
             ws.send(JSON.stringify({
               type: 'trigger_toggled',
@@ -1640,6 +2006,14 @@ function startWebSocketServer(apiState, httpServer) {
               successIds.push(friendId);
               console.log(`✅ Removed friend: ${friendId}`);
 
+              // Remove from local memory lists
+              if (apiState.friends) {
+                apiState.friends = apiState.friends.filter(f => f.userId !== friendId);
+              }
+              if (apiState.friendsMap) {
+                apiState.friendsMap.delete(friendId);
+              }
+
               // Also delete local conversation data
               messageDB.deleteConversation(friendId);
               apiState.messageStore.delete(friendId);
@@ -1654,6 +2028,14 @@ function startWebSocketServer(apiState, httpServer) {
             success: successIds,
             failed: failedIds
           }));
+
+          // Broadcast removal of each successful friend ID to other sessions
+          for (const friendId of successIds) {
+            broadcast(apiState, {
+              type: 'friend_removed',
+              friendId: friendId
+            }, ws);
+          }
 
           console.log(`📊 Batch remove result: ${successIds.length} success, ${failedIds.length} failed`);
         }
@@ -1790,6 +2172,13 @@ function startWebSocketServer(apiState, httpServer) {
               broadcast(apiState, {
                 type: 'conversation_deleted',
                 uid: uid
+              });
+
+              // Broadcast deletion for multi-device sync
+              broadcast(apiState, {
+                type: 'conversation_deleted_broadcast',
+                uid: uid,
+                timestamp: Date.now()
               });
             }
           })();
@@ -2070,7 +2459,7 @@ function startWebSocketServer(apiState, httpServer) {
           const path = require('path');
           const credFiles = ['credentials.json', 'creds.json', 'session.json', '.zalo_session', 'qr.png'];
           credFiles.forEach(file => {
-            [process.cwd(), __dirname, path.join(__dirname, '..')].forEach(dir => {
+            [process.cwd(), __dirname, path.join(__dirname, '..'), path.join(__dirname, '..', 'data')].forEach(dir => {
               try {
                 const filePath = path.join(dir, file);
                 if (fs.existsSync(filePath)) {
@@ -2080,6 +2469,14 @@ function startWebSocketServer(apiState, httpServer) {
               } catch (e) { }
             });
           });
+
+          // Reset message database connection to default
+          try {
+            messageDB.init();
+            console.log('🔄 MessageDB reset to default (messages.db) on logout');
+          } catch (dbErr) {
+            console.error('❌ Failed to reset MessageDB to default on logout:', dbErr.message);
+          }
 
           console.log('✅ Session fully cleared');
 
@@ -2359,6 +2756,16 @@ function startWebSocketServer(apiState, httpServer) {
           if (newId) {
             const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
 
+            // Log Activity to SQLite
+            triggerDB.logActivity(
+              apiState.currentUser.uid,
+              'CREATE_SCHEDULED_TASK',
+              'scheduled_task',
+              newId,
+              targetName,
+              `Đã tạo lịch gửi cho ${targetName} lúc ${new Date(executeTime).toLocaleString('vi-VN')}`
+            );
+
             // Broadcast specific event for notifications
             broadcast(apiState, { type: 'scheduled_task_created', success: true, tasks });
 
@@ -2387,6 +2794,16 @@ function startWebSocketServer(apiState, httpServer) {
           if (success) {
             const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
 
+            // Log Activity to SQLite
+            triggerDB.logActivity(
+              apiState.currentUser.uid,
+              'UPDATE_SCHEDULED_TASK',
+              'scheduled_task',
+              id,
+              null,
+              `Đã chỉnh sửa lịch gửi ID #${id}`
+            );
+
             // Broadcast specific event for notifications
             broadcast(apiState, { type: 'scheduled_task_updated', success: true, tasks });
 
@@ -2414,6 +2831,16 @@ function startWebSocketServer(apiState, httpServer) {
 
           if (success) {
             const tasks = triggerDB.getAllScheduledTasks(apiState.currentUser.uid);
+
+            // Log Activity to SQLite
+            triggerDB.logActivity(
+              apiState.currentUser.uid,
+              'DELETE_SCHEDULED_TASK',
+              'scheduled_task',
+              id,
+              null,
+              `Đã xóa lịch gửi ID #${id}`
+            );
 
             // Broadcast specific event for notifications
             broadcast(apiState, { type: 'scheduled_task_deleted', success: true, tasks });
@@ -3885,21 +4312,7 @@ function startWebSocketServer(apiState, httpServer) {
           }
         }
 
-        else if (msg.type === 'delete_conversation') {
-          const uid = msg.uid;
-          if (uid) {
-            messageDB.deleteConversation(uid);
 
-            // ✅ Broadcast deletion to ALL connected clients for multi-device sync
-            broadcast(apiState, {
-              type: 'conversation_deleted_broadcast',
-              uid: uid,
-              timestamp: Date.now()
-            });
-
-            ws.send(JSON.stringify({ type: 'delete_conversation_success', uid }));
-          }
-        }
 
         else if (msg.type === 'get_file_logs') {
           const logs = messageDB.getFileLogs();
@@ -4126,6 +4539,81 @@ function startWebSocketServer(apiState, httpServer) {
         }
 
         // ========================================
+        // SEND FRIEND REQUEST
+        // ========================================
+        else if (msg.type === 'send_friend_request') {
+          if (!apiState.api) {
+            ws.send(JSON.stringify({ type: 'send_friend_request_result', success: false, error: 'Chưa đăng nhập Zalo!' }));
+            return;
+          }
+
+          const { userId, message } = msg;
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'send_friend_request_result', success: false, error: 'Thiếu userId!' }));
+            return;
+          }
+
+          const friendRequestMsg = message || 'Chào bạn, mình kết bạn nhé!';
+          console.log(`➕ Sending friend request to ${userId} with message: "${friendRequestMsg}"`);
+
+          let success = false;
+          let lastError = 'Không tìm thấy hàm gửi yêu cầu kết bạn trên API';
+
+          const strategies = [
+            { name: 'sendFriendRequest(msg, uid)', fn: 'sendFriendRequest', args: [friendRequestMsg, userId] },
+            { name: 'addFriend(msg, uid)', fn: 'addFriend', args: [friendRequestMsg, userId] },
+            { name: 'sendFriendRequest(uid, msg)', fn: 'sendFriendRequest', args: [userId, friendRequestMsg] },
+            { name: 'addFriend(uid, msg)', fn: 'addFriend', args: [userId, friendRequestMsg] }
+          ];
+
+          for (const strategy of strategies) {
+            const fn = apiState.api[strategy.fn];
+            if (typeof fn === 'function') {
+              try {
+                console.log(`   Trying ${strategy.name}...`);
+                await fn.apply(apiState.api, strategy.args);
+                console.log(`✅ Friend request sent success!`);
+                success = true;
+                break;
+              } catch (e) {
+                console.warn(`   ⚠️ Method ${strategy.name} failed: ${e.message}`);
+                lastError = e.message;
+              }
+            }
+          }
+
+          if (success) {
+            ws.send(JSON.stringify({
+              type: 'send_friend_request_result',
+              success: true,
+              userId: userId
+            }));
+            
+            // Log to activity_logs
+            try {
+              const userUID = apiState.currentUser?.uid || 'system';
+              triggerDB.logActivity(
+                userUID,
+                'SEND_FRIEND_REQUEST',
+                'friend',
+                null,
+                userId,
+                `Đã gửi lời mời kết bạn tới UID: ${userId} với lời nhắn: "${friendRequestMsg}"`
+              );
+            } catch (e) {
+              console.error('⚠️ Failed to log send friend request activity:', e.message);
+            }
+          } else {
+            ws.send(JSON.stringify({
+              type: 'send_friend_request_result',
+              success: false,
+              userId: userId,
+              error: lastError
+            }));
+          }
+        }
+
+        // ========================================
         // REMOVE FRIEND (SINGLE)
         // ========================================
         else if (msg.type === 'remove_friend') {
@@ -4144,6 +4632,9 @@ function startWebSocketServer(apiState, httpServer) {
             // Remove from cached friends list
             if (apiState.friends) {
               apiState.friends = apiState.friends.filter(f => f.userId !== friendId);
+            }
+            if (apiState.friendsMap) {
+              apiState.friendsMap.delete(friendId);
             }
 
             ws.send(JSON.stringify({

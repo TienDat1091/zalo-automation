@@ -574,11 +574,11 @@
       openModal('configModal');
     }
 
-    function deleteConfig(idx) {
+    async function deleteConfig(idx) {
       var cfg = configs[idx];
       if (!cfg) return;
 
-      if (!confirm('Xóa cấu hình "' + cfg.name + '"?')) return;
+      if (!await showConfirm('Xóa cấu hình "' + cfg.name + '"?')) return;
 
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
@@ -811,6 +811,7 @@
       }, 3000);
     }
   </script>
+  <script src="/assets/custom-dialog.js"></script>
 </body>
 
 </html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Easy Zalo - Dashboard</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- ====== HEADER ====== -->
+    <div class="app-header">
+      <div class="header-logo">
+        <span class="icon">🤖</span>
+        <span>Easy Zalo</span>
+      </div>
+
+      <div class="header-status" id="connectionStatus">
+        <span class="dot disconnected" id="headerDot"></span>
+        <span id="headerStatusText">Đang kết nối...</span>
+      </div>
+
+      <button class="theme-toggle" id="themeToggle" title="Chế độ tối/sáng" onclick="toggleTheme()">🌙</button>
+
+      <div class="header-spacer"></div>
+
+      <div class="header-user" id="headerUser" style="display:none;">
+        <img id="headerAvatar" src="" alt="Avatar">
+        <div>
+          <div class="name" id="headerName">-</div>
+          <div class="uid" id="headerUid">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== MAIN BODY ====== -->
+    <div class="app-body">
+      <!-- ====== SIDEBAR ====== -->
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-tabs">
+          <button class="sidebar-tab active" id="tabFriends" onclick="switchTab('friends')">👥 Bạn bè</button>
+          <button class="sidebar-tab" id="tabGroups" onclick="switchTab('groups')">👪 Nhóm</button>
+        </div>
+
+        <div class="sidebar-search">
+          <input type="text" id="searchInput" placeholder="🔍 Tìm bạn bè hoặc nhập SĐT..." oninput="filterFriends(this.value)">
+        </div>
+
+        <div class="friends-list" id="friendsList">
+          <div class="sidebar-loading">
+            <div class="spinner"></div>
+            <span>Đang tải danh sách...</span>
+          </div>
+        </div>
+
+        <div class="friends-list" id="groupsList" style="display:none;">
+          <div class="sidebar-loading">
+            <div class="spinner"></div>
+            <span>Đang tải nhóm...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== CHAT AREA ====== -->
+      <div class="chat-area">
+        <!-- Chat Header (hidden until conversation selected) -->
+        <div class="chat-header" id="chatHeader" style="display:none;">
+          <img class="avatar" id="chatAvatar" src="" alt="">
+          <div class="info">
+            <div class="name" id="chatName">-</div>
+            <div class="uid" id="chatUid">-</div>
+          </div>
+
+          <div class="ar-toggle-wrapper">
+            <span class="ar-toggle-label">Auto Reply</span>
+            <label class="ar-switch">
+              <input type="checkbox" id="arToggle" onchange="toggleAutoReply(this.checked)">
+              <span class="ar-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="chat-empty" id="chatEmpty">
+          <div class="icon">💬</div>
+          <p>Chọn một cuộc trò chuyện để bắt đầu</p>
+        </div>
+
+        <!-- Messages -->
+        <div class="messages-container" id="messagesContainer" style="display:none;"></div>
+
+        <!-- Typing Indicator -->
+        <div class="typing-indicator" id="typingIndicator">Đang nhập...</div>
+
+        <!-- Input Area -->
+        <div class="input-area" id="inputArea" style="display:none;">
+          <button class="action-btn" title="Emoji">😊</button>
+          <button class="action-btn" title="Đính kèm">📎</button>
+          <input type="text" class="msg-input" id="messageInput" placeholder="Nhập tin nhắn..."
+            onkeydown="if(event.key==='Enter') sendMessage()">
+          <button class="send-btn" onclick="sendMessage()" title="Gửi">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

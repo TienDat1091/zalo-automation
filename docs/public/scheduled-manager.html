@@ -666,8 +666,8 @@
             }
         }
 
-        function deleteTask(id) {
-            if (!confirm('Bạn có chắc muốn xóa lịch này?')) return;
+        async function deleteTask(id) {
+            if (!await confirm('Bạn có chắc muốn xóa lịch này?')) return;
             ws.send(JSON.stringify({ type: 'delete_scheduled_task', id }));
         }
 

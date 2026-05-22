@@ -4,6 +4,13 @@
  */
 
 (function () {
+    // 🌙 Apply dark mode immediately to prevent white flash
+    try {
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark-mode');
+        }
+    } catch (e) {}
+
     // Prevent duplicate init
     if (window.UnifiedHeader) return;
 
@@ -29,6 +36,9 @@
             <a href="unified-manager.html" class="uh-nav-link" id="nav-data">
                 <span>📊</span> <span class="uh-nav-text">Dữ liệu</span>
             </a>
+            <button class="uh-icon-btn" id="uh-dark-toggle" onclick="UnifiedHeader.toggleDarkMode()" title="Chế độ tối" style="font-size: 16px; margin-right: 8px;">
+                🌙
+            </button>
             
             <button class="uh-icon-btn" onclick="UnifiedHeader.toggleNotifications()" title="Thông báo">
                 🔔 <span class="uh-badge" id="uh-notif-count" style="display:none">0</span>
@@ -132,6 +142,21 @@
                 link.href = '/assets/unified-header.css';
                 document.head.appendChild(link);
             }
+
+            // Load custom-dialog.js if not present
+            if (!document.querySelector('script[src*="custom-dialog.js"]')) {
+                const script = document.createElement('script');
+                script.src = '/assets/custom-dialog.js';
+                document.head.appendChild(script);
+            }
+
+            // 🌙 Apply dark mode to body and update toggle icon
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                const toggleBtn = document.getElementById('uh-dark-toggle');
+                if (toggleBtn) toggleBtn.textContent = '☀️';
+            }
         }
 
         highlightActiveNav() {
@@ -171,6 +196,7 @@
                         existingWS.send(JSON.stringify({ type: 'get_auto_reply_status' }));
                         existingWS.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
                     }
+                    existingWS.send(JSON.stringify({ type: 'get_activity_logs', limit: 20 }));
                 }
 
                 const originalOnClose = existingWS.onclose;
@@ -208,6 +234,7 @@
                                     self.ws.send(JSON.stringify({ type: 'get_current_user' }));
                                     self.ws.send(JSON.stringify({ type: 'get_auto_reply_status' }));
                                     self.ws.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
+                                    self.ws.send(JSON.stringify({ type: 'get_activity_logs', limit: 20 }));
                                     document.getElementById('uh-status-dot').className = 'uh-status-dot online';
                                 };
                                 self.ws.onmessage = (e) => {
@@ -234,6 +261,28 @@
                 this.updateUser(data.user);
             }
 
+            if (data.type === 'activity_logs' && Array.isArray(data.logs)) {
+                this.notifications = data.logs.map(n => {
+                    let icon = '📝';
+                    if (n.entityType === 'scheduled_task') icon = '📅';
+                    else if (n.action?.toLowerCase().includes('delete') || n.action?.toLowerCase().includes('remove')) icon = '🗑️';
+                    else if (n.action?.toLowerCase().includes('create') || n.action?.toLowerCase().includes('add')) icon = '✅';
+                    else if (n.action?.toLowerCase().includes('update') || n.action?.toLowerCase().includes('edit')) icon = '✏️';
+                    else if (n.entityType === 'trigger') icon = '⚡';
+                    else if (n.entityType === 'friend') icon = '👥';
+                    else if (n.action === 'BLOCK') icon = '🚫';
+                    else if (n.action === 'UNBLOCK') icon = '👥';
+
+                    return {
+                        id: n.logID,
+                        text: n.details || n.entityName || n.action,
+                        icon: icon,
+                        time: new Date(n.timestamp)
+                    };
+                });
+                this.renderNotifications();
+            }
+
             // Toggle Status Events
             if (data.type === 'auto_reply_status' || data.type === 'auto_reply_status_changed') {
                 this.updateAutoReplyUI(data.enabled);
@@ -247,7 +296,12 @@
                 'trigger_created', 'trigger_updated', 'trigger_deleted',
                 'scheduled_task_created', 'scheduled_task_updated', 'scheduled_task_deleted',
                 'conversation_deleted',
-                'delete_origin_chat_success', 'delete_origin_chat_error'
+                'delete_origin_chat_success', 'delete_origin_chat_error',
+                'builtin_trigger_updated', 'builtin_trigger_state_saved',
+                'auto_reply_status_changed',
+                'friend_event',
+                'batch_remove_result',
+                'new_activity_log'
             ];
 
             if (notifyTypes.includes(data.type)) {
@@ -303,7 +357,7 @@
             // Validate WebSocket
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 console.error('❌ WebSocket not connected');
-                alert('Mất kết nối server! Vui lòng thử lại sau.');
+                window.showAlert && showAlert('Mất kết nối server! Vui lòng thử lại sau.') || alert('Mất kết nối server! Vui lòng thử lại sau.');
                 input.checked = !enabled; // Revert UI
                 return;
             }
@@ -318,14 +372,14 @@
 
             if (enabled && !botToken) {
                 input.checked = false;
-                alert('⚠️ Chưa cấu hình Bot Token! Vui lòng vào Zalo Bot Manager để cấu hình.');
+                window.showAlert && showAlert('⚠️ Chưa cấu hình Bot Token! Vui lòng vào Zalo Bot Manager để cấu hình.') || alert('⚠️ Chưa cấu hình Bot Token! Vui lòng vào Zalo Bot Manager để cấu hình.');
                 return;
             }
 
             // Validate WebSocket
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 console.error('❌ WebSocket not connected');
-                alert('Mất kết nối server! Vui lòng thử lại sau.');
+                window.showAlert && showAlert('Mất kết nối server! Vui lòng thử lại sau.') || alert('Mất kết nối server! Vui lòng thử lại sau.');
                 input.checked = !enabled;
                 return;
             }
@@ -362,9 +416,22 @@
                 case 'trigger_updated': text = 'Đã cập nhật trigger'; icon = '✏️'; break;
                 case 'trigger_deleted': text = 'Đã xóa trigger'; icon = '🗑️'; break;
                 case 'scheduled_task_created': text = 'Đã tạo lịch gửi mới'; icon = '📅'; break;
+                case 'scheduled_task_updated': text = 'Đã cập nhật lịch gửi'; icon = '📅'; break;
+                case 'scheduled_task_deleted': text = 'Đã xóa lịch gửi'; icon = '🗑️'; break;
                 case 'conversation_deleted': text = 'Đã xóa hội thoại'; icon = '❌'; break;
                 case 'delete_origin_chat_success': text = 'Đã xóa tin nhắn gốc trên Zalo'; icon = '🗑️'; break;
                 case 'delete_origin_chat_error': text = data.error || 'Lỗi xóa tin nhắn gốc'; icon = '⚠️'; break;
+                case 'builtin_trigger_updated': text = `Đã cập nhật cài đặt: ${data.triggerId || 'hệ thống'}`; icon = '⚙️'; break;
+                case 'builtin_trigger_state_saved': text = `Đã lưu cấu hình: ${data.triggerKey || 'hệ thống'}`; icon = '💾'; break;
+                case 'auto_reply_status_changed': text = `Auto Reply đã ${data.enabled ? 'bật' : 'tắt'}`; icon = data.enabled ? '🟢' : '🔴'; break;
+                case 'friend_event': {
+                    const eventLabels = { ADD: 'Thêm bạn mới', REMOVE: 'Hủy kết bạn', REQUEST: 'Lời mời kết bạn', BLOCK: 'Chặn người dùng', UNBLOCK: 'Bỏ chặn người dùng' };
+                    text = eventLabels[data.eventType] || `Sự kiện bạn bè: ${data.eventType}`;
+                    icon = data.eventType === 'ADD' ? '🎉' : data.eventType === 'REMOVE' ? '👋' : data.eventType === 'BLOCK' ? '🚫' : '👥';
+                    break;
+                }
+                case 'batch_remove_result': text = `Đã hủy kết bạn: ${data.success?.length || 0} thành công`; icon = '👋'; break;
+                case 'new_activity_log': text = data.log?.description || data.log?.title || 'Hoạt động mới'; icon = data.log?.type === 'error' ? '⚠️' : '📝'; break;
                 default: text = 'Thông báo mới';
             }
 
@@ -416,7 +483,7 @@
                     <div class="uh-notification-icon">${n.icon}</div>
                     <div class="uh-notification-content">
                         <div>${n.text}</div>
-                        <div class="uh-notification-time">${n.time.toLocaleTimeString()}</div>
+                        <div class="uh-notification-time">${n.time.toLocaleString('vi-VN')}</div>
                     </div>
                 </div>
         `).join('');
@@ -455,7 +522,7 @@
         }
 
         showProfile() {
-            alert('Tính năng Xem thông tin cá nhân đang được phát triển.');
+            window.showAlert && showAlert('Tính năng Xem thông tin cá nhân đang được phát triển.') || alert('Tính năng Xem thông tin cá nhân đang được phát triển.');
             document.getElementById('uh-user-dropdown').classList.remove('show');
         }
 
@@ -502,6 +569,14 @@
                 this.confirmResolve(result);
                 this.confirmResolve = null;
             }
+        }
+
+        toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark-mode');
+            document.documentElement.classList.toggle('dark-mode', isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            const toggleBtn = document.getElementById('uh-dark-toggle');
+            if (toggleBtn) toggleBtn.textContent = isDark ? '☀️' : '🌙';
         }
     }
 

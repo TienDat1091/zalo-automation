@@ -3,6 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/assets/unified-header.css?v=4">
+  <script>
+    (function () {
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+        document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('dark-mode'); });
+      }
+    })();
+  </script>
   <title>📁 File Manager</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -132,7 +141,250 @@
     .loading-spinner::after { content: ''; display: inline-block; width: 24px; height: 24px; border: 3px solid #ddd; border-top-color: #11998e; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 12px; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 768px) { .header { flex-direction: column; gap: 16px; } .files-grid { grid-template-columns: 1fr; } .var-item { grid-template-columns: 1fr; } }
+
+    /* ========== DARK MODE SUPPORT ========== */
+    body.dark-mode {
+      background: #0b1220;
+      color: #e8eef8;
+    }
+
+    body.dark-mode .header {
+      background: #111b2d;
+      border-bottom-color: #1e2d4a;
+    }
+
+    body.dark-mode .card {
+      background: #111b2d;
+      border-color: #1e2d4a;
+    }
+
+    body.dark-mode .tabs {
+      border-bottom-color: #1e2d4a;
+    }
+
+    body.dark-mode .tab {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .tab.active {
+      color: #5aa2ff;
+      border-bottom-color: #5aa2ff;
+    }
+
+    body.dark-mode .search-box input {
+      background: #172338;
+      border-color: #22314c;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .filter-select {
+      background: #172338;
+      border-color: #22314c;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-overlay {
+      background: rgba(3, 8, 18, 0.78);
+    }
+
+    body.dark-mode .modal {
+      background: #111b2d;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .modal-header {
+      border-bottom-color: #1e2d4a;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-header h2,
+    body.dark-mode .modal-header h3 {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-close {
+      background: #22314c;
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .modal-close:hover {
+      background: #2d3f60;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-body {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .modal-footer {
+      border-top-color: #1e2d4a;
+      background: #172338;
+    }
+
+    body.dark-mode .form-group label {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .form-input,
+    body.dark-mode .form-select,
+    body.dark-mode .form-textarea {
+      background: #172338;
+      border-color: #22314c;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .form-input:focus,
+    body.dark-mode .form-select:focus,
+    body.dark-mode .form-textarea:focus {
+      border-color: #5aa2ff;
+      outline: none;
+    }
+
+    body.dark-mode .form-hint {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .var-builder {
+      background: #172338;
+    }
+
+    body.dark-mode .var-builder h4 {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .var-item {
+      background: #172338;
+      border-color: #22314c;
+    }
+
+    body.dark-mode .var-item input,
+    body.dark-mode .var-item select {
+      background: #0f172a;
+      border-color: #22314c;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .btn-add-var {
+      background: #1a472a;
+      color: #60d960;
+    }
+
+    body.dark-mode .btn-primary {
+      background: #5aa2ff;
+      color: #0b1220;
+    }
+
+    body.dark-mode .btn-primary:hover {
+      background: #6bb0ff;
+    }
+
+    body.dark-mode .btn-secondary {
+      background: #22314c;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .btn-secondary:hover {
+      background: #2d3f60;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .btn-danger {
+      background: #ff6b6b;
+      color: white;
+    }
+
+    body.dark-mode .btn-warning {
+      background: #ffc96c;
+      color: #0b1220;
+    }
+
+    body.dark-mode .empty-state {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .empty-state .icon {
+      color: #5aa2ff;
+    }
+
+    body.dark-mode .upload-zone {
+      border-color: #22314c;
+      background: #172338;
+    }
+
+    body.dark-mode .upload-zone h3 {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .upload-zone p {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .toast {
+      background: #111b2d;
+      color: #f8fafc;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    body.dark-mode .toast.success {
+      border-left-color: #60d960;
+    }
+
+    body.dark-mode .toast.error {
+      border-left-color: #ff6b6b;
+    }
+
+    body.dark-mode .connection-badge.connected {
+      background: #1a472a;
+      color: #60d960;
+    }
+
+    body.dark-mode .connection-badge.disconnected {
+      background: #472a1a;
+      color: #ff8a6b;
+    }
+
+    body.dark-mode .preview-info {
+      background: #172338;
+    }
+
+    body.dark-mode .preview-info h3 {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .preview-info .file-details p {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .preview-content {
+      background: #0f172a;
+      border-color: #22314c;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .info-item {
+      background: #172338;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .info-item label {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .progress-bar {
+      background: #22314c;
+    }
+
+    body.dark-mode .loading-spinner::after {
+      border-color: #22314c;
+      border-top-color: #5aa2ff;
+    }
+
+    body.dark-mode code {
+      background: #172338;
+      color: #5aa2ff;
+    }
   </style>
+  <script src="/assets/custom-dialog.js"></script>
 </head>
 <body>
   <div class="container">
@@ -372,13 +624,13 @@
     function bulkStar() { selectedFiles.forEach(id=>starredFiles.add(id)); saveStarredFiles(); toast('⭐ Đã đánh dấu','success'); clearSelection(); }
     function updateBulkActions() { var b=document.getElementById('bulkActions'); b.classList.toggle('active',selectedFiles.size>0); document.getElementById('selectedCount').textContent=selectedFiles.size; }
     function clearSelection() { selectedFiles.clear(); renderFiles(); updateBulkActions(); }
-    function bulkDelete() { if(!selectedFiles.size||!confirm('Xóa '+selectedFiles.size+' file?'))return; if(ws)ws.send(JSON.stringify({type:'delete_files',fileIds:Array.from(selectedFiles)})); }
-    function deleteAllFiles() { if(!files.length){toast('Không có file','error');return;} if(!confirm('⚠️ Xóa TẤT CẢ '+files.length+' file?'))return; if(ws)ws.send(JSON.stringify({type:'delete_files',fileIds:files.map(f=>f.id)})); }
+    async function bulkDelete() { if(!selectedFiles.size||!await showConfirm('Xóa '+selectedFiles.size+' file?'))return; if(ws)ws.send(JSON.stringify({type:'delete_files',fileIds:Array.from(selectedFiles)})); }
+    async function deleteAllFiles() { if(!files.length){toast('Không có file','error');return;} if(!await showConfirm('⚠️ Xóa TấT Cả '+files.length+' file?'))return; if(ws)ws.send(JSON.stringify({type:'delete_files',fileIds:files.map(f=>f.id)})); }
     function toggleTemplateSelect(e,id) { e.stopPropagation(); selectedTemplates.has(id)?selectedTemplates.delete(id):selectedTemplates.add(id); renderTemplates(); updateTemplateBulkActions(); }
     function updateTemplateBulkActions() { var b=document.getElementById('templateBulkActions'); b.classList.toggle('active',selectedTemplates.size>0); document.getElementById('selectedTemplateCount').textContent=selectedTemplates.size; }
     function clearTemplateSelection() { selectedTemplates.clear(); renderTemplates(); updateTemplateBulkActions(); }
-    function bulkDeleteTemplates() { if(!selectedTemplates.size||!confirm('Xóa '+selectedTemplates.size+' template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_templates',templateIds:Array.from(selectedTemplates)})); }
-    function deleteAllTemplates() { if(!templates.length){toast('Không có template','error');return;} if(!confirm('⚠️ Xóa TẤT CẢ '+templates.length+' template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_templates',templateIds:templates.map(t=>t.id)})); }
+    async function bulkDeleteTemplates() { if(!selectedTemplates.size||!await showConfirm('Xóa '+selectedTemplates.size+' template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_templates',templateIds:Array.from(selectedTemplates)})); }
+    async function deleteAllTemplates() { if(!templates.length){toast('Không có template','error');return;} if(!await showConfirm('⚠️ Xóa TấT Cả '+templates.length+' template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_templates',templateIds:templates.map(t=>t.id)})); }
 
     function previewFile(id) { var f=files.find(x=>x.id===id); if(!f)return; previewFileId=id; previewTemplateId=null;
       document.getElementById('previewIcon').textContent=FILE_ICONS[f.fileType]||'📎'; document.getElementById('previewName').textContent=f.name; document.getElementById('previewFileName').textContent=f.fileName; document.getElementById('previewType').textContent=(f.fileType||'FILE').toUpperCase(); document.getElementById('previewSize').textContent=formatFileSize(f.fileSize); document.getElementById('previewDate').textContent=formatDate(f.createdAt); document.getElementById('previewVar').textContent=f.variableName?'{'+f.variableName+'}':'-';
@@ -400,7 +652,7 @@
       document.getElementById('editName').value=f.name||''; document.getElementById('editVarName').value=f.variableName||''; document.getElementById('editDescription').value=f.description||''; document.getElementById('editCategory').value=f.category||'document'; openModal('editModal');
     }
     function saveFileEdit() { var id=parseInt(document.getElementById('editFileId').value), name=document.getElementById('editName').value.trim(); if(!name){toast('❌ Nhập tên','error');return;} if(ws)ws.send(JSON.stringify({type:'update_file',fileId:id,name:name,variableName:document.getElementById('editVarName').value.trim(),description:document.getElementById('editDescription').value.trim(),category:document.getElementById('editCategory').value})); }
-    function deleteFile(e,id) { e.stopPropagation(); if(!confirm('Xóa file này?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file',fileId:id})); }
+    async function deleteFile(e,id) { e.stopPropagation(); if(!await showConfirm('Xóa file này?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file',fileId:id})); }
 
     function openTemplateModal() { document.getElementById('templateId').value=''; document.getElementById('templateName').value=''; document.getElementById('templateVarName').value=''; document.getElementById('templateDescription').value=''; document.getElementById('varList').innerHTML=''; document.getElementById('templateFilePreview').style.display='none'; document.getElementById('templateUploadGroup').style.display='block'; document.getElementById('templateModalTitle').textContent='📋 Tạo Template mới'; templateFileData=null; openModal('templateModal'); }
     function handleTemplateFile(e) { var file=e.target.files[0]; if(!file)return; var r=new FileReader(); r.onload=function(ev){ templateFileData={fileName:file.name,fileType:file.type,fileSize:file.size,data:ev.target.result}; var icon=getFileIcon(file.type); document.getElementById('templateFilePreview').innerHTML='<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#e8f5e9;border-radius:8px"><span style="font-size:24px">'+icon+'</span><div><div style="font-weight:600">'+escapeHtml(file.name)+'</div><div style="font-size:12px;color:#888">'+formatFileSize(file.size)+'</div></div><span style="color:#2e7d32">✓</span></div>'; document.getElementById('templateFilePreview').style.display='block'; }; r.readAsDataURL(file); }
@@ -411,7 +663,7 @@
     function editTemplate(id) { var t=templates.find(x=>x.id===id); if(!t)return; document.getElementById('templateId').value=id; document.getElementById('templateName').value=t.name; document.getElementById('templateVarName').value=t.variableName||''; document.getElementById('templateDescription').value=t.description||''; document.getElementById('templateUploadGroup').style.display='none'; document.getElementById('templateModalTitle').textContent='✏️ Sửa Template';
       var list=document.getElementById('varList'); list.innerHTML=''; var varOptions='<option value="">-- Chọn biến --</option>'; userVariables.forEach(function(v){varOptions+='<option value="'+escapeHtml(v.variableName)+'">'+escapeHtml(v.variableName)+'</option>';}); (t.variables||[]).forEach(v=>{ var so=varOptions.replace('value="'+escapeHtml(v.value)+'"','value="'+escapeHtml(v.value)+'" selected'); list.innerHTML+='<div class="var-item"><input type="text" placeholder="Tên biến" class="var-name" value="'+escapeHtml(v.name)+'"><select class="var-source" onchange="handleVarSourceChange(this)">'+so+'</select><button class="btn-remove" onclick="this.parentElement.remove()">✕</button></div>'; }); templateFileData=null; openModal('templateModal');
     }
-    function deleteTemplate(id) { if(!confirm('Xóa template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_template',templateId:id})); }
+    async function deleteTemplate(id) { if(!await showConfirm('Xóa template?'))return; if(ws)ws.send(JSON.stringify({type:'delete_file_template',templateId:id})); }
 
     function openGenerateModal(id) { var t=templates.find(x=>x.id===id); if(!t)return; document.getElementById('generateTemplateId').value=id;
       document.getElementById('genTemplateIcon').textContent=FILE_ICONS[t.fileType]||'📄'; document.getElementById('genTemplateName').textContent=t.name; document.getElementById('genTemplateFileName').textContent=t.fileName||'template';
@@ -437,3 +689,4 @@
   </script>
 </body>
 </html>
+

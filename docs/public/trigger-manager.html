@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -7,6 +7,14 @@
   <title>Zalo Trigger Manager</title>
   <link rel="stylesheet" href="assets/style_trigger_manager.css" />
   <link rel="stylesheet" href="/assets/unified-header.css?v=4">
+  <script>
+    (function () {
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+        document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('dark-mode'); });
+      }
+    })();
+  </script>
   <style>
     body {
       display: flex;
@@ -690,6 +698,51 @@
     .info-grid .info-item {
       border-bottom: none;
       padding: 4px 0;
+    }
+
+    /* DELETE MODAL DARK MODE */
+    body.dark-mode .delete-modal-content {
+      background: #172338;
+      color: #e8eef8;
+    }
+
+    body.dark-mode .delete-modal-title {
+      color: #e8eef8;
+    }
+
+    body.dark-mode .delete-modal-text {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .delete-modal-cancel {
+      background: #22314c;
+      color: #e8eef8;
+    }
+
+    body.dark-mode .delete-modal-confirm {
+      background: #ef4444;
+      color: white;
+    }
+
+    /* TRIGGER VARIABLES MODAL DARK MODE */
+    body.dark-mode .variables-section {
+      background: #172338;
+      border-color: #22314c;
+    }
+
+    body.dark-mode .variable-tab {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .variable-tab:hover {
+      background: #22314c;
+      color: #e8eef8;
+    }
+
+    body.dark-mode .variable-tab.active {
+      background: rgba(90, 162, 255, 0.15);
+      color: #5aa2ff;
+      border-bottom-color: #5aa2ff;
     }
   </style>
 </head>
@@ -2518,7 +2571,7 @@
         UnifiedHeader.setPageActions(UnifiedHeader.getSharedTogglesHTML());
       }
 
-      document.getElementById('triggerModal').addEventListener('click', (e) => { if (e.target.id === 'triggerModal') hideTriggerModal(); });
+      // document.getElementById('triggerModal').addEventListener('click', (e) => { if (e.target.id === 'triggerModal') hideTriggerModal(); });
       connectWebSocket();
     });
   </script>

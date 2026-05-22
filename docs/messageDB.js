@@ -7,10 +7,23 @@ let db = null;
 // ============================================
 // INITIALIZE DATABASE
 // ============================================
-function init() {
+function init(userId = null) {
     try {
         const Database = require('better-sqlite3');
-        const dbPath = path.join(__dirname, 'data', 'messages.db');
+
+        // Close existing database connection if open
+        if (db) {
+            try {
+                db.close();
+                console.log('🚪 Closed previous MessageDB connection');
+            } catch (closeErr) {
+                console.warn('⚠️ Error closing MessageDB connection:', closeErr.message);
+            }
+            db = null;
+        }
+
+        const dbName = userId ? `messages_${userId}.db` : 'messages.db';
+        const dbPath = path.join(__dirname, 'data', dbName);
 
         const dataDir = path.dirname(dbPath);
         if (!fs.existsSync(dataDir)) {
@@ -526,7 +539,7 @@ function getAllLastMessages() {
     try {
         // Get last message per conversation using subquery
         const stmt = db.prepare(`
-            SELECT conversationId, content, timestamp, isSelf
+            SELECT conversationId, content, timestamp, isSelf, attachmentType
             FROM messages
             WHERE (conversationId, timestamp) IN (
                 SELECT conversationId, MAX(timestamp) 
@@ -542,7 +555,8 @@ function getAllLastMessages() {
             map.set(row.conversationId, {
                 lastMessage: row.content || '',
                 timestamp: row.timestamp,
-                isSelf: row.isSelf === 1
+                isSelf: row.isSelf === 1,
+                attachmentType: row.attachmentType || null
             });
         });
 

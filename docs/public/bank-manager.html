@@ -565,21 +565,21 @@
         }
 
         async function deleteTransaction(id) {
-            if (!confirm('Xóa giao dịch này?')) return;
+            if (!await showConfirm('Xóa giao dịch này?')) return;
 
             try {
                 const response = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Đã xóa');
+                    showAlert('✅ Đã xóa');
                     loadTransactions();
                     loadStatistics();
                 } else {
-                    alert('❌ Lỗi: ' + result.error);
+                    showAlert('❌ Lỗi: ' + result.error);
                 }
             } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
+                showAlert('❌ Lỗi: ' + error.message);
             }
         }
 
@@ -670,7 +670,7 @@
             const btn = document.getElementById('btnVerify');
 
             if (!accountNumber || !bankBin) {
-                alert('⚠️ Vui lòng chọn ngân hàng và nhập số tài khoản!');
+                showAlert('⚠️ Vui lòng chọn ngân hàng và nhập số tài khoản!');
                 return;
             }
 
@@ -727,12 +727,12 @@
             };
 
             if (!data.gateName || !data.bankCode || !data.accountNumber || !data.accountName) {
-                alert('❌ Vui lòng điền đầy đủ thông tin!');
+                showAlert('❌ Vui lòng điền đầy đủ thông tin!');
                 return;
             }
 
             if (!isVerified) {
-                alert('⚠️ Bạn cần bấm nút "Kiểm tra" để xác thực tài khoản trước khi lưu!');
+                showAlert('⚠️ Bạn cần bấm nút "Kiểm tra" để xác thực tài khoản trước khi lưu!');
                 return;
             }
 
@@ -746,14 +746,14 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Đã lưu cổng thanh toán!');
+                    showAlert('✅ Đã lưu cổng thanh toán!');
                     closeGateModal();
                     loadPaymentGates();
                 } else {
-                    alert('❌ Lỗi: ' + result.error);
+                    showAlert('❌ Lỗi: ' + result.error);
                 }
             } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
+                showAlert('❌ Lỗi: ' + error.message);
             }
         }
 
@@ -763,31 +763,31 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Đã đặt làm mặc định!');
+                    showAlert('✅ Đã lưu cổng thanh toán!');
                     loadPaymentGates();
                 } else {
-                    alert('❌ Lỗi: ' + result.error);
+                    showAlert('❌ Lỗi: ' + result.error);
                 }
             } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
+                showAlert('❌ Lỗi: ' + error.message);
             }
         }
 
         async function deleteGate(gateID) {
-            if (!confirm('Xóa cổng thanh toán này?')) return;
+            if (!await showConfirm('Xóa cổng thanh toán này?')) return;
 
             try {
                 const response = await fetch(`/api/payment-gates/${gateID}`, { method: 'DELETE' });
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Đã xóa!');
+                    showAlert('✅ Đã xóa!');
                     loadPaymentGates();
                 } else {
-                    alert('❌ Lỗi: ' + result.error);
+                    showAlert('❌ Lỗi: ' + result.error);
                 }
             } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
+                showAlert('❌ Lỗi: ' + error.message);
             }
         }
 
@@ -812,7 +812,7 @@
             };
 
             if (!data.accountId || !data.token) {
-                alert('❌ Vui lòng điền đầy đủ thông tin!');
+                showAlert('❌ Vui lòng điền đầy đủ thông tin!');
                 return;
             }
 
@@ -826,12 +826,12 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Đã lưu cấu hình SEPAY!');
+                    showAlert('✅ Đã lưu cấu hình SEPAY!');
                 } else {
-                    alert('❌ Lỗi: ' + result.error);
+                    showAlert('❌ Lỗi: ' + result.error);
                 }
             } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
+                showAlert('❌ Lỗi: ' + error.message);
             }
         }
 
@@ -841,12 +841,12 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Kết nối thành công!');
+                    showAlert('✅ Kết nối thành công!');
                 } else {
-                    alert('❌ Kết nối thất bại: ' + result.error);
+                    showAlert('❌ Kết nối thất bại: ' + result.error);
                 }
             } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
+                showAlert('❌ Lỗi: ' + error.message);
             }
         }
 
@@ -854,7 +854,7 @@
             const input = document.getElementById('webhookUrl');
             input.select();
             document.execCommand('copy');
-            alert('✅ Đã copy webhook URL!');
+            showAlert('✅ Đã copy webhook URL!');
         }
 
         // ==================== UTILITIES ====================
@@ -909,7 +909,7 @@
             };
 
             if (!data.apiKey) {
-                alert('❌ Vui lòng nhập API Key!');
+                showAlert('❌ Vui lòng nhập API Key!');
                 return;
             }
 
@@ -923,16 +923,17 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Đã lưu cấu hình VietQR!');
-                    loadVietQRStatus();
+                    showAlert('✅ Đã lưu cấu hình SEPAY!');
+                    loadSepayStatus();
                 } else {
-                    alert('❌ Lỗi: ' + result.error);
+                    showAlert('❌ Lỗi: ' + result.error);
                 }
             } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
+                showAlert('❌ Lỗi: ' + error.message);
             }
         }
     </script>
+    <script src="/assets/custom-dialog.js"></script>
 </body>
 
 </html>

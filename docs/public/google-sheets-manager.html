@@ -280,7 +280,186 @@
       font-size: 13px;
       width: 180px;
     }
+
+    /* ==================== DARK MODE ==================== */
+    body.dark-mode {
+      background: #0b1220;
+      color: #e8eef8;
+    }
+    
+    body.dark-mode .card {
+      background: #111b2d;
+      border: 1px solid #1e2d4a;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+    
+    body.dark-mode .card-header {
+      background: #172338;
+      border-bottom: 1px solid #1e2d4a;
+    }
+    
+    body.dark-mode .card-header h2 {
+      color: #f8fafc;
+    }
+    
+    body.dark-mode .form-label {
+      color: #cbd5e1;
+    }
+    
+    body.dark-mode .form-input,
+    body.dark-mode .form-select,
+    body.dark-mode .form-textarea {
+      background: #172338;
+      border: 1px solid #22314c;
+      color: #f8fafc;
+    }
+    
+    body.dark-mode .form-input:focus,
+    body.dark-mode .form-select:focus,
+    body.dark-mode .form-textarea:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 3px rgba(26,115,232,0.2);
+    }
+    
+    body.dark-mode .form-hint {
+      color: #9eb0ca;
+    }
+    
+    body.dark-mode .config-card {
+      background: #172338;
+      border-color: #22314c;
+    }
+    
+    body.dark-mode .config-card:hover {
+      border-color: #1a73e8;
+    }
+    
+    body.dark-mode .config-card.active {
+      border-color: #1a73e8;
+      background: rgba(26, 115, 232, 0.08);
+    }
+    
+    body.dark-mode .config-name {
+      color: #f8fafc;
+    }
+    
+    body.dark-mode .config-detail {
+      color: #cbd5e1;
+    }
+    
+    body.dark-mode .config-detail .label {
+      color: #9eb0ca;
+    }
+    
+    body.dark-mode .config-actions {
+      border-top: 1px solid #22314c;
+    }
+    
+    body.dark-mode .btn-secondary {
+      background: #22314c;
+      color: #cbd5e1;
+      border: 1px solid #22314c;
+    }
+    
+    body.dark-mode .btn-secondary:hover {
+      background: #2d3f60;
+      color: #f8fafc;
+    }
+    
+    body.dark-mode .search-box {
+      background: #172338;
+      border: 1px solid #22314c;
+    }
+    
+    body.dark-mode .search-box input {
+      color: #f8fafc;
+    }
+    
+    body.dark-mode .data-table th {
+      background: #172338;
+      color: #9eb0ca;
+      border-bottom: 2px solid #1e2d4a;
+    }
+    
+    body.dark-mode .data-table td {
+      color: #cbd5e1;
+      border-bottom: 1px solid #1e2d4a;
+    }
+    
+    body.dark-mode .data-table tr:hover td {
+      background: #172338;
+    }
+    
+    body.dark-mode .loading-overlay {
+      background: rgba(11, 18, 32, 0.9);
+    }
+    
+    body.dark-mode .loading-text {
+      color: #cbd5e1;
+    }
+    
+    body.dark-mode .spinner {
+      border: 3px solid #22314c;
+      border-top-color: #1a73e8;
+    }
+
+    body.dark-mode .modal-overlay {
+      background: rgba(3, 8, 18, 0.78);
+    }
+
+    body.dark-mode .modal {
+      background: #111b2d;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .modal-header {
+      border-bottom-color: #1e2d4a;
+    }
+
+    body.dark-mode .modal-header h2,
+    body.dark-mode .modal-header h3 {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-close {
+      background: #22314c;
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .modal-close:hover {
+      background: #2d3f60;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-body {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .modal-footer {
+      border-top-color: #1e2d4a;
+      background: #172338;
+    }
+
+    body.dark-mode .modal-body .form-group label {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .modal-body .form-input,
+    body.dark-mode .modal-body .form-select,
+    body.dark-mode .modal-body .form-textarea {
+      background: #172338;
+      border-color: #22314c;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-body .form-input:focus,
+    body.dark-mode .modal-body .form-select:focus,
+    body.dark-mode .modal-body .form-textarea:focus {
+      border-color: #5aa2ff;
+      outline: none;
+    }
   </style>
+  <script src="/assets/custom-dialog.js"></script>
 </head>
 <body>
   <div class="header">
@@ -884,8 +1063,8 @@ function jsonResponse(data) {
       }
     }
 
-    function deleteConfig(idx) {
-      if (!confirm('Xóa "' + configs[idx].name + '"?')) return;
+    async function deleteConfig(idx) {
+      if (!await showConfirm('Xóa "' + configs[idx].name + '"?')) return;
       
       const deletedId = configs[idx].id;
       
@@ -1026,7 +1205,7 @@ function jsonResponse(data) {
     }
 
     async function deleteRow(row) {
-      if (!confirm('Xóa hàng #' + row + '?')) return;
+      if (!await showConfirm('Xóa hàng #' + row + '?')) return;
       
       showLoading(true, 'Đang xóa...');
       

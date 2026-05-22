@@ -153,6 +153,35 @@
             font-size: 13px;
         }
 
+        /* Dark Mode */
+        body.dark-mode .nav-item {
+            color: #9eb0ca;
+        }
+
+        body.dark-mode .nav-item:hover {
+            background: #172338;
+            color: #e8eef8;
+        }
+
+        body.dark-mode .nav-item.active {
+            background: #22314c;
+            color: #5aa2ff;
+            font-weight: 600;
+        }
+
+        body.dark-mode .welcome-screen {
+            background: #0b1220;
+            color: #9eb0ca;
+        }
+
+        body.dark-mode .welcome-screen h2 {
+            color: #e8eef8;
+        }
+
+        body.dark-mode .content-frame {
+            background: #0b1220;
+        }
+
         /* Mobile */
         @media (max-width: 768px) {
             .sidebar {
@@ -244,11 +273,40 @@
             frame.src = page + '?t=' + new Date().getTime();
         }
 
+        // Sync Dark Mode to Iframe
+        function syncDarkModeToIframe() {
+            const frame = document.getElementById('contentFrame');
+            if (!frame || !frame.contentDocument || !frame.contentDocument.body) return;
+            const isDark = document.body.classList.contains('dark-mode');
+            
+            if (isDark) {
+                frame.contentDocument.body.classList.add('dark-mode');
+                frame.contentDocument.documentElement.classList.add('dark-mode');
+            } else {
+                frame.contentDocument.body.classList.remove('dark-mode');
+                frame.contentDocument.documentElement.classList.remove('dark-mode');
+            }
+        }
+
+        // Observe class changes on body to sync theme changes
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class') {
+                    syncDarkModeToIframe();
+                }
+            });
+        });
+        observer.observe(document.body, { attributes: true });
+
+        // Sync when iframe completes loading
+        document.getElementById('contentFrame').addEventListener('load', syncDarkModeToIframe);
+
         // Initialize Unified Header Toggles
         document.addEventListener('DOMContentLoaded', () => {
             if (window.UnifiedHeader) {
                 UnifiedHeader.setPageActions(UnifiedHeader.getSharedTogglesHTML());
             }
+            syncDarkModeToIframe();
         });
     </script>
     <script src="/assets/unified-header.js?v=4"></script>

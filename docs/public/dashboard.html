@@ -569,6 +569,117 @@
       background: #f0f0f0;
       transform: scale(1.3);
     }
+
+    /* ✅ Main Sidebar Tabs CSS */
+    .main-tabs {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid #ddd;
+      background: #fafafa;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .main-tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: #f0f0f0;
+      color: #333;
+      transition: all 0.2s ease;
+    }
+
+    .main-tab-btn.active {
+      background: #0068FF;
+      color: white;
+    }
+
+    .main-tab-btn:not(.active):hover {
+      background: #e0e0e0;
+    }
+
+    /* Dark Mode styles for Main Sidebar Tabs */
+    body.dark-mode .main-tabs {
+      background: #111c2f !important;
+      border-bottom: 1px solid var(--dm-border) !important;
+    }
+
+    body.dark-mode .main-tab-btn {
+      background: rgba(255, 255, 255, 0.05) !important;
+      color: var(--dm-text-muted) !important;
+    }
+
+    body.dark-mode .main-tab-btn.active {
+      background: linear-gradient(135deg, #2f7ff0 0%, #2568cf 100%) !important;
+      color: #fff !important;
+    }
+
+    body.dark-mode .main-tab-btn:not(.active):hover {
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: #fff !important;
+    }
+
+    .sidebar-tab-area {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .chats-filter-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 12px 10px 12px;
+    }
+
+    .chats-filter-container .filter-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chats-filter-container .filter-box label {
+      font-size: 12px;
+      color: #666;
+      white-space: nowrap;
+      width: 70px;
+      flex-shrink: 0;
+    }
+
+    .chats-filter-container .filter-box select {
+      flex: 1;
+      padding: 6px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 12px;
+      background: white;
+      color: #333;
+      cursor: pointer;
+    }
+
+    /* Dark Mode styling */
+    body.dark-mode .chats-filter-container .filter-box label {
+      color: var(--dm-text-muted) !important;
+    }
+
+    body.dark-mode .chats-filter-container .filter-box select {
+      background: rgba(12, 20, 34, 0.9) !important;
+      color: var(--dm-text) !important;
+      border-color: var(--dm-border) !important;
+    }
   </style>
 </head>
 
@@ -618,6 +729,54 @@
         </div>
       </div>
 
+      <!-- ✅ MAIN TABS (Chats vs Contacts) -->
+      <div class="main-tabs">
+        <button class="main-tab-btn active" id="mainTabChats" onclick="switchMainSidebarTab('chats')" style="position: relative;">
+          💬 Hộp thoại
+          <span id="chatsTabUnreadBadge" style="display: none; background: #ff4757; color: white; border-radius: 10px; padding: 2px 6px; font-size: 10px; font-weight: bold; position: absolute; top: 6px; right: 8px; line-height: 1; align-items: center; justify-content: center; min-width: 16px; height: 16px; box-shadow: 0 2px 4px rgba(255,71,87,0.3);"></span>
+        </button>
+        <button class="main-tab-btn" id="mainTabContacts" onclick="switchMainSidebarTab('contacts')">
+          👥 Danh bạ
+        </button>
+      </div>
+
+      <!-- ✅ CHATS TAB AREA -->
+      <div id="chatsTabArea" class="sidebar-tab-area" style="display:flex;">
+        <div class="friends-search-box">
+          <input type="text" id="chatsSearchInput" placeholder="🔍 Tìm cuộc hội thoại..." autocomplete="off"
+            onkeyup="renderActiveChats()">
+        </div>
+
+        <!-- ✅ AUTO-REPLY & ACTIVITY FILTERS MOVED TO CHATS TAB -->
+        <div class="chats-filter-container">
+          <div class="filter-box">
+            <label>Lọc:</label>
+            <select id="autoReplyFilter" onchange="renderActiveChats()">
+              <option value="all">Toàn bộ bạn bè</option>
+              <option value="on">Đã BẬT Tự động trả lời</option>
+              <option value="off">Đã TẮT Tự động trả lời</option>
+            </select>
+          </div>
+
+          <div class="filter-box">
+            <label>Tương tác:</label>
+            <select id="activityFilter" onchange="renderActiveChats()">
+              <option value="all">Tất cả</option>
+              <option value="7d">Trong 7 ngày</option>
+              <option value="30d">Trong 30 ngày</option>
+              <option value="90d">Trong 90 ngày</option>
+              <option value="inactive_90d">❌ Lâu không tương tác (>90 ngày)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="friends-list" id="chatsList">
+          <div style="text-align:center;padding:40px;color:#888;">Chưa có cuộc hội thoại nào</div>
+        </div>
+      </div>
+
+      <!-- ✅ CONTACTS TAB AREA -->
+      <div id="contactsTabArea" class="sidebar-tab-area" style="display:none;">
       <!-- ✅ DUAL SEARCH TABS (Friends + Groups) -->
       <div class="search-tabs" style="display:flex; justify-content:space-between; align-items:center;">
         <div style="display:flex; gap:4px;">
@@ -657,30 +816,6 @@
             onkeyup="applyFilters()">
         </div>
 
-        <!-- ✅ AUTO-REPLY FILTER -->
-        <div class="filter-box" style="padding: 0 12px 10px 12px; display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 12px; color: #666; white-space: nowrap;">Lọc:</label>
-          <select id="autoReplyFilter" onchange="applyFilters()"
-            style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; background: white; cursor: pointer;">
-            <option value="all">Toàn bộ bạn bè</option>
-            <option value="on">Đã BẬT Tự động trả lời</option>
-            <option value="off">Đã TẮT Tự động trả lời</option>
-          </select>
-        </div>
-
-        <!-- ✅ ACTIVITY/INTERACTION FILTER -->
-        <div class="filter-box" style="padding: 0 12px 10px 12px; display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 12px; color: #666; white-space: nowrap;">Tương tác:</label>
-          <select id="activityFilter" onchange="applyFilters()"
-            style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; background: white; cursor: pointer;">
-            <option value="all">Tất cả</option>
-            <option value="7d">Trong 7 ngày</option>
-            <option value="30d">Trong 30 ngày</option>
-            <option value="90d">Trong 90 ngày</option>
-            <option value="inactive_90d">❌ Lâu không tương tác (>90 ngày)</option>
-          </select>
-        </div>
-
         <div class="search-results-container" id="friendsResults"></div>
       </div>
 
@@ -710,7 +845,8 @@
           <div>Đang tải danh sách nhóm...</div>
         </div>
       </div>
-    </div>
+      </div> <!-- Close contactsTabArea -->
+    </div> <!-- Close sidebar -->
 
     <div class="chat-area">
       <div class="chat-header" id="chatHeader" style="display:none;">
@@ -819,7 +955,7 @@
 
   <!-- ✅ Custom Confirm Modal -->
   <div id="customConfirmModal"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; display:none; align-items:center; justify-content:center;">
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100100; display:none; align-items:center; justify-content:center;">
     <div
       style="background:white; border-radius:12px; padding:24px; max-width:400px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
       <div style="font-size:18px; font-weight:600; margin-bottom:12px;" id="confirmTitle">⚠️ Xác nhận</div>
@@ -860,6 +996,85 @@
     </div>
   </div>
 
+  <!-- 👤 Friend Details Modal -->
+  <div id="friendDetailsModal" class="fd-modal" style="display:none;">
+    <div class="fd-modal-content">
+      <button class="fd-close-btn" onclick="closeFriendDetailsModal()" title="Đóng">✕</button>
+      <div class="fd-hero-bg"></div>
+      <div class="fd-avatar-container">
+        <img id="fdAvatar" class="fd-avatar" src="" alt="Avatar">
+      </div>
+      <div class="fd-info-body">
+        <div id="fdName" class="fd-name">Người dùng Zalo</div>
+        <div id="fdUidWrapper" class="fd-uid-wrapper" onclick="copyFdUid()" title="Click để sao chép UID">
+          <span id="fdUid">UID: ...</span>
+          <span style="font-size:10px;">📋</span>
+        </div>
+        
+        <div id="fdAliasGroup" class="fd-form-group">
+          <label class="fd-label" for="fdAliasInput">Tên gợi nhớ (Alias)</label>
+          <input type="text" id="fdAliasInput" class="fd-input" placeholder="Nhập tên gợi nhớ...">
+        </div>
+        
+        <div id="fdTagGroup" class="fd-form-group">
+          <label class="fd-label" for="fdTagSelect">Thẻ phân loại (Tag)</label>
+          <div style="display: flex; gap: 8px; width: 100%;">
+            <select id="fdTagSelect" class="fd-input" style="flex: 1; padding: 10px 14px; cursor: pointer; height: 42px; line-height: 1;">
+              <!-- Options populated dynamically -->
+            </select>
+            <input type="text" id="fdTagInput" class="fd-input" style="display: none; flex: 1; padding: 10px 14px; height: 42px; line-height: 1;" placeholder="Nhập thẻ mới...">
+            <button type="button" id="fdTagAddBtn" onclick="toggleTagInput()" class="fd-btn fd-btn-primary" style="flex: 0 0 42px; width: 42px; height: 42px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; border-radius: 10px;" title="Thêm thẻ mới">
+              +
+            </button>
+          </div>
+        </div>
+        
+        <div class="fd-actions">
+          <button id="fdSaveBtn" onclick="saveFriendDetails()" class="fd-btn fd-btn-primary" style="width: 100%;">
+            <span>💾</span> Lưu thay đổi
+          </button>
+          <div class="fd-btn-row" id="fdFriendActions" style="display: flex; gap: 8px; margin-top: 8px;">
+            <button id="fdUnfriendBtn" onclick="unfriendFriend()" class="fd-btn fd-btn-danger-outline" style="flex: 1;">
+              <span>🗑️</span> Hủy bạn
+            </button>
+            <button id="fdBlockBtn" onclick="blockFriend()" class="fd-btn fd-btn-danger" style="flex: 1;">
+              <span>🚫</span> Chặn
+            </button>
+            <button id="fdUnblockBtn" onclick="unblockFriend()" class="fd-btn fd-btn-secondary" style="flex: 1;">
+              <span>🔓</span> Bỏ chặn
+            </button>
+          </div>
+          <!-- Stranger actions (only block/unblock, hides unfriend) -->
+          <div class="fd-btn-row" id="fdStrangerActions" style="display: none; gap: 8px; margin-top: 8px;">
+            <button id="fdStrangerBlockBtn" onclick="blockFriend()" class="fd-btn fd-btn-danger" style="flex: 1;">
+              <span>🚫</span> Chặn
+            </button>
+            <button id="fdStrangerUnblockBtn" onclick="unblockFriend()" class="fd-btn fd-btn-secondary" style="flex: 1;">
+              <span>🔓</span> Bỏ chặn
+            </button>
+          </div>
+          <!-- Stranger: Add Friend row -->
+          <div id="fdAddFriendRow" style="display: none; flex-direction: column; gap: 8px; margin-top: 8px;">
+            <div class="fd-form-group" style="text-align: left; margin-bottom: 0;">
+              <label class="fd-label">Lời nhắn kết bạn (tùy chọn)</label>
+              <input type="text" id="fdFriendRequestMsg" class="fd-input" placeholder="Xin chào, hãy kết bạn với tôi!">
+            </div>
+            <button id="fdAddFriendBtn" onclick="addFriendAction()" class="fd-btn fd-btn-success" style="width: 100%;">
+              <span>🤝</span> Kết bạn
+            </button>
+          </div>
+          <!-- Send message button - for all users -->
+          <div id="fdSendMsgRow" style="display: none; margin-top: 8px;">
+            <button id="fdSendMessageBtn" onclick="sendMessageToFriend()" class="fd-btn fd-btn-outline" style="width: 100%;">
+              <span>💬</span> Nhắn tin
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
 
   <!-- ✅ External Scripts MOVED UP to prevent ReferenceErrors -->
   <script src="assets/websocket-helper.js"></script>
@@ -890,6 +1105,7 @@
     const BUFFER_SIZE = 20;
 
     let currentSearchTab = 'friends';
+    let currentMainTab = 'chats';
     let allFriends = [];
     let friends = [];
     let filteredFriends = [];
@@ -987,6 +1203,18 @@
       }
     }
 
+    // Update a single message in the messageStore and save
+    function updateMessageStore(uid, lastMsg, timestamp, isSelf, attachmentType) {
+      if (!uid) return;
+      messageStore.set(uid, {
+        lastMessage: lastMsg || '',
+        timestamp: timestamp || Date.now(),
+        isSelf: !!isSelf,
+        attachmentType: attachmentType || null
+      });
+      saveMessageStoreToLocalStorage();
+    }
+
     function showConfirm(message, title = '⚠️ Xác nhận') {
       return new Promise((resolve) => {
         confirmResolve = resolve;
@@ -1074,21 +1302,6 @@
       }
     }
 
-    // ========== ALPHABETICAL SORT FUNCTION ==========
-    function sortFriendsAfterLoad() {
-      console.log('🔤 Sorting friends alphabetically (A-Z)...');
-      if (!friends || friends.length === 0) return;
-
-      friends.sort((a, b) => {
-        const nameA = (a.displayName || a.zaloName || '').toLowerCase();
-        const nameB = (b.displayName || b.zaloName || '').toLowerCase();
-        return nameA.localeCompare(nameB);
-      });
-
-      filteredFriends = [...friends];
-      renderFriendsVirtual();
-    }
-
     // ========== DATABASE MANAGEMENT ==========
     let dbInstance = null;
     let currentUserUID = null;
@@ -1148,18 +1361,6 @@
       console.log('✅ Dashboard data cleared');
     }
 
-    // ========== MOVE TO TOP FUNCTION ==========
-    function moveConversationToTop(userId) {
-      console.log(`⬆️ Moving conversation to top: ${userId}`);
-      filteredFriends = filteredFriends.filter(f => f.userId !== userId);
-      const friend = friends.find(f => f.userId === userId);
-      if (friend) {
-        filteredFriends.unshift(friend);
-        console.log(`✅ Moved to top. Top: ${filteredFriends[0]?.displayName}`);
-      }
-      renderFriendsVirtual();
-    }
-
     // ========== WEBSOCKET ==========
     const ws = createWebSocket();
 
@@ -1176,6 +1377,79 @@
     ws.onmessage = e => {
       try {
         const data = JSON.parse(e.data);
+
+        // ========== FRIEND MODAL ACTIONS RESPONSES ==========
+        if (data.type === 'friend_alias_changed') {
+          if (data.success) {
+            showToast('✏️ Đã đổi tên gợi nhớ thành công!', 'success');
+            const friend = friends.find(f => f.userId === data.userId);
+            if (friend) {
+              friend.displayName = data.alias || friend.displayName;
+            }
+            if (typeof renderFriendsVirtual === 'function') renderFriendsVirtual();
+            closeFriendDetailsModal();
+          } else {
+            showToast('❌ Lỗi đổi tên gợi nhớ: ' + (data.error || 'Lỗi không xác định'), 'error');
+          }
+        }
+
+        if (data.type === 'friend_tag_changed') {
+          if (data.success) {
+            showToast('🏷️ Đã cập nhật thẻ phân loại!', 'success');
+            const friend = friends.find(f => f.userId === data.userId);
+            if (friend) {
+              friend.tag = data.tag || '';
+            }
+            if (typeof renderFriendsVirtual === 'function') renderFriendsVirtual();
+            closeFriendDetailsModal();
+          } else {
+            showToast('❌ Lỗi cập nhật thẻ: ' + (data.error || 'Lỗi không xác định'), 'error');
+          }
+        }
+
+        if (data.type === 'block_user_result') {
+          if (data.success) {
+            showToast('🚫 Đã chặn người dùng thành công!', 'success');
+            closeFriendDetailsModal();
+          } else {
+            showToast('❌ Lỗi chặn người dùng: ' + (data.error || 'Lỗi không xác định'), 'error');
+          }
+        }
+
+        if (data.type === 'unblock_user_result') {
+          if (data.success) {
+            showToast('🔓 Đã bỏ chặn người dùng thành công!', 'success');
+            closeFriendDetailsModal();
+          } else {
+            showToast('❌ Lỗi bỏ chặn: ' + (data.error || 'Lỗi không xác định'), 'error');
+          }
+        }
+
+        if (data.type === 'friend_removed') {
+          if (data.success) {
+            showToast('🗑️ Đã hủy bạn bè thành công!', 'success');
+            closeFriendDetailsModal();
+          }
+          handleFriendRemoved(data);
+        }
+
+        if (data.type === 'remove_friend_error') {
+          showToast('❌ Lỗi hủy bạn bè: ' + (data.error || 'Lỗi không xác định'), 'error');
+        }
+
+        if (data.type === 'send_friend_request_result') {
+          const addFriendBtn = document.getElementById('fdAddFriendBtn');
+          if (data.success) {
+            showToast('🤝 Đã gửi lời mời kết bạn thành công!', 'success');
+            closeFriendDetailsModal();
+          } else {
+            showToast('❌ Lỗi gửi lời mời kết bạn: ' + (data.error || 'Lỗi không xác định'), 'error');
+            if (addFriendBtn) {
+              addFriendBtn.disabled = false;
+              addFriendBtn.innerHTML = '<span>🤝</span> Kết bạn';
+            }
+          }
+        }
 
         if (data.type === 'current_user') {
           const newUserUID = data.user.uid;
@@ -1246,6 +1520,33 @@
           renderFriendRequests(data.requests, data.error);
         }
 
+        if (data.type === 'friend_relation') {
+          console.log('🎉 Received friend relation update:', data);
+          const relatedUserId = String(data.data);
+          
+          if (data.eventType === 'ADD') {
+            console.log(`🤝 Friend added: ${relatedUserId}`);
+
+            // 1. Remove from local strangers list
+            try {
+              let savedStrangers = JSON.parse(localStorage.getItem('strangers_' + (currentUserId || 'default')) || '[]');
+              const initialLen = savedStrangers.length;
+              savedStrangers = savedStrangers.filter(s => String(s.userId) !== relatedUserId);
+              if (savedStrangers.length !== initialLen) {
+                localStorage.setItem('strangers_' + (currentUserId || 'default'), JSON.stringify(savedStrangers));
+                console.log(`💾 Removed stranger ${relatedUserId} from localStorage`);
+              }
+            } catch (e) {
+              console.error('❌ Failed to update strangers in localStorage:', e);
+            }
+          }
+          
+          // Request fresh list in either ADD or REMOVE case
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'get_friends' }));
+          }
+        }
+
         if (data.type === 'friends_list') {
           console.log('👥 Friends:', data.friends?.length);
           isLoadingFriends = false; // ✅ Reset loading flag
@@ -1270,13 +1571,28 @@
 
           // 📖 Restore strangers from localStorage and merge with friends
           try {
-            const savedStrangers = JSON.parse(localStorage.getItem('strangers_' + (currentUserId || 'default')) || '[]');
+            let savedStrangers = JSON.parse(localStorage.getItem('strangers_' + (currentUserId || 'default')) || '[]');
             if (savedStrangers.length > 0) {
               console.log(`📖 Restoring ${savedStrangers.length} strangers from localStorage...`);
 
-              // Add strangers that aren't already in friends list
+              const initialLen = savedStrangers.length;
+              // Clean up any strangers that are now present as real friends in the server's friend list
+              savedStrangers = savedStrangers.filter(stranger => {
+                const foundFriend = friends.find(f => String(f.userId) === String(stranger.userId));
+                if (foundFriend && !foundFriend.isStranger) {
+                  console.log(`🧹 Pruning stranger ${stranger.displayName} (${stranger.userId}) because they are now a real friend`);
+                  return false;
+                }
+                return true;
+              });
+
+              if (savedStrangers.length !== initialLen) {
+                localStorage.setItem('strangers_' + (currentUserId || 'default'), JSON.stringify(savedStrangers));
+              }
+
+              // Add strangers that aren't already in friends list (use type-safe check)
               savedStrangers.forEach(stranger => {
-                if (!friends.find(f => f.userId === stranger.userId)) {
+                if (!friends.find(f => String(f.userId) === String(stranger.userId))) {
                   friends.unshift(stranger);  // Add to top
                   allFriends.unshift(stranger);
                   console.log(`✅ Restored stranger: ${stranger.displayName}`);
@@ -1290,6 +1606,19 @@
           }
 
           renderFriendsVirtual();
+
+          // Refresh details modal if open for a user who was updated
+          if (document.getElementById('friendDetailsModal').style.display === 'flex' && currentModalUserId) {
+            const currentModalFriend = friends.find(f => String(f.userId) === String(currentModalUserId));
+            if (currentModalFriend) {
+              showFriendDetailsModal(
+                currentModalFriend.userId,
+                currentModalFriend.displayName,
+                currentModalFriend.avatar,
+                !!currentModalFriend.isStranger
+              );
+            }
+          }
 
           setTimeout(() => {
             if (messageStore.size > 0) {
@@ -1413,11 +1742,7 @@
           }
 
           const content = data.message.content || data.message.msg || '';
-          messageStore.set(uid, {
-            lastMessage: content,
-            timestamp: data.message.timestamp || Date.now()
-          });
-          saveMessageStoreToLocalStorage(); // 💾 Persist to localStorage
+          updateMessageStore(uid, content, data.message.timestamp || Date.now(), true, data.message.type);
 
           localStorage.setItem('lastChatWith', JSON.stringify({
             userId: uid,
@@ -1446,11 +1771,8 @@
           const uid = data.uid;
           const isAutoReply = data.message?.isAutoReply || false;
 
-          messageStore.set(uid, {
-            lastMessage: content,
-            timestamp: data.message.timestamp || Date.now()
-          });
-          saveMessageStoreToLocalStorage(); // 💾 Persist to localStorage
+          const isSelf = data.message.isSelf || (data.message.senderId === currentUserId);
+          updateMessageStore(uid, content, data.message.timestamp || Date.now(), isSelf, data.message.type);
 
           // ✅ AUTO-ADD STRANGER to friends list if not exists
           let sender = friends.find(f => f.userId === uid);
@@ -1567,10 +1889,7 @@
           const uid = data.toUid;
           const content = data.response || '';
 
-          messageStore.set(uid, {
-            lastMessage: content,
-            timestamp: Date.now()
-          });
+          updateMessageStore(uid, content, Date.now(), true, 'text');
 
           if (selectedFriend && uid === selectedFriend.userId) {
             const autoReplyMsg = {
@@ -1650,10 +1969,7 @@
           handleLogoutComplete();
         }
 
-        // ✅ XỬ LÝ XÓA BẠN BÈ
-        if (data.type === 'friend_removed') {
-          handleFriendRemoved(data);
-        }
+
 
         if (data.type === 'friends_batch_removed') {
           handleBatchRemoved(data);
@@ -1661,12 +1977,12 @@
 
         if (data.type === 'remove_friend_error') {
           console.error('❌ Lỗi xóa bạn bè:', data.error);
-          alert('❌ Lỗi xóa bạn bè: ' + data.error);
+          showAlert('❌ Lỗi xóa bạn bè: ' + data.error);
         }
 
         if (data.type === 'delete_all_response') {
           if (data.success) {
-            alert('✅ Đã xóa toàn bộ dữ liệu thành công!');
+            showAlert('✅ Đã xóa toàn bộ dữ liệu thành công!');
             // ✅ Clear Frontend Cache
             localStorage.removeItem('messageStore_' + (currentUserId || 'default'));
             localStorage.removeItem('lastChatWith');
@@ -1679,7 +1995,7 @@
 
             location.reload(); // Reload to ensure clean state
           } else {
-            alert('❌ Lỗi: ' + data.error);
+            showAlert('❌ Lỗi: ' + data.error);
           }
         } // ✅ XỬ LÝ BATCH REMOVE RESULT (from remove_friends_batch handler)
         if (data.type === 'batch_remove_result') {
@@ -1692,6 +2008,28 @@
             filteredFriends = filteredFriends.filter(f => !removedSet.has(f.userId));
             selectedForDelete.clear();
             updateSelectedCount();
+
+            // ✅ Update sessionStorage cache immediately
+            try {
+              sessionStorage.setItem('zalo_friends_cache', JSON.stringify(friends));
+            } catch (e) {
+              console.warn('⚠️ Ghi cache zalo_friends_cache thất bại:', e.message);
+            }
+
+            // ✅ Close active chat if the selected user was deleted
+            if (typeof selectedFriend !== 'undefined' && selectedFriend && removedSet.has(selectedFriend.userId)) {
+              console.log('🗑️ Resetting active chat because selected friend was batch-removed');
+              selectedFriend = null;
+              const msgContainer = document.getElementById('messagesContainer');
+              if (msgContainer) {
+                msgContainer.innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Hội thoại đã bị xóa hoặc người dùng đã bị hủy kết bạn</div></div>';
+              }
+              const chatHeader = document.getElementById('chatHeader');
+              if (chatHeader) chatHeader.style.display = 'none';
+              const inputArea = document.getElementById('inputArea');
+              if (inputArea) inputArea.style.display = 'none';
+            }
+
             if (typeof renderFriendsVirtual === 'function') {
               renderFriendsVirtual();
             }
@@ -1773,39 +2111,41 @@
       const friendIndex = friends.findIndex(f => f.userId === uid);
       const allFriendIndex = allFriends.findIndex(f => f.userId === uid);
 
-      if (friendIndex === -1) {
-        console.warn(`⚠️ Friend ${uid} not found in friends list`);
-        return;
-      }
+      if (friendIndex !== -1) {
+        // Get message data from store
+        const msgData = messageStore.get(uid);
+        if (msgData) {
+          // Update friend object with latest message data
+          friends[friendIndex].lastMessage = msgData.lastMessage;
+          friends[friendIndex].timestamp = msgData.timestamp;
 
-      // Get message data from store
-      const msgData = messageStore.get(uid);
-      if (msgData) {
-        // Update friend object with latest message data
-        friends[friendIndex].lastMessage = msgData.lastMessage;
-        friends[friendIndex].timestamp = msgData.timestamp;
-
-        if (allFriendIndex !== -1) {
-          allFriends[allFriendIndex].lastMessage = msgData.lastMessage;
-          allFriends[allFriendIndex].timestamp = msgData.timestamp;
+          if (allFriendIndex !== -1) {
+            allFriends[allFriendIndex].lastMessage = msgData.lastMessage;
+            allFriends[allFriendIndex].timestamp = msgData.timestamp;
+          }
         }
+
+        // Move to top of friends array
+        if (friendIndex > 0) { // Only move if not already at top
+          const [friend] = friends.splice(friendIndex, 1);
+          friends.unshift(friend);
+          console.log(`✅ Moved ${friend.displayName} to position 0`);
+        }
+
+        // Update allFriends array
+        if (allFriendIndex > 0) {
+          const [friend] = allFriends.splice(allFriendIndex, 1);
+          allFriends.unshift(friend);
+        }
+
+        // Re-apply filters and re-render contacts
+        applyFilters();
       }
 
-      // Move to top of friends array
-      if (friendIndex > 0) { // Only move if not already at top
-        const [friend] = friends.splice(friendIndex, 1);
-        friends.unshift(friend);
-        console.log(`✅ Moved ${friend.displayName} to position 0`);
+      // Always refresh all sidebar lists (Chats/Contacts/Groups)
+      if (typeof refreshSidebarLists === 'function') {
+        refreshSidebarLists();
       }
-
-      // Update allFriends array
-      if (allFriendIndex > 0) {
-        const [friend] = allFriends.splice(allFriendIndex, 1);
-        allFriends.unshift(friend);
-      }
-
-      // Re-apply filters and re-render
-      applyFilters();
     }
 
     // ========== CHAT & RENDER FUNCTIONS (MOVED TO EXTERNAL FILES) ==========
@@ -1860,10 +2200,9 @@
       }
     }
 
-    // ✅ CONSOLIDATED FILTER & SEARCH
+    // ✅ CONSOLIDATED FILTER & SEARCH FOR CONTACTS
     function applyFilters() {
       const query = document.getElementById('friendsSearchInput')?.value || '';
-      const filterValue = document.getElementById('autoReplyFilter')?.value || 'all';
 
       // If it's a phone search, delegate to searchFriends (which handles searchByPhone)
       const isPhone = /^(\+84|84|0)?[0-9]{8,10}$/.test(query.trim());
@@ -1874,11 +2213,7 @@
         }
       }
 
-      console.log(`🔍 Applying Filters: query="${query}", filter="${filterValue}"`);
-
-      const activityFilterValue = document.getElementById('activityFilter')?.value || 'all';
-      const now = Date.now();
-      const dayMs = 24 * 60 * 60 * 1000;
+      console.log(`🔍 Applying Filters: query="${query}"`);
 
       const sourceFriends = (typeof allFriends !== 'undefined' && allFriends) ? allFriends : (typeof friends !== 'undefined' ? friends : []);
       const lowerQuery = query.trim().toLowerCase();
@@ -1889,42 +2224,12 @@
 
       if (typeof filteredFriends !== 'undefined') {
         filteredFriends = sourceFriends.filter(f => {
-          // 1. Search filter
+          // Search filter
           const displayName = f.displayName || '';
           const userId = f.userId || '';
-          const searchMatch = !lowerQuery ||
+          return !lowerQuery ||
             displayName.toLowerCase().includes(lowerQuery) ||
             userId.toLowerCase().includes(lowerQuery);
-
-          if (!searchMatch) return false;
-
-          // 2. Auto-reply filter
-          const isEnabled = !autoReplyBlacklist.has(f.userId);
-          if (filterValue === 'on') return isEnabled;
-          if (filterValue === 'off') return !isEnabled;
-
-          // 3. ✅ Activity filter (NEW)
-          if (activityFilterValue !== 'all') {
-            const lastTime = f.timestamp || 0;
-            const timeSinceLastMsg = now - lastTime;
-
-            switch (activityFilterValue) {
-              case '7d':
-                if (timeSinceLastMsg > 7 * dayMs) return false;
-                break;
-              case '30d':
-                if (timeSinceLastMsg > 30 * dayMs) return false;
-                break;
-              case '90d':
-                if (timeSinceLastMsg > 90 * dayMs) return false;
-                break;
-              case 'inactive_90d':
-                if (timeSinceLastMsg <= 90 * dayMs) return false;
-                break;
-            }
-          }
-
-          return true;
         });
 
         if (typeof renderFriendsVirtual === 'function') {
@@ -1985,7 +2290,8 @@
             <img src="${user.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E'}" 
               onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E'"
               alt="Avatar"
-              style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
+              onclick="event.stopPropagation(); showFriendDetailsModal('${user.uid}', '${escapeJs(displayName)}', '${user.avatar || ''}', true)"
+              style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; cursor: pointer;">
               <div class="result-friend-info" style="flex: 1; margin-left: 10px;">
                 <div class="result-friend-name" style="font-weight: 600; color: #333; font-size: 14px;">${escapeHtml(displayName)}</div>
                 <div class="result-friend-uid" style="font-size: 12px; color: #666; margin-top: 4px;">
@@ -2061,7 +2367,7 @@
     // Open trigger manager
     function openAutoReplyViewer() {
       if (!currentUserId) {
-        alert('Vui lòng đăng nhập trước!');
+        showAlert('Vui lòng đăng nhập trước!');
         return;
       }
       const url = `/trigger-manager.html?userUID=${currentUserId}&dbName=ZaloChat_${currentUserId}`;
@@ -2071,7 +2377,7 @@
     // Open storage info
     function openStorageInfo() {
       if (!currentUserId) {
-        alert('Vui lòng đăng nhập trước!');
+        showAlert('Vui lòng đăng nhập trước!');
         return;
       }
       const url = `/storage-info.html?userUID=${currentUserId}`;
@@ -2088,11 +2394,11 @@
     function closeFriendRequestsPanel() {
       document.getElementById('frModal').style.display = 'none';
     }
-    window.onclick = function (event) {
-      if (event.target == document.getElementById('frModal')) {
-        closeFriendRequestsPanel();
-      }
-    }
+    // window.onclick = function (event) {
+    //   if (event.target == document.getElementById('frModal')) {
+    //     closeFriendRequestsPanel();
+    //   }
+    // }
 
     function renderFriendRequests(requests, error) {
       const list = document.getElementById('frList');
@@ -2284,6 +2590,28 @@
       filteredFriends = filteredFriends.filter(f => f.userId !== data.friendId);
       selectedForDelete.delete(data.friendId);
       updateSelectedCount();
+
+      // ✅ Update sessionStorage cache immediately
+      try {
+        sessionStorage.setItem('zalo_friends_cache', JSON.stringify(friends));
+      } catch (e) {
+        console.warn('⚠️ Ghi cache zalo_friends_cache thất bại:', e.message);
+      }
+
+      // ✅ Close active chat if the selected user was deleted/unfriended
+      if (typeof selectedFriend !== 'undefined' && selectedFriend && String(selectedFriend.userId) === String(data.friendId)) {
+        console.log('🗑️ Resetting active chat because selected friend was removed');
+        selectedFriend = null;
+        const msgContainer = document.getElementById('messagesContainer');
+        if (msgContainer) {
+          msgContainer.innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Hội thoại đã bị xóa hoặc người dùng đã bị hủy kết bạn</div></div>';
+        }
+        const chatHeader = document.getElementById('chatHeader');
+        if (chatHeader) chatHeader.style.display = 'none';
+        const inputArea = document.getElementById('inputArea');
+        if (inputArea) inputArea.style.display = 'none';
+      }
+
       if (typeof renderFriendsVirtual === 'function') {
         renderFriendsVirtual();
       }
@@ -2302,7 +2630,7 @@
         if (typeof renderFriendsVirtual === 'function') {
           renderFriendsVirtual();
         }
-        alert(`✅ Đã xóa ${data.success.length} bạn bè thành công!${data.failed.length > 0 ? `\n⚠️ Lỗi: ${data.failed.length} bạn bè` : ''} `);
+        showAlert(`✅ Đã xóa ${data.success.length} bạn bè thành công!${data.failed.length > 0 ? `\n⚠️ Lỗi: ${data.failed.length} bạn bè` : ''} `);
         cancelDeleteMode();
       }
       if (data.failed && data.failed.length > 0) {
@@ -2398,6 +2726,19 @@
 
         case 'REMOVE':
           showToast(`👋 Đã hủy kết bạn với: ${data} `, 'warning');
+          // ✅ Close active chat immediately if it is the removed friend
+          if (typeof selectedFriend !== 'undefined' && selectedFriend && String(selectedFriend.userId) === String(data)) {
+            console.log('🗑️ Resetting active chat because of external REMOVE event');
+            selectedFriend = null;
+            const msgContainer = document.getElementById('messagesContainer');
+            if (msgContainer) {
+              msgContainer.innerHTML = '<div class="empty-chat"><div class="icon">💬</div><div>Hội thoại đã bị xóa hoặc người dùng đã bị hủy kết bạn</div></div>';
+            }
+            const chatHeader = document.getElementById('chatHeader');
+            if (chatHeader) chatHeader.style.display = 'none';
+            const inputArea = document.getElementById('inputArea');
+            if (inputArea) inputArea.style.display = 'none';
+          }
           // ✅ RELOAD FRIENDS LIST
           console.log('🔄 Requesting updated friends list...');
           if (ws && ws.readyState === WebSocket.OPEN) {
@@ -2605,6 +2946,37 @@
       }
     }
 
+    function switchMainSidebarTab(tabName) {
+      currentMainTab = tabName;
+      const chatsTabBtn = document.getElementById('mainTabChats');
+      const contactsTabBtn = document.getElementById('mainTabContacts');
+      const chatsTabArea = document.getElementById('chatsTabArea');
+      const contactsTabArea = document.getElementById('contactsTabArea');
+
+      if (!chatsTabBtn || !contactsTabBtn || !chatsTabArea || !contactsTabArea) return;
+
+      if (tabName === 'chats') {
+        chatsTabBtn.classList.add('active');
+        contactsTabBtn.classList.remove('active');
+        chatsTabArea.style.display = 'flex';
+        contactsTabArea.style.display = 'none';
+        if (typeof renderActiveChats === 'function') {
+          renderActiveChats();
+        }
+      } else {
+        contactsTabBtn.classList.add('active');
+        chatsTabBtn.classList.remove('active');
+        contactsTabArea.style.display = 'flex';
+        chatsTabArea.style.display = 'none';
+        if (typeof renderFriendsVirtual === 'function') {
+          renderFriendsVirtual();
+        }
+        if (currentSearchTab === 'groups' && typeof renderGroups === 'function') {
+          renderGroups();
+        }
+      }
+    }
+
     function renderGroups() {
       // Determine which container to render to
       const searchQuery = document.getElementById('groupsSearchInput')?.value || '';
@@ -2623,46 +2995,21 @@
       }
 
       container.innerHTML = filteredGroups.map(g => {
-        const msgInfo = messageStore.get(g.groupId);
-        const hasMessages = !!msgInfo;
-        const unreadCount = window.unreadConversations ? (window.unreadConversations.get(g.groupId) || 0) : 0;
-        const isUnread = unreadCount > 0;
-
-        const memberCount = g.totalMember || '?';
-        const preview = hasMessages
-          ? `<span class="has-message">${escapeHtml(msgInfo.lastMessage.substring(0, 30))}${msgInfo.lastMessage.length > 30 ? '...' : ''}</span>`
-          : `<span style="color:#999; font-size:12px;">Nhân đề chat • <span style="color:#666; font-weight:500;">${memberCount} thành viên</span></span>`;
-
-        const timeStr = hasMessages
-          ? `<span class="message-time">${formatTime(msgInfo.timestamp)}</span>`
-          : '';
-
-        const unreadBadge = isUnread
-          ? `<span class="unread-count-badge" style="background:#0068FF; color:white; font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:6px; min-width:18px; text-align:center;">${unreadCount > 99 ? '99+' : unreadCount}</span>`
-          : '';
-
         const isActive = (typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === g.groupId);
 
         return `
-          <div class="group-item friend-item ${hasMessages ? 'has-messages' : ''} ${isUnread ? 'unread' : ''} ${isActive ? 'active' : ''}" 
-               style="${isUnread ? 'background: linear-gradient(90deg, rgba(0,104,255,0.1) 0%, white 100%); border-left: 3px solid #0068FF;' : ''}"
+          <div class="group-item friend-item ${isActive ? 'active' : ''}" 
                onclick="selectGroup('${g.groupId}', '${escapeJs(g.name)}', '${g.avatar}')">
             <div class="group-avatar-wrapper" style="position:relative; flex-shrink:0;">
               <img class="group-avatar" src="${g.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E'}" 
-                onerror="this.onerror=null;">
+                onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E';"
+                style="width:50px; height:50px; border-radius:50%; object-fit:cover;">
               <span class="group-badge" style="position:absolute; bottom:-2px; right:-2px; background:#9c27b0; color:white; font-size:10px; padding:2px 4px; border-radius:8px; border:1px solid white;">👪</span>
             </div>
-            <div class="group-info info">
-              <div class="group-name name">
-                <span class="group-title" style="color:#333; font-weight:600; font-size:14px;">${escapeHtml(g.name)}</span>
-                <div style="display:flex; align-items:center; gap:4px; margin-left:auto;">
-                  ${unreadBadge}
-                  ${timeStr}
-                </div>
-              </div>
-              <div class="group-preview preview" style="${isUnread ? 'font-weight:600; color:#0068FF;' : ''}">
-                ${preview}
-              </div>
+            <div class="group-info info" style="display:flex; align-items:center; flex:1; overflow:hidden; min-width:0;">
+              <span class="group-title" style="color:#333; font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${escapeHtml(g.name)}
+              </span>
             </div>
           </div>
         `;
@@ -2683,6 +3030,17 @@
     }
 
     function selectGroup(groupId, groupName, avatar) {
+      // ✅ Reload optimization: if group is already selected, do not reload
+      if (selectedFriend && selectedFriend.userId === groupId) {
+        console.log(`ℹ️ Already chatting in group ${groupId}. Skipping reload.`);
+        if (typeof currentMainTab !== 'undefined' && currentMainTab !== 'chats') {
+          if (typeof switchMainSidebarTab === 'function') {
+            switchMainSidebarTab('chats');
+          }
+        }
+        return;
+      }
+
       // Set selectedFriend with group flag for unified messaging
       selectedFriend = {
         userId: groupId,
@@ -2690,6 +3048,29 @@
         avatar: avatar,
         isGroup: true
       };
+
+      // ✅ Save to lastChatWith
+      localStorage.setItem('lastChatWith', JSON.stringify({
+        userId: groupId,
+        displayName: groupName,
+        avatar: avatar,
+        isGroup: true,
+        timestamp: Date.now()
+      }));
+
+      if (typeof currentMainTab !== 'undefined' && currentMainTab !== 'chats') {
+        if (typeof switchMainSidebarTab === 'function') {
+          switchMainSidebarTab('chats');
+        }
+      }
+
+      // ✅ Mark conversation as read by removing from unreadConversations Map
+      if (window.unreadConversations && window.unreadConversations.has(groupId)) {
+        window.unreadConversations.delete(groupId);
+        if (typeof refreshSidebarLists === 'function') {
+          refreshSidebarLists();
+        }
+      }
 
       // Update chat header
       document.getElementById('chatHeader').style.display = 'flex';
@@ -2862,6 +3243,300 @@
         opacity: 1;
       }
     }
+
+    /* 👤 Friend Details Modal - Modern Premium Glassmorphism */
+    .fd-modal {
+      display: none;
+      position: fixed;
+      z-index: 10000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      animation: fdFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .fd-modal-content {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 20px;
+      width: 420px;
+      max-width: 90%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 40px rgba(0, 0, 0, 0.03);
+      overflow: hidden;
+      position: relative;
+      transform: scale(0.9) translateY(20px);
+      opacity: 0;
+      animation: fdSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards;
+    }
+
+    /* 🌙 Dark Mode support via body.dark-mode class */
+    body.dark-mode .fd-modal-content {
+      background: rgba(30, 41, 59, 0.95);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+    }
+
+    @keyframes fdFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes fdSlideUp {
+      to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .fd-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(0, 0, 0, 0.05);
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #64748b;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+    .fd-close-btn:hover {
+      background: rgba(0, 0, 0, 0.1);
+      color: #0f172a;
+    }
+    body.dark-mode .fd-close-btn {
+      background: rgba(255, 255, 255, 0.05);
+      color: #94a3b8;
+    }
+    body.dark-mode .fd-close-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+
+    .fd-hero-bg {
+      height: 100px;
+      background: linear-gradient(135deg, #0068FF 0%, #0052CC 100%);
+      position: relative;
+    }
+
+    .fd-avatar-container {
+      display: flex;
+      justify-content: center;
+      margin-top: -50px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .fd-avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 4px solid #ffffff;
+      object-fit: cover;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+    .fd-avatar:hover {
+      transform: scale(1.05);
+    }
+    body.dark-mode .fd-avatar {
+      border-color: #1e293b;
+    }
+
+    .fd-info-body {
+      padding: 24px;
+      text-align: center;
+    }
+
+    .fd-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+    body.dark-mode .fd-name {
+      color: #f8fafc;
+    }
+
+    .fd-uid-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f1f5f9;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .fd-uid-wrapper:hover {
+      background: #e2e8f0;
+      color: #0068FF;
+    }
+    body.dark-mode .fd-uid-wrapper {
+      background: #334155;
+      color: #cbd5e1;
+    }
+    body.dark-mode .fd-uid-wrapper:hover {
+      background: #475569;
+      color: #3b82f6;
+    }
+
+    .fd-form-group {
+      text-align: left;
+      margin-bottom: 16px;
+    }
+
+    .fd-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+    body.dark-mode .fd-label {
+      color: #94a3b8;
+    }
+
+    .fd-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+      background: #ffffff;
+      color: #0f172a;
+    }
+    .fd-input:focus {
+      border-color: #0068FF;
+      box-shadow: 0 0 0 3px rgba(0, 104, 255, 0.15);
+    }
+    body.dark-mode .fd-input {
+      background: #1e293b;
+      border-color: #334155;
+      color: #f8fafc;
+    }
+    body.dark-mode .fd-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+
+    .fd-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .fd-btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .fd-btn {
+      flex: 1;
+      padding: 11px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .fd-btn-primary {
+      background: linear-gradient(135deg, #0068FF 0%, #0052CC 100%);
+      color: #ffffff;
+    }
+    .fd-btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 104, 255, 0.35);
+    }
+
+    .fd-btn-success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+    }
+    .fd-btn-success:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+
+    .fd-btn-outline {
+      background: transparent;
+      border: 1.5px solid #cbd5e1;
+      color: #64748b;
+    }
+    .fd-btn-outline:hover {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    body.dark-mode .fd-btn-outline {
+      border-color: #475569;
+      color: #cbd5e1;
+    }
+    body.dark-mode .fd-btn-outline:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    .fd-btn-danger-outline {
+      background: transparent;
+      border: 1.5px solid #fca5a5;
+      color: #ef4444;
+    }
+    .fd-btn-danger-outline:hover {
+      background: #fef2f2;
+    }
+    body.dark-mode .fd-btn-danger-outline {
+      border-color: #991b1b;
+      color: #f87171;
+    }
+    body.dark-mode .fd-btn-danger-outline:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .fd-btn-danger {
+      background: #ef4444;
+      color: #ffffff;
+    }
+    .fd-btn-danger:hover {
+      background: #dc2626;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+
+    .fd-btn-secondary {
+      background: #2ec4b6;
+      color: #ffffff;
+    }
+    .fd-btn-secondary:hover {
+      background: #20a498;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(46, 196, 182, 0.3);
+    }
   </style>
 
   <script>
@@ -2910,16 +3585,355 @@
         document.body.removeChild(a);
       } catch (err) {
         console.error('Download failed:', err);
-        alert('Không thể tải ảnh. Vui lòng thử lại.');
+        showAlert('Không thể tải ảnh. Vui lòng thử lại.');
       }
     }
 
     // Close on ESC key
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && document.getElementById('imageViewerModal').style.display === 'flex') {
-        closeImageViewer();
+      if (e.key === 'Escape') {
+        if (document.getElementById('imageViewerModal').style.display === 'flex') {
+          closeImageViewer();
+        }
+        if (document.getElementById('friendDetailsModal').style.display === 'flex') {
+          closeFriendDetailsModal();
+        }
       }
     });
+
+    // ========== 👤 FRIEND DETAILS MODAL FUNCTIONS ==========
+    let currentModalUserId = null;
+    let currentModalIsStranger = false;
+
+    function showFriendDetailsModal(userId, displayName, avatar, isStranger) {
+      currentModalUserId = userId;
+      currentModalIsStranger = isStranger;
+
+      // Reset Tag inputs and select boxes to default state
+      const fdTagSelect = document.getElementById('fdTagSelect');
+      const fdTagInput = document.getElementById('fdTagInput');
+      const fdTagAddBtn = document.getElementById('fdTagAddBtn');
+      if (fdTagSelect) fdTagSelect.style.display = 'block';
+      if (fdTagInput) fdTagInput.style.display = 'none';
+      if (fdTagAddBtn) {
+        fdTagAddBtn.textContent = '+';
+        fdTagAddBtn.title = 'Thêm thẻ mới';
+        fdTagAddBtn.className = 'fd-btn fd-btn-primary';
+      }
+
+      // Find if they are in the friends list
+      const friendObj = friends.find(f => f.userId === userId);
+      
+      const modal = document.getElementById('friendDetailsModal');
+      const avatarImg = document.getElementById('fdAvatar');
+      const nameText = document.getElementById('fdName');
+      const uidText = document.getElementById('fdUid');
+      const aliasInput = document.getElementById('fdAliasInput');
+      const tagSelect = document.getElementById('fdTagSelect');
+      
+      const friendActions = document.getElementById('fdFriendActions');
+      const strangerActions = document.getElementById('fdStrangerActions');
+
+      // Set avatar, name, uid
+      avatarImg.src = avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="20"%3E👤%3C/text%3E%3C/svg%3E';
+      nameText.textContent = displayName || 'Người dùng Zalo';
+      uidText.textContent = 'UID: ' + userId;
+
+      // Set input values
+      if (friendObj) {
+        aliasInput.value = friendObj.displayName || '';
+      } else {
+        aliasInput.value = displayName || '';
+      }
+
+      // Populate unique tags in dropdown
+      tagSelect.innerHTML = '';
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '-- Không có thẻ --';
+      tagSelect.appendChild(emptyOpt);
+
+      const existingTags = [];
+      if (typeof friends !== 'undefined' && Array.isArray(friends)) {
+        friends.forEach(f => {
+          if (f.tag && f.tag.trim()) {
+            const cleanTag = f.tag.trim();
+            if (!existingTags.includes(cleanTag)) {
+              existingTags.push(cleanTag);
+            }
+          }
+        });
+      }
+
+      const currentTag = (friendObj && friendObj.tag) ? friendObj.tag.trim() : '';
+      if (currentTag && !existingTags.includes(currentTag)) {
+        existingTags.push(currentTag);
+      }
+
+      existingTags.sort().forEach(tag => {
+        const opt = document.createElement('option');
+        opt.value = tag;
+        opt.textContent = tag;
+        tagSelect.appendChild(opt);
+      });
+
+      tagSelect.value = currentTag;
+
+      // Check if user is actually in the friends list or is explicitly a stranger
+      const isTrulyStranger = !friendObj || friendObj.isStranger === true || friendObj.isStranger === 'true';
+
+      const saveBtn = document.getElementById('fdSaveBtn');
+      const addFriendRow = document.getElementById('fdAddFriendRow');
+      const sendMsgRow = document.getElementById('fdSendMsgRow');
+      const fdReqMsg = document.getElementById('fdFriendRequestMsg');
+      const fdAliasGroup = document.getElementById('fdAliasGroup');
+      const fdTagGroup = document.getElementById('fdTagGroup');
+
+      // Show/hide actions based on isStranger
+      if (isTrulyStranger) {
+        // Stranger: Hide save/alias/tag/friend actions, show add-friend row
+        friendActions.style.display = 'none';
+        strangerActions.style.display = 'none';
+        if (saveBtn) saveBtn.style.display = 'none';
+        if (fdAliasGroup) fdAliasGroup.style.display = 'none';
+        if (fdTagGroup) fdTagGroup.style.display = 'none';
+        if (addFriendRow) addFriendRow.style.display = 'flex';
+        if (fdReqMsg) fdReqMsg.value = '';
+        if (sendMsgRow) sendMsgRow.style.display = 'block';
+      } else {
+        // Friend: Show edit fields, friend actions, send message
+        if (saveBtn) saveBtn.style.display = '';
+        if (fdAliasGroup) fdAliasGroup.style.display = '';
+        if (fdTagGroup) fdTagGroup.style.display = '';
+        friendActions.style.display = 'flex';
+        strangerActions.style.display = 'none';
+        if (addFriendRow) addFriendRow.style.display = 'none';
+        if (sendMsgRow) sendMsgRow.style.display = 'block';
+      }
+
+      // Display the modal
+      modal.style.display = 'flex';
+    }
+
+    function closeFriendDetailsModal() {
+      const modal = document.getElementById('friendDetailsModal');
+      modal.style.display = 'none';
+      currentModalUserId = null;
+    }
+
+    function sendMessageToFriend() {
+      if (!currentModalUserId) return;
+      const nameEl = document.getElementById('fdName');
+      const avatarEl = document.getElementById('fdAvatar');
+      const displayName = nameEl ? nameEl.textContent : 'Người dùng Zalo';
+      const avatar = avatarEl ? avatarEl.src : '';
+      const userId = currentModalUserId;
+      closeFriendDetailsModal();
+      if (typeof selectFriend === 'function') {
+        selectFriend(userId, displayName, avatar);
+      }
+    }
+
+    async function addFriendAction() {
+      if (!currentModalUserId) return;
+      const msgInput = document.getElementById('fdFriendRequestMsg');
+      const message = (msgInput && msgInput.value.trim()) || 'Xin chào, hãy kết bạn với tôi!';
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'send_friend_request',
+          userId: currentModalUserId,
+          message: message
+        }));
+        const addFriendBtn = document.getElementById('fdAddFriendBtn');
+        if (addFriendBtn) {
+          addFriendBtn.disabled = true;
+          addFriendBtn.textContent = '⏳ Đang gửi...';
+        }
+      } else {
+        showToast('❌ Mất kết nối WebSocket', 'error');
+      }
+    }
+
+    function copyFdUid() {
+      if (!currentModalUserId) return;
+      navigator.clipboard.writeText(currentModalUserId).then(() => {
+        showToast('📋 Đã sao chép UID: ' + currentModalUserId, 'success');
+      }).catch(err => {
+        console.error('Failed to copy UID:', err);
+        showToast('❌ Không thể sao chép UID', 'error');
+      });
+    }
+
+    function toggleTagInput() {
+      const tagSelect = document.getElementById('fdTagSelect');
+      const tagInput = document.getElementById('fdTagInput');
+      const addBtn = document.getElementById('fdTagAddBtn');
+      if (!tagSelect || !tagInput || !addBtn) return;
+
+      if (tagInput.style.display === 'none') {
+        // Switch to input mode
+        tagSelect.style.display = 'none';
+        tagInput.style.display = 'block';
+        tagInput.value = '';
+        tagInput.focus();
+        addBtn.textContent = '✓';
+        addBtn.title = 'Xác nhận thêm thẻ';
+        addBtn.className = 'fd-btn fd-btn-success';
+      } else {
+        // Confirm and switch back to select mode
+        const newTag = tagInput.value.trim();
+        if (newTag) {
+          // Check if tag already exists in options
+          let exists = false;
+          for (let i = 0; i < tagSelect.options.length; i++) {
+            if (tagSelect.options[i].value === newTag) {
+              exists = true;
+              break;
+            }
+          }
+
+          // If it doesn't exist, append it
+          if (!exists) {
+            const opt = document.createElement('option');
+            opt.value = newTag;
+            opt.textContent = newTag;
+            tagSelect.appendChild(opt);
+          }
+
+          // Select the new tag
+          tagSelect.value = newTag;
+          showToast(`🏷️ Đã chọn thẻ mới: ${newTag} (Hãy nhấn Lưu thay đổi)`, 'info');
+        }
+
+        tagSelect.style.display = 'block';
+        tagInput.style.display = 'none';
+        addBtn.textContent = '+';
+        addBtn.title = 'Thêm thẻ mới';
+        addBtn.className = 'fd-btn fd-btn-primary';
+      }
+    }
+
+    // Set up keyboard navigation for tag input
+    document.addEventListener('DOMContentLoaded', () => {
+      const tagInput = document.getElementById('fdTagInput');
+      if (tagInput) {
+        tagInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            toggleTagInput();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            // Cancel and switch back
+            const tagSelect = document.getElementById('fdTagSelect');
+            const addBtn = document.getElementById('fdTagAddBtn');
+            if (tagSelect && addBtn) {
+              tagSelect.style.display = 'block';
+              tagInput.style.display = 'none';
+              addBtn.textContent = '+';
+              addBtn.title = 'Thêm thẻ mới';
+              addBtn.className = 'fd-btn fd-btn-primary';
+            }
+          }
+        });
+      }
+    });
+
+    function saveFriendDetails() {
+      if (!currentModalUserId) return;
+      
+      const aliasVal = document.getElementById('fdAliasInput').value.trim();
+      const tagVal = document.getElementById('fdTagSelect').value.trim();
+      const friendObj = friends.find(f => f.userId === currentModalUserId);
+
+      const oldAlias = friendObj ? (friendObj.displayName || '') : '';
+      const oldTag = friendObj ? (friendObj.tag || '') : '';
+
+      let hasChanges = false;
+
+      // If alias changed
+      if (aliasVal !== oldAlias) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'change_friend_alias',
+            userId: currentModalUserId,
+            alias: aliasVal
+          }));
+          hasChanges = true;
+        } else {
+          showToast('❌ Mất kết nối WebSocket', 'error');
+          return;
+        }
+      }
+
+      // If tag changed
+      if (tagVal !== oldTag) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'save_friend_tag',
+            userId: currentModalUserId,
+            tag: tagVal
+          }));
+          hasChanges = true;
+        } else {
+          showToast('❌ Mất kết nối WebSocket', 'error');
+          return;
+        }
+      }
+
+      if (!hasChanges) {
+        showToast('ℹ️ Không có thay đổi nào', 'info');
+        closeFriendDetailsModal();
+      }
+    }
+
+    async function blockFriend() {
+      if (!currentModalUserId) return;
+      if (await showConfirm('⚠️ Bạn có chắc chắn muốn chặn người dùng này? Bạn sẽ không nhận được tin nhắn từ họ nữa.')) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'block_user',
+            userId: currentModalUserId
+          }));
+        } else {
+          showToast('❌ Mất kết nối WebSocket', 'error');
+        }
+      }
+    }
+
+    function unblockFriend() {
+      if (!currentModalUserId) return;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'unblock_user',
+          userId: currentModalUserId
+        }));
+      } else {
+        showToast('❌ Mất kết nối WebSocket', 'error');
+      }
+    }
+
+    async function unfriendFriend() {
+      if (!currentModalUserId) return;
+      if (await showConfirm('⚠️ Bạn có chắc chắn muốn HỦY KẾT BẠN với người dùng này?')) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'remove_friend',
+            friendId: currentModalUserId
+          }));
+        } else {
+          showToast('❌ Mất kết nối WebSocket', 'error');
+        }
+      }
+    }
+
+    // Close modal when clicking outside content area
+    // Disabled as requested: Only close modal using the close button.
+    // window.addEventListener('click', (e) => {
+    //   const modal = document.getElementById('friendDetailsModal');
+    //   if (e.target === modal) {
+    //     closeFriendDetailsModal();
+    //   }
+    // });
 
     // ✅ Global image click handler removed - now using onclick="showImageLightbox()" in load_data.js
     // This prevents double modal from opening

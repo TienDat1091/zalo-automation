@@ -34,22 +34,9 @@ function safeAvatar(avatar) {
 function renderFriendsVirtual() {
   const container = document.getElementById('friendsList');
 
-  // ✅ SORT: Sắp xếp theo tin nhắn cuối cùng (mới nhất trước)
+  // ✅ SORT: Sắp xếp danh bạ theo thứ tự chữ cái A-Z (Tiếng Việt)
   const sortedFriends = [...filteredFriends].sort((a, b) => {
-    const aMsg = messageStore.get(a.userId);
-    const bMsg = messageStore.get(b.userId);
-
-    // Những người có tin nhắn sẽ ở trên
-    if (aMsg && !bMsg) return -1;
-    if (!aMsg && bMsg) return 1;
-
-    // Nếu cả hai đều có tin nhắn, sắp xếp theo thời gian (mới nhất trước)
-    if (aMsg && bMsg) {
-      return bMsg.timestamp - aMsg.timestamp;
-    }
-
-    // Nếu không có tin nhắn, giữ thứ tự ban đầu
-    return 0;
+    return (a.displayName || '').localeCompare(b.displayName || '', 'vi', { sensitivity: 'base' });
   });
 
   if (sortedFriends.length === 0) {
@@ -73,6 +60,263 @@ function renderFriendsVirtual() {
   }, 100);
 }
 
+function renderActiveChats() {
+  const container = document.getElementById('chatsList');
+  if (!container) return;
+
+  const query = (document.getElementById('chatsSearchInput')?.value || '').toLowerCase().trim();
+
+  // 1. Thu thập tất cả các cuộc trò chuyện đang hoạt động từ messageStore
+  const activeChats = [];
+  
+  if (typeof messageStore !== 'undefined') {
+    messageStore.forEach((msgInfo, uid) => {
+      // Tìm xem có phải là nhóm không
+      const grp = (typeof groups !== 'undefined') ? groups.find(g => g.groupId === uid) : null;
+      if (grp) {
+        activeChats.push({
+          userId: grp.groupId,
+          displayName: grp.name,
+          avatar: grp.avatar,
+          isGroup: true,
+          lastMessage: msgInfo.lastMessage,
+          timestamp: msgInfo.timestamp,
+          isSelf: msgInfo.isSelf,
+          attachmentType: msgInfo.attachmentType,
+          totalMember: grp.totalMember
+        });
+      } else {
+        // Tìm xem có phải là bạn bè không
+        const fr = (typeof friends !== 'undefined') ? friends.find(f => f.userId === uid) : null;
+        if (fr) {
+          activeChats.push({
+            userId: fr.userId,
+            displayName: fr.displayName,
+            avatar: fr.avatar,
+            isGroup: false,
+            isStranger: fr.isStranger,
+            tag: fr.tag,
+            lastMessage: msgInfo.lastMessage,
+            timestamp: msgInfo.timestamp,
+            isSelf: msgInfo.isSelf,
+            attachmentType: msgInfo.attachmentType
+          });
+        } else {
+          // Người lạ (chưa có trong danh sách bạn bè nhưng có tin nhắn)
+          activeChats.push({
+            userId: uid,
+            displayName: `Người lạ (${uid.substring(0, 8)})`,
+            avatar: '',
+            isGroup: false,
+            isStranger: true,
+            lastMessage: msgInfo.lastMessage,
+            timestamp: msgInfo.timestamp,
+            isSelf: msgInfo.isSelf,
+            attachmentType: msgInfo.attachmentType
+          });
+        }
+      }
+    });
+  }
+
+  // 2. Thêm bạn bè/nhóm đang được chọn vào đầu danh sách nếu chưa có lịch sử tin nhắn
+  if (typeof selectedFriend !== 'undefined' && selectedFriend) {
+    const isAlreadyInActive = activeChats.some(c => c.userId === selectedFriend.userId);
+    if (!isAlreadyInActive) {
+      activeChats.push({
+        userId: selectedFriend.userId,
+        displayName: selectedFriend.displayName,
+        avatar: selectedFriend.avatar,
+        isGroup: !!selectedFriend.isGroup,
+        lastMessage: 'Chưa có tin nhắn',
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  // 3. Lọc theo từ khóa tìm kiếm và các bộ lọc dropdown
+  const filterValue = document.getElementById('autoReplyFilter')?.value || 'all';
+  const activityFilterValue = document.getElementById('activityFilter')?.value || 'all';
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  let filteredChats = activeChats.filter(c => {
+    // A. Lọc theo từ khóa tìm kiếm
+    if (query) {
+      const matchQuery = (c.displayName || '').toLowerCase().includes(query) || 
+                         (c.userId || '').toLowerCase().includes(query);
+      if (!matchQuery) return false;
+    }
+
+    // B. Lọc theo trạng thái tự động trả lời (Auto-reply filter)
+    if (filterValue !== 'all') {
+      const isEnabled = !autoReplyBlacklist.has(c.userId);
+      if (filterValue === 'on' && !isEnabled) return false;
+      if (filterValue === 'off' && isEnabled) return false;
+    }
+
+    // C. Lọc theo thời gian tương tác (Activity filter)
+    if (activityFilterValue !== 'all') {
+      const lastTime = c.timestamp || 0;
+      const timeSinceLastMsg = now - lastTime;
+
+      switch (activityFilterValue) {
+        case '7d':
+          if (timeSinceLastMsg > 7 * dayMs) return false;
+          break;
+        case '30d':
+          if (timeSinceLastMsg > 30 * dayMs) return false;
+          break;
+        case '90d':
+          if (timeSinceLastMsg > 90 * dayMs) return false;
+          break;
+        case 'inactive_90d':
+          if (timeSinceLastMsg <= 90 * dayMs) return false;
+          break;
+      }
+    }
+
+    return true;
+  });
+
+  // 4. Sắp xếp cuộc trò chuyện có tin nhắn mới nhất lên đầu
+  filteredChats.sort((a, b) => b.timestamp - a.timestamp);
+
+  // 5. Render danh sách cuộc trò chuyện
+  if (filteredChats.length === 0) {
+    container.innerHTML = (query || filterValue !== 'all' || activityFilterValue !== 'all') 
+      ? '<div style="text-align:center;padding:40px;color:#888;">Không tìm thấy cuộc hội thoại nào</div>'
+      : '<div style="text-align:center;padding:40px;color:#888;">Chưa có cuộc hội thoại nào</div>';
+    return;
+  }
+
+  container.innerHTML = filteredChats.map(c => {
+    const hasMessages = c.lastMessage && c.lastMessage !== 'Chưa có tin nhắn';
+    const unreadCount = window.unreadConversations ? (window.unreadConversations.get(c.userId) || 0) : 0;
+    const isUnread = unreadCount > 0;
+
+    let previewText = '';
+    if (hasMessages) {
+      let prefix = c.isSelf ? 'Bạn: ' : '';
+      let body = c.lastMessage || '';
+      
+      if (c.attachmentType === 'image') {
+        body = '📷 Hình ảnh';
+      } else if (c.attachmentType === 'file') {
+        body = '📁 Tệp tin';
+      } else if (c.attachmentType === 'video') {
+        body = '🎥 Video';
+      } else if (c.attachmentType === 'audio') {
+        body = '🎵 Tin nhắn thoại';
+      } else if (body.startsWith('http://') || body.startsWith('https://')) {
+        if (body.match(/\.(jpeg|jpg|gif|png|webp|bmp)/i)) {
+          body = '📷 Hình ảnh';
+        } else if (body.includes('/api/proxy-file')) {
+          body = '📁 Tệp tin';
+        } else {
+          body = '🔗 Liên kết';
+        }
+      }
+      previewText = prefix + body;
+    } else {
+      previewText = 'Nhấn để chat • UID: ' + c.userId;
+    }
+
+    const preview = `<span class="has-message" style="${isUnread ? 'font-weight: 600; color: #111;' : ''}">${escapeHtml(previewText.substring(0, 30))}${previewText.length > 30 ? '...' : ''}</span>`;
+
+    const timeStr = hasMessages
+      ? `<span class="message-time">${formatTime(c.timestamp)}</span>`
+      : '';
+
+    const unreadBadge = isUnread
+      ? `<span class="unread-count-badge" style="background:#0068FF; color:white; font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:6px; min-width:18px; text-align:center;">${unreadCount > 99 ? '99+' : unreadCount}</span>`
+      : '';
+
+    const isActive = (typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === c.userId);
+
+    const onClickStr = c.isGroup
+      ? `selectGroup('${c.userId}', '${escapeJs(c.displayName || 'Nhóm Zalo')}', '${safeAvatar(c.avatar)}'`
+      : `selectFriend('${c.userId}', '${escapeJs(c.displayName || 'Người dùng Zalo')}', '${safeAvatar(c.avatar)}')`;
+
+    // Render Avatar HTML khác nhau cho Nhóm và Cá nhân
+    const avatarHtml = c.isGroup
+      ? `
+        <div class="group-avatar-wrapper" style="position:relative; flex-shrink:0; width:50px; height:50px;">
+          <img class="group-avatar friend-avatar-img" src="${c.avatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E'}" 
+            onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%239c27b0%22 width=%2250%22 height=%2250%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👪%3C/text%3E%3C/svg%3E';"
+            style="width:50px; height:50px; border-radius:50%; object-fit:cover;">
+          <span class="group-badge" style="position:absolute; bottom:-2px; right:-2px; background:#9c27b0; color:white; font-size:10px; padding:2px 4px; border-radius:8px; border:1px solid white;">👪</span>
+        </div>
+      `
+      : `
+        <img src="${c.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'}" 
+             onerror="this.src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'" 
+             alt="${c.displayName || 'User'}"
+             onclick="event.stopPropagation(); showFriendDetailsModal('${c.userId}', '${escapeJs(c.displayName || 'Người dùng Zalo')}', '${safeAvatar(c.avatar)}', ${c.isStranger ? 'true' : 'false'})"
+             style="cursor:pointer; width:50px; height:50px; border-radius:50%; object-fit:cover;"
+             class="friend-avatar-img">
+      `;
+
+    return `
+      <div class="friend-item ${c.isGroup ? 'group-item' : ''} ${hasMessages ? 'has-messages' : ''} ${isUnread ? 'unread' : ''} ${isActive ? 'active' : ''}" 
+           data-userid="${c.userId}"
+           style="${isUnread ? 'background: linear-gradient(90deg, rgba(0,104,255,0.1) 0%, transparent 100%); border-left: 3px solid #0068FF;' : ''}"
+           onclick="${onClickStr}">
+        ${avatarHtml}
+        <div class="info" style="flex:1; overflow:hidden; min-width:0;">
+          <div class="name-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:6px; overflow:hidden; flex:1; min-width:0;">
+              <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; display:inline-block;">
+                ${escapeHtml(c.displayName || 'Người dùng Zalo')}
+              </span>
+              ${!c.isGroup && c.isStranger ? '<span style="display:inline-block; font-size:10px; background:#ff9800; color:white; padding:2px 8px; border-radius:10px; font-weight:500; white-space:nowrap; flex-shrink:0;">👤 Người lạ</span>' : ''}
+              ${!c.isGroup && c.tag ? `<span class="friend-tag-badge" style="display:inline-block; font-size:10px; background:#2ec4b6; color:white; padding:2px 8px; border-radius:10px; font-weight:500; white-space:nowrap; flex-shrink:0; max-width:80px; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(c.tag)}">${escapeHtml(c.tag)}</span>` : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+              ${unreadBadge}
+              ${!c.isGroup ? `<button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${c.userId}', '${escapeJs(c.displayName || 'User')}')" title="Xóa hội thoại">Xóa</button>` : ''}
+            </div>
+          </div>
+          <div class="preview-row" style="display:flex; justify-content:space-between;">
+             <div class="preview" style="flex:1; ${isUnread ? 'font-weight:600; color:#0068FF;' : ''}">${preview}</div>
+             ${timeStr ? `<div class="time-tiny" style="font-size:10px; color:#888;">${timeStr}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateTabUnreadBadge() {
+  const badgeEl = document.getElementById('chatsTabUnreadBadge');
+  if (!badgeEl) return;
+  
+  let totalUnread = 0;
+  if (window.unreadConversations) {
+    window.unreadConversations.forEach((count) => {
+      totalUnread += count;
+    });
+  }
+  
+  if (totalUnread > 0) {
+    badgeEl.textContent = totalUnread > 99 ? '99+' : totalUnread;
+    badgeEl.style.display = 'inline-flex';
+  } else {
+    badgeEl.style.display = 'none';
+  }
+}
+
+function refreshSidebarLists() {
+  if (typeof renderFriendsVirtual === 'function') renderFriendsVirtual();
+  if (typeof renderActiveChats === 'function') renderActiveChats();
+  if (typeof renderGroups === 'function') renderGroups();
+  updateTabUnreadBadge();
+}
+
+window.renderActiveChats = renderActiveChats;
+window.refreshSidebarLists = refreshSidebarLists;
+window.updateTabUnreadBadge = updateTabUnreadBadge;
+
 function updateVisibleFriends(sortedFriends) {
   const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
   const endIndex = Math.min(sortedFriends.length, startIndex + Math.ceil(containerHeight / ITEM_HEIGHT) + BUFFER_SIZE * 2);
@@ -84,50 +328,28 @@ function updateVisibleFriends(sortedFriends) {
 
   content.style.transform = `translateY(${offsetY}px)`;
   content.innerHTML = visibleFriends.map(f => {
-    const msgInfo = messageStore.get(f.userId);
-    const hasMessages = !!msgInfo;
-    const unreadCount = window.unreadConversations ? (window.unreadConversations.get(f.userId) || 0) : 0;
-    const isUnread = unreadCount > 0;
-    const preview = hasMessages
-      ? `<span class="has-message">${escapeHtml(msgInfo.lastMessage.substring(0, 30))}${msgInfo.lastMessage.length > 30 ? '...' : ''}</span>`
-      : 'Nhấn để chat • UID: ' + f.userId;
-
-    const timeStr = hasMessages
-      ? `<span class="message-time">${formatTime(msgInfo.timestamp)}</span>`
-      : '';
-
-    // ✅ Show unread count badge with number
-    const unreadBadge = isUnread
-      ? `<span class="unread-count-badge" style="background:#0068FF; color:white; font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:6px; min-width:18px; text-align:center;">${unreadCount > 99 ? '99+' : unreadCount}</span>`
-      : '';
+    const isSelected = (typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === f.userId);
 
     return `
-      <div class="friend-item ${hasMessages ? 'has-messages' : ''} ${isUnread ? 'unread' : ''} ${(typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === f.userId) ? 'active' : ''}" 
+      <div class="friend-item ${isSelected ? 'active' : ''}" 
            data-userid="${f.userId}"
-           style="${isUnread ? 'background: linear-gradient(90deg, rgba(0,104,255,0.1) 0%, transparent 100%); border-left: 3px solid #0068FF;' : ''}"
            onclick="${(typeof isDeleteMode !== 'undefined' && isDeleteMode) ? '' : `selectFriend('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${safeAvatar(f.avatar)}')`}">
         <input type="checkbox" class="friend-checkbox" 
                onclick="event.stopPropagation(); toggleFriendSelection('${f.userId}', this)"
                ${(typeof selectedForDelete !== 'undefined' && selectedForDelete && selectedForDelete.has(f.userId)) ? 'checked' : ''}>
         <img src="${f.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'}" 
              onerror="this.src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect fill="%23ddd" width="50" height="50"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="24"%3E%26%2335809%3B%3C/text%3E%3C/svg%3E'" 
-             alt="${f.displayName || 'User'}">
+             alt="${f.displayName || 'User'}"
+             onclick="event.stopPropagation(); showFriendDetailsModal('${f.userId}', '${escapeJs(f.displayName || 'Người dùng Zalo')}', '${safeAvatar(f.avatar)}', ${f.isStranger ? 'true' : 'false'})"
+             style="cursor:pointer;"
+             class="friend-avatar-img">
         <div class="info" style="flex:1; overflow:hidden; min-width:0;">
-          <div class="name-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:6px; overflow:hidden; flex:1; min-width:0;">
-              <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; display:inline-block;">
-                ${escapeHtml(f.displayName || 'Người dùng Zalo')}
-              </span>
-              ${f.isStranger ? '<span style="display:inline-block; font-size:10px; background:#ff9800; color:white; padding:2px 8px; border-radius:10px; font-weight:500; white-space:nowrap; flex-shrink:0;">👤 Người lạ</span>' : ''}
-            </div>
-            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
-              ${unreadBadge}
-              <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${f.userId}', '${escapeJs(f.displayName || 'User')}')" title="Xóa hội thoại">🗑️</button>
-            </div>
-          </div>
-          <div class="preview-row" style="display:flex; justify-content:space-between;">
-             <div class="preview" style="flex:1; ${isUnread ? 'font-weight:600; color:#0068FF;' : ''}">${preview}</div>
-             ${timeStr ? `<div class="time-tiny" style="font-size:10px; color:#888;">${timeStr}</div>` : ''}
+          <div class="name-row" style="display:flex; align-items:center; gap:6px;">
+            <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; display:inline-block;">
+              ${escapeHtml(f.displayName || 'Người dùng Zalo')}
+            </span>
+            ${f.isStranger ? '<span style="display:inline-block; font-size:10px; background:#ff9800; color:white; padding:2px 8px; border-radius:10px; font-weight:500; white-space:nowrap; flex-shrink:0;">👤 Người lạ</span>' : ''}
+            ${f.tag ? `<span class="friend-tag-badge" style="display:inline-block; font-size:10px; background:#2ec4b6; color:white; padding:2px 8px; border-radius:10px; font-weight:500; white-space:nowrap; flex-shrink:0; max-width:80px; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(f.tag)}">${escapeHtml(f.tag)}</span>` : ''}
           </div>
         </div>
       </div>
@@ -234,8 +456,34 @@ async function deleteConversationFromIndexedDB(uid) {
 }
 
 async function selectFriend(userId, displayName, avatar) {
+  // ✅ Reload optimization: if friend is already selected, do not reload
+  if (typeof selectedFriend !== 'undefined' && selectedFriend && selectedFriend.userId === userId) {
+    console.log(`ℹ️ Already chatting with friend ${userId}. Skipping reload.`);
+    if (typeof currentMainTab !== 'undefined' && currentMainTab !== 'chats') {
+      if (typeof switchMainSidebarTab === 'function') {
+        switchMainSidebarTab('chats');
+      }
+    }
+    return;
+  }
+
   selectedFriend = { userId, displayName, avatar };
   console.log(`🔵 selectFriend called for: ${userId}`);
+
+  // ✅ Save to lastChatWith
+  localStorage.setItem('lastChatWith', JSON.stringify({
+    userId: userId,
+    displayName: displayName,
+    avatar: avatar,
+    isGroup: false,
+    timestamp: Date.now()
+  }));
+
+  if (typeof currentMainTab !== 'undefined' && currentMainTab !== 'chats') {
+    if (typeof switchMainSidebarTab === 'function') {
+      switchMainSidebarTab('chats');
+    }
+  }
 
   document.querySelectorAll('.friend-item').forEach(el => el.classList.remove('active'));
 
@@ -247,12 +495,12 @@ async function selectFriend(userId, displayName, avatar) {
     console.log(`✅ Marked conversation as read: ${userId} (had ${count} unread messages)`);
     console.log(`📊 Remaining unread conversations:`, Array.from(window.unreadConversations.keys()));
 
-    // Trigger re-render of friend list to update UI
-    if (typeof renderFriendsVirtual === 'function') {
-      console.log('🔄 Triggering renderFriendsVirtual...');
-      renderFriendsVirtual();
+    // Trigger re-render of sidebar lists to update UI
+    if (typeof refreshSidebarLists === 'function') {
+      console.log('🔄 Triggering refreshSidebarLists...');
+      refreshSidebarLists();
     } else {
-      console.warn('⚠️ renderFriendsVirtual not found!');
+      console.warn('⚠️ refreshSidebarLists not found!');
     }
   } else {
     console.log(`ℹ️ No unread messages for ${userId}`);
@@ -290,23 +538,36 @@ async function selectFriend(userId, displayName, avatar) {
   document.getElementById('chatName').textContent = displayName || 'Người dùng Zalo';
   document.getElementById('chatUid').textContent = 'UID: ' + userId;
 
+  // Set initial status to loading
+  const statusEl = document.querySelector('#chatHeader .status');
+  if (statusEl) {
+    statusEl.textContent = 'Đang tải trạng thái hoạt động...';
+    statusEl.style.color = '#666';
+  }
+  selectedFriend.lastOnlineText = 'Đang tải trạng thái hoạt động...';
+
   // ✅ Sync Header Toggle state
   const headerToggle = document.getElementById('headerAutoReplyToggle');
   if (headerToggle) {
     headerToggle.checked = !autoReplyBlacklist.has(userId);
   }
 
-  // ✅ Add delete conversation button with unique icon
+  // ✅ Add delete conversation button with text-only and rounded border
   const chatHeader = document.getElementById('chatHeader');
   let deleteBtn = document.getElementById('deleteConvBtn');
   if (!deleteBtn) {
     deleteBtn = document.createElement('button');
     deleteBtn.id = 'deleteConvBtn';
     deleteBtn.className = 'delete-conv-btn';
-    deleteBtn.innerHTML = '🧹'; // Changed from 🗑️ to avoid duplication
+    deleteBtn.innerHTML = 'Xóa lịch sử';
     deleteBtn.title = 'Xóa toàn bộ lịch sử chat';
-    deleteBtn.style.cssText = 'background:#ff4757; color:white; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; margin-left:auto;';
-    chatHeader.appendChild(deleteBtn);
+    deleteBtn.style.cssText = 'background:#ff4757; color:white; border:none; border-radius:20px; padding:8px 16px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; box-shadow:0 2px 4px rgba(255,71,87,0.2);';
+    const chatActions = chatHeader.querySelector('.chat-actions');
+    if (chatActions) {
+      chatActions.appendChild(deleteBtn);
+    } else {
+      chatHeader.appendChild(deleteBtn);
+    }
   }
   // Update onclick to current user
   deleteBtn.onclick = () => deleteConversation(userId);
@@ -324,6 +585,12 @@ async function selectFriend(userId, displayName, avatar) {
     type: 'get_conversation_history',
     threadId: userId,
     limit: 100
+  }));
+
+  // ✅ Request last online status
+  ws.send(JSON.stringify({
+    type: 'get_last_online',
+    uid: userId
   }));
 
   // Show cached messages immediately while waiting for server response
@@ -358,7 +625,11 @@ async function deleteConversation(userId) {
     currentMessages = [];
     renderMessages();
     messageStore.delete(userId);
-    renderFriendsVirtual();
+    if (typeof refreshSidebarLists === 'function') {
+      refreshSidebarLists();
+    } else if (typeof renderFriendsVirtual === 'function') {
+      renderFriendsVirtual();
+    }
 
     // Clear chat header
     document.getElementById('chatHeader').style.display = 'none';
@@ -593,6 +864,35 @@ function escapeHtml(text) {
 
 function escapeJs(str) {
   return (str || '').replace(/'/g, "\\'");
+}
+
+function formatLastOnline(lastOnline) {
+  if (!lastOnline) return 'Không rõ hoạt động';
+  
+  // Convert to milliseconds if it is in seconds
+  let ts = lastOnline;
+  if (ts < 10000000000) { // less than 10 billion, it's seconds
+    ts *= 1000;
+  }
+  
+  const now = Date.now();
+  const diff = now - ts;
+  
+  if (diff < 0) return 'Vừa truy cập';
+  
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Vừa truy cập';
+  if (mins < 60) return `Vừa truy cập ${mins} phút trước`;
+  
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Truy cập ${hours} giờ trước`;
+  
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Truy cập hôm qua';
+  if (days < 7) return `Truy cập ${days} ngày trước`;
+  
+  const date = new Date(ts);
+  return `Truy cập ngày ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 }
 
 function sendMessage() {
@@ -1061,7 +1361,7 @@ async function deleteChat(uid, name) {
       if (msgContainer) msgContainer.innerHTML = '<div class="empty-state">Đoạn hội thoại đã bị xóa</div>';
     }
 
-    if (typeof renderFriendsVirtual === 'function') renderFriendsVirtual();
+    if (typeof refreshSidebarLists === 'function') refreshSidebarLists();
   }
 }
 window.deleteChat = deleteChat;
@@ -1138,8 +1438,13 @@ function updateChatHeaderTyping(isTyping) {
       statusEl.style.color = '#0068ff';
       statusEl.style.display = 'block';
     } else {
-      statusEl.textContent = 'Đang hoạt động';
-      statusEl.style.color = '#666';
+      const lastOnlineText = (selectedFriend && selectedFriend.lastOnlineText) || 'Đang hoạt động';
+      statusEl.textContent = lastOnlineText;
+      if (lastOnlineText === 'Vừa truy cập') {
+        statusEl.style.color = '#2ecc71';
+      } else {
+        statusEl.style.color = '#666';
+      }
     }
   }
 }
@@ -1150,12 +1455,48 @@ window.hideTypingIndicator = hideTypingIndicator;
 // ============================================
 // WEBSOCKET HANDLER FOR CONVERSATION HISTORY
 // ============================================
-if (typeof ws !== 'undefined' && ws) {
+window.setupLoadDataWebSocket = function () {
+  if (typeof ws === 'undefined' || !ws) {
+    console.warn('⚠️ WebSocket not ready for load_data handler');
+    return false;
+  }
+
+  console.log('✅ Registering load_data WebSocket handler');
   const originalOnMessage = ws.onmessage;
 
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
+
+      // Handle last_online_response
+      if (data.type === 'last_online_response') {
+        if (selectedFriend && selectedFriend.userId === data.uid) {
+          const statusEl = document.querySelector('#chatHeader .status');
+          if (statusEl) {
+            if (data.error) {
+              statusEl.textContent = 'Không rõ hoạt động';
+              statusEl.style.color = '#888';
+              selectedFriend.lastOnlineText = 'Không rõ hoạt động';
+            } else if (data.data) {
+              const { settings, lastOnline } = data.data;
+              if (settings && settings.show_online_status === false) {
+                statusEl.textContent = 'Trạng thái ẩn';
+                statusEl.style.color = '#888';
+                selectedFriend.lastOnlineText = 'Trạng thái ẩn';
+              } else {
+                const text = formatLastOnline(lastOnline);
+                statusEl.textContent = text;
+                selectedFriend.lastOnlineText = text;
+                if (text === 'Vừa truy cập') {
+                  statusEl.style.color = '#2ecc71';
+                } else {
+                  statusEl.style.color = '#666';
+                }
+              }
+            }
+          }
+        }
+      }
 
       // Handle conversation_history response
       if (data.type === 'conversation_history') {
@@ -1202,12 +1543,6 @@ if (typeof ws !== 'undefined' && ws) {
           if (friendIndex > -1) {
             const friend = filteredFriends.splice(friendIndex, 1)[0];
             filteredFriends.unshift(friend);
-
-            // Re-render friends list to show new order
-            if (typeof renderFriendsVirtual === 'function') {
-              renderFriendsVirtual();
-              console.log(`✅ Moved conversation ${data.uid} to top`);
-            }
           }
         }
 
@@ -1216,6 +1551,10 @@ if (typeof ws !== 'undefined' && ws) {
           const msgData = messageStore.get(data.uid);
           msgData.lastMessage = data.lastMessage;
           msgData.timestamp = data.timestamp;
+        }
+
+        if (typeof refreshSidebarLists === 'function') {
+          refreshSidebarLists();
         }
       }
 
@@ -1230,9 +1569,11 @@ if (typeof ws !== 'undefined' && ws) {
             filteredFriends.splice(friendIndex, 1);
 
             // Re-render to update UI
-            if (typeof renderFriendsVirtual === 'function') {
-              renderFriendsVirtual();
+            if (typeof refreshSidebarLists === 'function') {
+              refreshSidebarLists();
               console.log(`✅ Removed conversation ${data.uid} from UI`);
+            } else if (typeof renderFriendsVirtual === 'function') {
+              renderFriendsVirtual();
             }
           }
         }
@@ -1292,7 +1633,29 @@ if (typeof ws !== 'undefined' && ws) {
       originalOnMessage.call(ws, event);
     }
   };
-}
+
+  console.log('✅ load_data WebSocket handler registered successfully');
+  return true;
+};
+
+// Auto-setup when ws becomes available
+(function () {
+  let setupAttempts = 0;
+  const maxAttempts = 20; // 10 seconds max
+  const setupInterval = setInterval(() => {
+    setupAttempts++;
+
+    if (typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN) {
+      if (window.setupLoadDataWebSocket()) {
+        clearInterval(setupInterval);
+        console.log('🎉 load_data WebSocket handler active');
+      }
+    } else if (setupAttempts >= maxAttempts) {
+      console.warn('⚠️ Failed to setup load_data WebSocket handler after 10s');
+      clearInterval(setupInterval);
+    }
+  }, 500);
+})();
 
 // ==========================================
 // ✅ STRANGER INFO HANDLER (Integrated)
@@ -1348,9 +1711,11 @@ if (typeof ws !== 'undefined' && ws) {
       }
     }
 
-    // Re-render friends list
-    if (typeof renderFriendsVirtual === 'function') {
-      console.log('🔄 Re-rendering friends list...');
+    // Re-render sidebar lists
+    if (typeof refreshSidebarLists === 'function') {
+      console.log('🔄 Re-rendering sidebar lists...');
+      refreshSidebarLists();
+    } else if (typeof renderFriendsVirtual === 'function') {
       renderFriendsVirtual();
     } else {
       console.warn('⚠️ renderFriendsVirtual function not found');

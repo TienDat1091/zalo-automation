@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Easy Zalo - Đăng nhập</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body class="login-page">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="logo">🤖</div>
+        <h1>Easy Zalo</h1>
+        <p class="subtitle">Ứng dụng Zalo Desktop</p>
+      </div>
+
+      <div class="qr-section">
+        <div class="qr-wrapper">
+          <img id="qrCode" src="/qr.png?t=0" alt="QR Code">
+          <div class="qr-overlay" id="qrOverlay" style="display:none;">
+            <div class="spinner"></div>
+            <span>Đang xử lý...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-section">
+        <div class="status-indicator" id="wsStatus">
+          <span class="dot disconnected"></span>
+          <span id="statusText">Đang kết nối...</span>
+        </div>
+      </div>
+
+      <div class="instructions">
+        <h3>📱 Hướng dẫn đăng nhập</h3>
+        <ol>
+          <li>Mở ứng dụng <strong>Zalo</strong> trên điện thoại</li>
+          <li>Chọn <strong>Cài đặt</strong> → <strong>Thiết bị đã đăng nhập</strong></li>
+          <li>Nhấn <strong>Đăng nhập thiết bị mới</strong></li>
+          <li>Quét mã QR trên màn hình</li>
+        </ol>
+      </div>
+
+      <div class="login-footer">
+        <small>Easy Zalo v1.0 • Kết nối với Web Server: <span id="serverUrl">localhost:3000</span></small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    const qrImg = document.getElementById('qrCode');
+    const statusText = document.getElementById('statusText');
+    const wsStatus = document.getElementById('wsStatus');
+    const dot = wsStatus.querySelector('.dot');
+    let qrInterval;
+
+    socket.on('connect', () => {
+      console.log('✅ Connected to Easy Zalo server');
+    });
+
+    socket.on('ws_status', (data) => {
+      if (data.connected) {
+        dot.className = 'dot connected';
+        statusText.textContent = 'Đã kết nối web server • Chờ quét mã QR...';
+        // Start QR refresh
+        if (!qrInterval) {
+          qrInterval = setInterval(() => {
+            qrImg.src = '/qr.png?t=' + Date.now();
+          }, 3000);
+        }
+      } else {
+        dot.className = 'dot disconnected';
+        statusText.textContent = 'Chưa kết nối web server. Hãy chạy: node docs/server.js';
+        clearInterval(qrInterval);
+        qrInterval = null;
+      }
+    });
+
+    socket.on('current_user', (data) => {
+      if (data.user) {
+        statusText.textContent = '✅ Đã đăng nhập! Đang chuyển hướng...';
+        dot.className = 'dot connected';
+        clearInterval(qrInterval);
+
+        const overlay = document.getElementById('qrOverlay');
+        overlay.style.display = 'flex';
+
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 500);
+      }
+    });
+
+    socket.on('session_info', (data) => {
+      if (!data.isLoggedIn) {
+        statusText.textContent = 'Chờ đăng nhập Zalo...';
+      }
+    });
+
+    // QR load error handler
+    qrImg.onerror = () => {
+      setTimeout(() => {
+        qrImg.src = '/qr.png?t=' + Date.now();
+      }, 2000);
+    };
+
+    // Check session on load
+    fetch('/api/session-status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.isLoggedIn) {
+          window.location.href = '/dashboard';
+        }
+      });
+  </script>
+</body>
+</html>

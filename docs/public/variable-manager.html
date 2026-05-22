@@ -319,7 +319,7 @@
 
             if (selected.length === 0) return;
 
-            if (!confirm(`Bạn có chắc muốn xóa ${selected.length} biến đã chọn?`)) return;
+            if (!await confirm(`Bạn có chắc muốn xóa ${selected.length} biến đã chọn?`)) return;
 
             ws.send(JSON.stringify({
                 type: 'delete_variables',
@@ -327,8 +327,8 @@
             }));
         }
 
-        function deleteVar(name, convID) {
-            if (!confirm('Xóa biến {' + name + '}?')) return;
+        async function deleteVar(name, convID) {
+            if (!await confirm('Xóa biến {' + name + '}?')) return;
             ws.send(JSON.stringify({ type: 'delete_variable', variableName: name, conversationID: convID }));
         }
 

@@ -1,29 +1,48 @@
-// ✅ SORT FRIENDS BY LAST MESSAGE TIMESTAMP AFTER LOAD
+// ✅ SORT FRIENDS ALPHABETICALLY AND LOAD RECENT CHATS AFTER INITIAL LOAD
 function sortFriendsAfterLoad() {
-    console.log(`🔄 Sorting friends by last message timestamp`);
+    console.log(`🔄 Sorting friends alphabetically (A-Z) and refreshing chats...`);
     
-    filteredFriends.sort((a, b) => {
-      const aTime = messageStore.get(a.userId)?.timestamp || 0;
-      const bTime = messageStore.get(b.userId)?.timestamp || 0;
-      return bTime - aTime; // Newest first
-    });
-    console.log(`✅ Friends sorted. Top: ${filteredFriends[0]?.displayName}`);
-    renderFriendsVirtual();
+    // Sort friends array (Contacts list) A-Z using Vietnamese locale rules
+    if (typeof friends !== 'undefined' && friends && friends.length > 0) {
+      friends.sort((a, b) => {
+        const nameA = (a.displayName || a.zaloName || '').toLowerCase();
+        const nameB = (b.displayName || b.zaloName || '').toLowerCase();
+        return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+      });
+      filteredFriends = [...friends];
+    }
     
-    // ✅ Auto-select last chat
+    // Render/refresh both Chats and Contacts
+    if (typeof refreshSidebarLists === 'function') {
+      refreshSidebarLists();
+    }
+    
+    // ✅ Auto-select last chat from localStorage
     const lastChat = localStorage.getItem('lastChatWith');
     if (lastChat) {
       try {
-        const { userId } = JSON.parse(lastChat);
-        const lastFriend = filteredFriends.find(f => f.userId === userId);
-        if (lastFriend) {
-          console.log(`📂 Auto-selecting last chat: ${lastFriend.displayName}`);
-          setTimeout(() => {
-            selectFriend(lastFriend.userId, lastFriend.displayName, lastFriend.avatar);
-          }, 300);
+        const { userId, displayName, avatar, isGroup } = JSON.parse(lastChat);
+        
+        // Find if this is a group or friend to select it properly
+        if (isGroup) {
+          if (typeof selectGroup === 'function') {
+            console.log(`📂 Auto-selecting last group chat: ${displayName}`);
+            setTimeout(() => {
+              selectGroup(userId, displayName, avatar);
+            }, 300);
+          }
+        } else {
+          // It could be a stranger or a friend
+          if (typeof selectFriend === 'function') {
+            console.log(`📂 Auto-selecting last private chat: ${displayName}`);
+            setTimeout(() => {
+              selectFriend(userId, displayName, avatar);
+            }, 300);
+          }
         }
       } catch (e) {
-        console.warn('⚠️ Failed to parse lastChatWith');
+        console.warn('⚠️ Failed to parse lastChatWith', e);
       }
     }
-  }
+}
+window.sortFriendsAfterLoad = sortFriendsAfterLoad;

@@ -681,7 +681,7 @@
   }
 
   window.deleteBlock = function (blockId) {
-    if (!confirm('Xóa block này?')) return;
+    if (!showConfirm('Xóa block này?')) return;
 
     var index = state.blocks.findIndex(function (b) { return b.blockID === blockId; });
     if (index === -1) return;

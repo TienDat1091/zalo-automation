@@ -60,10 +60,10 @@
         if (currentBlock && currentBlock.type === 'payment-hub') {
           window.FlowBuilder.showBlockProperties(currentBlock);
         }
-        alert('✅ Đã tải lại danh sách cổng thanh toán!');
+        showAlert('✅ Đã tải lại danh sách cổng thanh toán!');
       });
     } else {
-      alert('⚠️ Không thể tải lại. Vui lòng refresh trang.');
+      showAlert('⚠️ Không thể tải lại. Vui lòng refresh trang.');
     }
   };
 

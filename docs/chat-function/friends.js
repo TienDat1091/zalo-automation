@@ -1,4 +1,6 @@
 // friends.js - FIX LỖI SYNTAX + LOAD FULL BẠN BÈ 2025 (test OK 2.5k+ friends)
+const triggerDB = require('../triggerDB');
+
 async function loadFriends(apiState, ws, force = false) {
   if (!apiState?.api || !apiState?.isLoggedIn) {
     return ws.send(JSON.stringify({
@@ -66,15 +68,22 @@ async function loadFriends(apiState, ws, force = false) {
     }
 
     // Chuẩn hóa data
+    const myUid = apiState.currentUser?.uid || 'system';
+    const marksMap = triggerDB.getAllFriendMarks(myUid) || {};
+
     const friends = rawFriends
-      .map(user => ({
-        userId: String(user.userId || user.uid || user.id || '').trim(),
-        displayName: (user.displayName || user.name || user.fullName || 'Người dùng Zalo').trim(),
-        avatar: user.avatar ||
-          user.avatarUrl ||
-          user.picture ||
-          `https://graph.zalo.me/v2.0/avatar?user_id=${user.userId || user.uid || user.id}&width=120&height=120`
-      }))
+      .map(user => {
+        const uId = String(user.userId || user.uid || user.id || '').trim();
+        return {
+          userId: uId,
+          displayName: (user.displayName || user.name || user.fullName || 'Người dùng Zalo').trim(),
+          avatar: user.avatar ||
+            user.avatarUrl ||
+            user.picture ||
+            `https://graph.zalo.me/v2.0/avatar?user_id=${uId}&width=120&height=120`,
+          tag: marksMap[uId] || ''
+        };
+      })
       .filter(f => f.userId && f.userId.length > 5 && !f.userId.startsWith('0'));
 
     if (friends.length === 0) {

@@ -678,8 +678,8 @@
       renderActivities();
     }
     
-    function clearAllActivities() {
-      if (confirm('Xóa tất cả lịch sử?')) {
+    async function clearAllActivities() {
+      if (await confirm('Xóa tất cả lịch sử?')) {
         activities = [];
         renderActivities();
         updateCounts();

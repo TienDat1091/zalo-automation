@@ -9,10 +9,9 @@ google-oauth-*.json
 client_secret_*.json
 
 # Database files
-data/
-data/triggers.db
-data/triggers.db-wal
-data/triggers.db-shm
+data/*
+!data/triggers.db
+!data/backup.json
 
 # Node modules
 node_modules/

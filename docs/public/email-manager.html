@@ -216,6 +216,209 @@
       margin-top: 24px;
       justify-content: flex-end;
     }
+
+    /* ========== DARK MODE SUPPORT ========== */
+    body.dark-mode {
+      background: #0b1220;
+      color: #e8eef8;
+    }
+
+    body.dark-mode .header {
+      background: linear-gradient(135deg, #4a5a8a 0%, #584a8a 100%);
+      color: #f8fafc;
+      border-bottom: 1px solid #1e2d4a;
+    }
+
+    body.dark-mode h1,
+    body.dark-mode p {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .tabs {
+      border-bottom-color: #1e2d4a;
+    }
+
+    body.dark-mode .tab {
+      background: transparent;
+      color: #9eb0ca;
+      border-bottom-color: transparent;
+    }
+
+    body.dark-mode .tab:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .tab.active {
+      color: #5aa2ff;
+      border-bottom-color: #5aa2ff;
+    }
+
+    body.dark-mode .card {
+      background: #111b2d;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      color: #cbd5e1;
+      border: 1px solid #1e2d4a;
+    }
+
+    body.dark-mode .card h2 {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .btn-primary {
+      background: #5aa2ff;
+      color: #0b1220;
+    }
+
+    body.dark-mode .btn-primary:hover {
+      background: #6bb0ff;
+      box-shadow: 0 4px 12px rgba(90, 162, 255, 0.4);
+    }
+
+    body.dark-mode .btn-danger {
+      background: #ff6b6b;
+      color: #0b1220;
+    }
+
+    body.dark-mode .btn-secondary {
+      background: #22314c;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .btn-secondary:hover {
+      background: #2d3f60;
+      color: #f8fafc;
+    }
+
+    body.dark-mode table {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode thead {
+      background: #172338;
+      color: #9eb0ca;
+    }
+
+    body.dark-mode th {
+      color: #9eb0ca;
+      border-bottom-color: #1e2d4a;
+    }
+
+    body.dark-mode td {
+      border-bottom-color: #1e2d4a;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode tr:hover {
+      background: #172338;
+    }
+
+    body.dark-mode .form-group {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode label {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode input,
+    body.dark-mode textarea,
+    body.dark-mode select {
+      background: #172338;
+      border: 1px solid #22314c;
+      color: #f8fafc;
+    }
+
+    body.dark-mode input:focus,
+    body.dark-mode textarea:focus,
+    body.dark-mode select:focus {
+      outline: none;
+      border-color: #5aa2ff;
+      box-shadow: 0 0 0 3px rgba(90, 162, 255, 0.1);
+    }
+
+    body.dark-mode input::placeholder,
+    body.dark-mode textarea::placeholder {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .status-badge {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .status-active {
+      background: #1a472a;
+      color: #60d960;
+    }
+
+    body.dark-mode .status-inactive {
+      background: #472a1a;
+      color: #ff8a6b;
+    }
+
+    body.dark-mode .empty-state {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .empty-state-icon {
+      color: #5aa2ff;
+    }
+
+    body.dark-mode .modal {
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    body.dark-mode .modal-content {
+      background: #111b2d;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      color: #cbd5e1;
+      border: 1px solid #1e2d4a;
+    }
+
+    body.dark-mode .modal-header {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-footer {
+      background: #172338;
+      border-top: 1px solid #1e2d4a;
+    }
+
+    body.dark-mode a {
+      color: #5aa2ff;
+    }
+
+    body.dark-mode a:hover {
+      color: #6bb0ff;
+    }
+
+    body.dark-mode code {
+      background: #172338;
+      color: #5aa2ff;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    body.dark-mode [style*="background: #e8f5e9"] {
+      background: #1a472a !important;
+    }
+
+    body.dark-mode [style*="color: #2e7d32"] {
+      color: #60d960 !important;
+    }
+
+    body.dark-mode [style*="background: #fff3e0"] {
+      background: #3d2a1a !important;
+      border-left-color: #ff8a6b !important;
+    }
+
+    body.dark-mode [style*="color: #e65100"] {
+      color: #ffb366 !important;
+    }
+
+    body.dark-mode [style*="color: #1976D2"] {
+      color: #5aa2ff !important;
+    }
   </style>
 </head>
 <body>
@@ -437,12 +640,12 @@
             // Redirect to Google OAuth consent screen
             window.location.href = data.authUrl;
           } else {
-            alert('❌ Lỗi: ' + (data.error || 'Không thể tạo OAuth URL'));
+            showAlert('❌ Lỗi: ' + (data.error || 'Không thể tạo OAuth URL'));
             document.getElementById('oauthLoadingState').style.display = 'none';
           }
         })
         .catch(e => {
-          alert('❌ Lỗi kết nối: ' + e.message);
+          showAlert('❌ Lỗi kết nối: ' + e.message);
           document.getElementById('oauthLoadingState').style.display = 'none';
         });
     }
@@ -454,7 +657,7 @@
       const email = params.get('email');
 
       if (success === '1' && email) {
-        alert('✅ Liên kết thành công! Email: ' + email);
+        showAlert('✅ Liên kết thành công! Email: ' + email);
         // Clear the URL
         window.history.replaceState({}, document.title, '/email-manager.html');
         // Refresh senders list
@@ -465,7 +668,7 @@
     }
     
     function saveSender() {
-      alert('❌ Vui lòng dùng nút "Liên kết với Google" để xác thực tài khoản');
+      showAlert('❌ Vui lòng dùng nút "Liên kết với Google" để xác thực tài khoản');
     }
     
     function saveRecipient() {
@@ -474,7 +677,7 @@
       const company = document.getElementById('recipientCompany').value;
       
       if (!email || !name) {
-        alert('❌ Vui lòng nhập email và tên');
+        showAlert('❌ Vui lòng nhập email và tên');
         return;
       }
       
@@ -486,17 +689,17 @@
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          alert('✅ Thêm người nhận thành công');
+          showAlert('✅ Thêm người nhận thành công');
           closeModal('addRecipientModal');
           document.getElementById('recipientEmail').value = '';
           document.getElementById('recipientName').value = '';
           document.getElementById('recipientCompany').value = '';
           refreshRecipients();
         } else {
-          alert('❌ Lỗi: ' + data.error);
+          showAlert('❌ Lỗi: ' + data.error);
         }
       })
-      .catch(e => alert('❌ Lỗi: ' + e.message));
+      .catch(e => showAlert('❌ Lỗi: ' + e.message));
     }
     
     function refreshSenders() {
@@ -582,8 +785,8 @@
         .catch(e => console.error('Error:', e));
     }
     
-    function deleteSender(id) {
-      if (!confirm('Xóa tài khoản này?')) return;
+    async function deleteSender(id) {
+      if (!await showConfirm('Xóa tài khoản này?')) return;
       fetch(API_BASE + '/senders/' + id, { method: 'DELETE' })
         .then(r => r.json())
         .then(data => {
@@ -591,8 +794,8 @@
         });
     }
     
-    function deleteRecipient(id) {
-      if (!confirm('Xóa người nhận này?')) return;
+    async function deleteRecipient(id) {
+      if (!await showConfirm('Xóa người nhận này?')) return;
       fetch(API_BASE + '/recipients/' + id, { method: 'DELETE' })
         .then(r => r.json())
         .then(data => {
@@ -601,7 +804,7 @@
     }
     
     function viewLogDetail(id) {
-      alert('Chi tiết log #' + id);
+      showAlert('Chi tiết log #' + id);
     }
     
     // =====================================================
@@ -641,12 +844,12 @@
       const file = fileInput.files[0];
 
       if (!file) {
-        alert('Vui lòng chọn file JSON');
+        showAlert('Vui lòng chọn file JSON');
         return;
       }
 
       if (!file.name.endsWith('.json')) {
-        alert('File phải có đuôi .json');
+        showAlert('File phải có đuôi .json');
         return;
       }
 
@@ -665,18 +868,18 @@
           .then(r => r.json())
           .then(data => {
             if (data.success) {
-              alert('Upload thành công! Credentials đã được cấu hình.');
+              showAlert('Upload thành công! Credentials đã được cấu hình.');
               checkCredentialsStatus();
               fileInput.value = '';
             } else {
-              alert('Lỗi: ' + (data.error || 'Unknown error'));
+              showAlert('Lỗi: ' + (data.error || 'Unknown error'));
             }
           })
           .catch(err => {
-            alert('Lỗi upload: ' + err.message);
+            showAlert('Lỗi upload: ' + err.message);
           });
         } catch (parseErr) {
-          alert('File JSON không hợp lệ: ' + parseErr.message);
+          showAlert('File JSON không hợp lệ: ' + parseErr.message);
         }
       };
       reader.readAsText(file);
@@ -688,5 +891,6 @@
     refreshSenders();
     refreshRecipients();
   </script>
+  <script src="/assets/custom-dialog.js"></script>
 </body>
 </html>

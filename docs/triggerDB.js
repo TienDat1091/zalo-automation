@@ -3145,6 +3145,20 @@ module.exports = {
     } catch (e) { console.error('❌ Get blacklist error:', e.message); return []; }
   },
 
+  getAllFriendMarks(userId) {
+    try {
+      const rows = db.prepare("SELECT targetId, settingValue FROM user_settings WHERE userId = ? AND settingKey = 'friend_mark'").all(userId);
+      const map = {};
+      for (const row of rows) {
+        map[row.targetId] = row.settingValue;
+      }
+      return map;
+    } catch (e) {
+      console.error('❌ Get all friend marks error:', e.message);
+      return {};
+    }
+  },
+
   // ========================================
   // ACTIVITY LOGS (New Implementation)
   // ========================================

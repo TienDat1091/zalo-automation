@@ -528,9 +528,1028 @@ input:checked+.uh-toggle-slider:before {
         padding: 8px;
     }
 
+    transition: all 0.2s;
+    color: #444;
+}
+
+.uh-menu-item:hover {
+    background: #f5f7fa;
+    color: #1e3a5f;
+}
+
+.uh-menu-item .icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+.uh-menu-divider {
+    height: 1px;
+    background: #eee;
+    margin: 4px 0;
+}
+
+.uh-menu-item.logout {
+    color: #ff5252;
+}
+
+.uh-menu-item.logout:hover {
+    background: #fff5f5;
+}
+
+.uh-dropdown-menu.show {
+    display: flex;
+}
+
+.uh-dropdown-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.uh-dropdown-body {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.uh-notification-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 13px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.uh-notification-item:hover {
+    background: #f9f9f9;
+}
+
+.uh-notification-icon {
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.uh-notification-content {
+    flex: 1;
+}
+
+.uh-notification-time {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+}
+
+@keyframes uhSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Unified Confirmation Modal */
+.uh-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+}
+
+.uh-confirm-overlay.show {
+    display: flex;
+    opacity: 1;
+}
+
+.uh-confirm-modal {
+    background: white;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: uhModalPopup 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes uhModalPopup {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.uh-confirm-header {
+    padding: 20px 24px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e3a5f;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.uh-confirm-body {
+    padding: 24px;
+    font-size: 15px;
+    color: #444;
+    line-height: 1.5;
+}
+
+.uh-confirm-footer {
+    padding: 16px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: #f9f9f9;
+}
+
+.uh-confirm-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.uh-confirm-btn.cancel {
+    background: #eee;
+    color: #666;
+}
+
+.uh-confirm-btn.cancel:hover {
+    background: #e0e0e0;
+}
+
+.uh-confirm-btn.ok {
+    background: #ff5252;
+    color: white;
+}
+
+.uh-confirm-btn.ok:hover {
+    background: #ff3838;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+
+    .uh-user-name,
+    .uh-user-uid,
+    .uh-nav-text {
+        display: none;
+    }
+
+    .uh-nav-link {
+        padding: 8px;
+    }
+
     .uh-user-profile {
         padding: 4px;
         background: transparent;
         border: none;
     }
+}
+
+/* Delete chat button (Xóa hội thoại) */
+.delete-chat-btn {
+    background: #fee2e2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.delete-chat-btn:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);
+}
+
+/* ==========================================================================
+   🌙 DARK MODE SYSTEM
+   ========================================================================== */
+
+body.dark-mode,
+html.dark-mode body {
+    --dm-bg: #0b1220;
+    --dm-bg-elevated: #101a2c;
+    --dm-bg-soft: #172338;
+    --dm-panel: #111c2f;
+    --dm-panel-2: #18253b;
+    --dm-border: #22314c;
+    --dm-border-strong: #2d4264;
+    --dm-text: #e8eef8;
+    --dm-text-muted: #9eb0ca;
+    --dm-text-soft: #7f93b2;
+    --dm-accent: #5aa2ff;
+    --dm-accent-strong: #2f7ff0;
+    --dm-accent-soft: rgba(90, 162, 255, 0.14);
+    --dm-success-soft: rgba(84, 197, 143, 0.16);
+    --dm-warning-soft: rgba(245, 158, 11, 0.16);
+    --dm-danger-soft: rgba(248, 113, 113, 0.16);
+    background:
+        radial-gradient(circle at top, rgba(53, 94, 168, 0.22), transparent 30%),
+        linear-gradient(180deg, #0d1526 0%, #0b1220 100%) !important;
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .header-spacer {
+    background: transparent !important;
+}
+
+body.dark-mode .container,
+body.dark-mode .chat-area,
+body.dark-mode .main-content,
+body.dark-mode .chat-window,
+body.dark-mode .content-area,
+body.dark-mode .main-container {
+    background: transparent !important;
+}
+
+body.dark-mode .sidebar,
+body.dark-mode .sidebar-header,
+body.dark-mode .panel,
+body.dark-mode .card,
+body.dark-mode .box,
+body.dark-mode .table-container,
+body.dark-mode .section,
+body.dark-mode .content-panel,
+body.dark-mode .header,
+body.dark-mode .auto-reply-toggle-container,
+body.dark-mode .trigger-item-compact,
+body.dark-mode .friends-selector,
+body.dark-mode .search-results,
+body.dark-mode .notification,
+body.dark-mode .notification-panel,
+body.dark-mode .fr-modal-content,
+body.dark-mode .fr-body,
+body.dark-mode .fr-header,
+body.dark-mode .fr-panel,
+body.dark-mode .requests-panel,
+body.dark-mode .auto-reply-viewer,
+body.dark-mode .overlay-panel {
+    background: linear-gradient(180deg, var(--dm-panel) 0%, var(--dm-panel-2) 100%) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28) !important;
+}
+
+body.dark-mode .chat-header,
+body.dark-mode .chat-input-area,
+body.dark-mode .chat-footer,
+body.dark-mode .input-area,
+body.dark-mode .search-box,
+body.dark-mode .friends-search-box {
+    background: rgba(15, 24, 40, 0.92) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode .messages-container,
+body.dark-mode .chat-messages {
+    background:
+        linear-gradient(180deg, rgba(13, 21, 38, 0.98) 0%, rgba(11, 18, 32, 0.96) 100%) !important;
+}
+
+body.dark-mode .message:not(.self) .bubble,
+body.dark-mode .message:not(.self) .message-content {
+    background: linear-gradient(180deg, #162234 0%, #132034 100%) !important;
+    color: var(--dm-text) !important;
+    border: 1px solid rgba(54, 78, 114, 0.45) !important;
+}
+
+body.dark-mode .message.self .bubble,
+body.dark-mode .message.self .message-content {
+    background: linear-gradient(135deg, #2a6de6 0%, #1e56bb 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 24px rgba(30, 86, 187, 0.28) !important;
+}
+
+body.dark-mode .message.auto-reply .bubble,
+body.dark-mode .message.auto-reply .message-content {
+    background: linear-gradient(135deg, #16365a 0%, #102a46 100%) !important;
+    border-left-color: #67b3ff !important;
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode select,
+body.dark-mode textarea {
+    background: rgba(12, 20, 34, 0.9) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+    color: var(--dm-text-soft) !important;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+    border-color: var(--dm-accent) !important;
+    background: rgba(18, 29, 49, 0.98) !important;
+    box-shadow: 0 0 0 3px rgba(90, 162, 255, 0.16) !important;
+}
+
+body.dark-mode .friend-item,
+body.dark-mode .group-item,
+body.dark-mode .friend-checkbox-item,
+body.dark-mode .search-result-item,
+body.dark-mode .notification-item {
+    background: transparent !important;
+    color: var(--dm-text) !important;
+    border-bottom-color: rgba(46, 66, 99, 0.7) !important;
+}
+
+body.dark-mode .friend-item:hover,
+body.dark-mode .group-item:hover,
+body.dark-mode .friend-checkbox-item:hover,
+body.dark-mode .search-result-item:hover,
+body.dark-mode .notification-item:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+body.dark-mode .friend-item.active,
+body.dark-mode .group-item.active,
+body.dark-mode .trigger-item-compact.active {
+    background: linear-gradient(90deg, rgba(90, 162, 255, 0.16) 0%, rgba(18, 37, 62, 0.95) 100%) !important;
+    border-left-color: var(--dm-accent) !important;
+    border-color: rgba(90, 162, 255, 0.3) !important;
+}
+
+body.dark-mode .friend-item.unread,
+body.dark-mode .group-item.unread {
+    background: linear-gradient(90deg, rgba(90, 162, 255, 0.14) 0%, rgba(15, 24, 40, 0.55) 100%) !important;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode .trigger-name-small,
+body.dark-mode .friend-checkbox-name,
+body.dark-mode .result-friend-name,
+body.dark-mode .result-message-sender,
+body.dark-mode .group-title,
+body.dark-mode .name {
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .preview,
+body.dark-mode .time-tiny,
+body.dark-mode .message-time,
+body.dark-mode .trigger-keywords-preview,
+body.dark-mode .trigger-time-created,
+body.dark-mode .friend-checkbox-uid,
+body.dark-mode .result-friend-uid,
+body.dark-mode .result-message-content,
+body.dark-mode .result-message-time,
+body.dark-mode .search-hint,
+body.dark-mode .search-result-detail,
+body.dark-mode .notification-item .message,
+body.dark-mode .notification-item .time {
+    color: var(--dm-text-muted) !important;
+}
+
+body.dark-mode table {
+    background: transparent !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode th {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode td {
+    border-color: rgba(46, 66, 99, 0.7) !important;
+    color: var(--dm-text-muted) !important;
+}
+
+body.dark-mode tr:hover td {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+body.dark-mode .uh-dropdown-menu,
+body.dark-mode .uh-confirm-modal {
+    background: linear-gradient(180deg, #132039 0%, #0f1930 100%) !important;
+    border: 1px solid var(--dm-border) !important;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38) !important;
+}
+
+body.dark-mode .uh-dropdown-header,
+body.dark-mode .uh-confirm-header,
+body.dark-mode .uh-confirm-footer,
+body.dark-mode .uh-menu-divider {
+    border-color: var(--dm-border) !important;
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .uh-menu-item {
+    color: var(--dm-text-muted) !important;
+}
+
+body.dark-mode .uh-menu-item:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .uh-confirm-overlay {
+    background: rgba(3, 8, 18, 0.78) !important;
+}
+
+body.dark-mode .uh-confirm-body {
+    color: var(--dm-text-muted) !important;
+}
+
+body.dark-mode .uh-confirm-btn {
+    transition: all 0.2s;
+}
+
+body.dark-mode .uh-confirm-btn.cancel {
+    background: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .uh-confirm-btn.cancel:hover {
+    background: #475569 !important;
+    color: #f8fafc !important;
+}
+
+body.dark-mode .uh-confirm-btn.ok {
+    background: #ff5252 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .uh-confirm-btn.ok:hover {
+    background: #ff3838 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .attachment-preview {
+    background: linear-gradient(180deg, #162338 0%, #121c30 100%) !important;
+    border-color: rgba(62, 88, 129, 0.6) !important;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.36) !important;
+}
+
+body.dark-mode .attachment-preview .file-name,
+body.dark-mode .notification-item .name {
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .attachment-preview .file-path,
+body.dark-mode .notification-empty,
+body.dark-mode .search-empty {
+    color: var(--dm-text-muted) !important;
+}
+
+/* Dashboard nav buttons dark mode */
+body.dark-mode .dashboard-nav-btn.nav-stat { background: #1b3a1b; color: #66bb6a; }
+body.dark-mode .dashboard-nav-btn.nav-stat:hover { background: #2e7d32; color: white; }
+body.dark-mode .dashboard-nav-btn.nav-requests { background: rgba(90, 162, 255, 0.14); color: #8fc2ff; }
+body.dark-mode .dashboard-nav-btn.nav-requests:hover { background: #2f7ff0; color: white; }
+body.dark-mode .dashboard-nav-btn.nav-sent { background: rgba(245, 158, 11, 0.15); color: #ffc96c; }
+body.dark-mode .dashboard-nav-btn.nav-sent:hover { background: #d97706; color: white; }
+body.dark-mode .dashboard-nav-btn.nav-bot { background: rgba(34, 197, 94, 0.14); color: #86efac; }
+body.dark-mode .dashboard-nav-btn.nav-bot:hover { background: #16a34a; color: white; }
+
+/* Delete chat button in dark mode */
+body.dark-mode .delete-chat-btn {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #fca5a5 !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+}
+body.dark-mode .delete-chat-btn:hover {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.45) !important;
+}
+
+/* Emoji/Attach/Send buttons dark mode */
+body.dark-mode .emoji-btn,
+body.dark-mode .attach-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--dm-text-muted) !important;
+    border-color: var(--dm-border) !important;
+}
+body.dark-mode .emoji-btn:hover,
+body.dark-mode .attach-btn:hover {
+    background: rgba(255, 255, 255, 0.09) !important;
+    color: #fff !important;
+}
+
+/* Reaction picker dark */
+body.dark-mode .reaction-picker {
+    background: #1e1e1e !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.dark-mode .reaction-trigger-btn {
+    background: #2a2a2a !important;
+}
+body.dark-mode .reaction-trigger-btn:hover {
+    background: #333 !important;
+}
+
+/* Tab buttons */
+body.dark-mode .tab-btn,
+body.dark-mode .search-tab {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: var(--dm-text-muted) !important;
+    border-color: var(--dm-border) !important;
+}
+body.dark-mode .tab-btn.active,
+body.dark-mode .search-tab.active {
+    background: linear-gradient(135deg, #2f7ff0 0%, #2568cf 100%) !important;
+    color: #fff !important;
+}
+
+/* Scrollbar */
+body.dark-mode ::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: #3a3a3a;
+}
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Auto-reply toggle slider */
+body.dark-mode .ar-slider {
+    background: #2a3b59 !important;
+}
+
+/* Friend request & misc panels */
+body.dark-mode .fr-panel,
+body.dark-mode .requests-panel,
+body.dark-mode .auto-reply-viewer,
+body.dark-mode .overlay-panel {
+    background: #1a1a1a !important;
+    color: #e0e0e0 !important;
+}
+
+/* General links */
+body.dark-mode a:not(.uh-brand):not(.uh-nav-link) {
+    color: #64b5f6;
+}
+
+/* Toast/Notifications in dark */
+body.dark-mode .toast {
+    background: linear-gradient(180deg, #152238 0%, #111b2f 100%) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.34) !important;
+}
+
+/* Storage, trigger, and data manager pages */
+body.dark-mode .stat-card,
+body.dark-mode .card-container,
+body.dark-mode .top-gallery-toolbar,
+body.dark-mode .gallery-item,
+body.dark-mode .gallery-item-info,
+body.dark-mode .modal-content,
+body.dark-mode .modal-details,
+body.dark-mode .modal,
+body.dark-mode .template-card,
+body.dark-mode .file-card,
+body.dark-mode .image-card,
+body.dark-mode .spreadsheet,
+body.dark-mode .context-menu,
+body.dark-mode .preview-info,
+body.dark-mode .var-builder,
+body.dark-mode .progress-item,
+body.dark-mode .info-item,
+body.dark-mode .toolbar,
+body.dark-mode .sidebar .table-item,
+body.dark-mode .sidebar .trigger-item,
+body.dark-mode .trigger-card,
+body.dark-mode .response-box,
+body.dark-mode .keyword-chip,
+body.dark-mode .bulk-actions,
+body.dark-mode .modal-box,
+body.dark-mode .delete-modal-content,
+body.dark-mode .activity-window,
+body.dark-mode .emoji-picker-container,
+body.dark-mode .lightbox-header,
+body.dark-mode .lightbox-footer {
+    background: linear-gradient(180deg, var(--dm-panel) 0%, var(--dm-panel-2) 100%) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode .card,
+body.dark-mode .header,
+body.dark-mode .container > .header,
+body.dark-mode .content-area,
+body.dark-mode .table-container,
+body.dark-mode .main-container,
+body.dark-mode .container,
+body.dark-mode .upload-zone,
+body.dark-mode .empty-state,
+body.dark-mode .log-item,
+body.dark-mode .activity-item {
+    background: transparent !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode .modal-overlay,
+body.dark-mode .modal-backdrop,
+body.dark-mode .delete-modal {
+    background: rgba(3, 8, 18, 0.82) !important;
+}
+
+body.dark-mode .upload-zone,
+body.dark-mode .preview-content,
+body.dark-mode .spreadsheet th,
+body.dark-mode .row-num,
+body.dark-mode .add-row-btn,
+body.dark-mode .search-box input,
+body.dark-mode .filter-select,
+body.dark-mode .form-input,
+body.dark-mode .form-select,
+body.dark-mode .form-textarea,
+body.dark-mode .search-input,
+body.dark-mode .friends-search-box input,
+body.dark-mode .variables-table th,
+body.dark-mode .var-builder .var-item,
+body.dark-mode .var-item input,
+body.dark-mode .var-item select,
+body.dark-mode .template-vars,
+body.dark-mode .file-card .file-icon,
+body.dark-mode .image-card .image-preview,
+body.dark-mode .upload-note,
+body.dark-mode .mode-hint,
+body.dark-mode .selected-friends-summary {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode .data-table th,
+body.dark-mode .variables-table th,
+body.dark-mode .spreadsheet th,
+body.dark-mode .table-container th,
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer,
+body.dark-mode .sidebar-header,
+body.dark-mode .canvas-header,
+body.dark-mode .trigger-card-header,
+body.dark-mode .activity-header,
+body.dark-mode .delete-modal-actions,
+body.dark-mode .lightbox-header,
+body.dark-mode .lightbox-footer {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: var(--dm-border) !important;
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .data-table td,
+body.dark-mode .detail-row,
+body.dark-mode .log-item,
+body.dark-mode .activity-item,
+body.dark-mode .friend-checkbox-item,
+body.dark-mode .variables-table td,
+body.dark-mode .spreadsheet td,
+body.dark-mode .info-item,
+body.dark-mode .file-card .file-actions,
+body.dark-mode .image-card .image-actions {
+    border-color: rgba(46, 66, 99, 0.7) !important;
+}
+
+body.dark-mode .tab-btn,
+body.dark-mode .tab,
+body.dark-mode .btn-secondary,
+body.dark-mode .btn-outline,
+body.dark-mode .btn-white,
+body.dark-mode .action-icon,
+body.dark-mode .modal-close,
+body.dark-mode .lightbox-btn,
+body.dark-mode .bulk-actions button,
+body.dark-mode .delete-modal-cancel {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--dm-text-muted) !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode .tab-btn.active,
+body.dark-mode .tab.active,
+body.dark-mode .btn-primary,
+body.dark-mode .new-trigger-btn,
+body.dark-mode .status-badge.active,
+body.dark-mode .toggle-status.on,
+body.dark-mode .trigger-status.active,
+body.dark-mode .connection-badge.connected {
+    background: linear-gradient(135deg, #2f7ff0 0%, #2568cf 100%) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode .btn-danger,
+body.dark-mode .delete-modal-confirm,
+body.dark-mode .connection-badge.disconnected,
+body.dark-mode .status-badge.inactive {
+    background: linear-gradient(135deg, #b42318 0%, #912018 100%) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode .btn-warning {
+    background: linear-gradient(135deg, #c76f11 0%, #a95c10 100%) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode .btn-copy,
+body.dark-mode .btn-edit,
+body.dark-mode .btn-delete,
+body.dark-mode .btn-add-var,
+body.dark-mode .var-action-btn,
+body.dark-mode .select-checkbox,
+body.dark-mode .star-btn,
+body.dark-mode .file-type,
+body.dark-mode .image-dimensions,
+body.dark-mode .zoom-hint {
+    box-shadow: none !important;
+}
+
+body.dark-mode .btn-copy {
+    background: rgba(90, 162, 255, 0.14) !important;
+    color: #8fc2ff !important;
+}
+
+body.dark-mode .btn-edit,
+body.dark-mode .btn-add-var {
+    background: rgba(245, 158, 11, 0.14) !important;
+    color: #ffc96c !important;
+}
+
+body.dark-mode .btn-delete,
+body.dark-mode .var-item .btn-remove {
+    background: rgba(248, 113, 113, 0.14) !important;
+    color: #ffb4b4 !important;
+}
+
+body.dark-mode .stat-value,
+body.dark-mode .detail-value,
+body.dark-mode .modal-title,
+body.dark-mode .table-item-name,
+body.dark-mode .file-card .file-name,
+body.dark-mode .image-card .image-name,
+body.dark-mode .template-card .template-name,
+body.dark-mode .preview-info .file-details h3,
+body.dark-mode .log-title,
+body.dark-mode .activity-action,
+body.dark-mode .canvas-title h2,
+body.dark-mode .trigger-card-info h3,
+body.dark-mode .section-label,
+body.dark-mode .toolbar-label,
+body.dark-mode .header h1,
+body.dark-mode .header-title,
+body.dark-mode .modal-header h2,
+body.dark-mode .modal-header h3 {
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .stat-label,
+body.dark-mode .detail-label,
+body.dark-mode .empty-state,
+body.dark-mode .empty-state h3,
+body.dark-mode .empty-state p,
+body.dark-mode .gallery-item-sender,
+body.dark-mode .table-item-info,
+body.dark-mode .file-card .file-meta,
+body.dark-mode .image-card .image-meta,
+body.dark-mode .template-card .template-desc,
+body.dark-mode .form-hint,
+body.dark-mode .log-detail,
+body.dark-mode .log-time,
+body.dark-mode .activity-trigger,
+body.dark-mode .activity-time,
+body.dark-mode .mode-hint,
+body.dark-mode .trigger-desc,
+body.dark-mode .info-label {
+    color: var(--dm-text-muted) !important;
+}
+
+body.dark-mode .bg-blue,
+body.dark-mode .search-result-badge,
+body.dark-mode .keyword-chip,
+body.dark-mode .var-name {
+    background: rgba(90, 162, 255, 0.14) !important;
+    color: #8fc2ff !important;
+}
+
+body.dark-mode .bg-green,
+body.dark-mode .file-card .file-var,
+body.dark-mode .image-card .image-var,
+body.dark-mode .template-card .template-var-name {
+    background: rgba(34, 197, 94, 0.14) !important;
+    color: #86efac !important;
+}
+
+body.dark-mode .bg-orange {
+    background: rgba(245, 158, 11, 0.14) !important;
+    color: #ffc96c !important;
+}
+
+body.dark-mode .bg-red {
+    background: rgba(248, 113, 113, 0.14) !important;
+    color: #ffb4b4 !important;
+}
+
+body.dark-mode .context-menu-item,
+body.dark-mode .menu-item,
+body.dark-mode .emoji-item {
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .context-menu-item:hover,
+body.dark-mode .menu-item:hover,
+body.dark-mode .emoji-item:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+body.dark-mode .context-menu-divider {
+    background: rgba(46, 66, 99, 0.7) !important;
+}
+
+body.dark-mode #autoDeleteMenu,
+body.dark-mode #customConfirmModal > div,
+body.dark-mode #attachmentPreview,
+body.dark-mode #variablesModal .modal,
+body.dark-mode #autoFileModal .modal,
+body.dark-mode #aiConversationModal .modal,
+body.dark-mode #selfTriggerModal .modal-box,
+body.dark-mode #imageViewerModal .image-viewer-controls {
+    background: linear-gradient(180deg, var(--dm-panel) 0%, var(--dm-panel-2) 100%) !important;
+    color: var(--dm-text) !important;
+    border: 1px solid var(--dm-border) !important;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.36) !important;
+}
+
+body.dark-mode #autoDeleteMenu hr,
+body.dark-mode #variablesModal .modal-footer,
+body.dark-mode #selfTriggerModal .modal-header,
+body.dark-mode #selfTriggerModal .modal-footer,
+body.dark-mode #autoFileModal .modal-header,
+body.dark-mode #autoFileModal .modal-footer,
+body.dark-mode #aiConversationModal .modal-header,
+body.dark-mode #aiConversationModal .modal-footer {
+    border-color: var(--dm-border) !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+body.dark-mode #autoDeleteMenu label,
+body.dark-mode #attachmentPreview .file-name,
+body.dark-mode #customConfirmModal #confirmTitle,
+body.dark-mode #customConfirmModal #confirmMessage,
+body.dark-mode #autoFileModal [style*="color:#333"],
+body.dark-mode #aiConversationModal [style*="color:#333"] {
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode #autoDeleteMenu [style*="color:#999"],
+body.dark-mode #autoDeleteMenu [style*="color:#666"],
+body.dark-mode #variablesModal [style*="color:#666"],
+body.dark-mode #variablesModal [style*="color:#999"],
+body.dark-mode #autoFileModal [style*="color:#666"],
+body.dark-mode #autoFileModal [style*="color:#999"],
+body.dark-mode #aiConversationModal [style*="color:#666"],
+body.dark-mode #aiConversationModal [style*="color:#999"],
+body.dark-mode #selfTriggerModal [style*="color:#666"],
+body.dark-mode #selfTriggerModal [style*="color:#999"],
+body.dark-mode #triggerModal [style*="color:#666"],
+body.dark-mode #triggerModal [style*="color:#999"] {
+    color: var(--dm-text-muted) !important;
+}
+
+body.dark-mode #autoDeleteMenu input,
+body.dark-mode #variablesModal input,
+body.dark-mode #variablesModal select,
+body.dark-mode #variablesModal textarea,
+body.dark-mode #autoFileModal input,
+body.dark-mode #autoFileModal select,
+body.dark-mode #autoFileModal textarea,
+body.dark-mode #aiConversationModal input,
+body.dark-mode #aiConversationModal select,
+body.dark-mode #aiConversationModal textarea,
+body.dark-mode #selfTriggerModal input,
+body.dark-mode #selfTriggerModal select,
+body.dark-mode #selfTriggerModal textarea {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+
+body.dark-mode #customConfirmModal button,
+body.dark-mode #imageViewerModal .image-viewer-controls button,
+body.dark-mode #imageViewerModal .image-viewer-close,
+body.dark-mode #imageViewerModal .image-viewer-download {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: var(--dm-text) !important;
+    border: 1px solid var(--dm-border) !important;
+}
+
+body.dark-mode #customConfirmModal button:last-child {
+    background: linear-gradient(135deg, #b42318 0%, #912018 100%) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode #autoDeleteMenu button {
+    background: linear-gradient(135deg, #2e8b57 0%, #256f47 100%) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode #autoFileModal [style*="background:#e3f2fd"],
+body.dark-mode #aiConversationModal [style*="background:#e3f2fd"] {
+    background: rgba(47, 127, 240, 0.12) !important;
+    border-color: rgba(90, 162, 255, 0.35) !important;
+}
+
+body.dark-mode #autoFileModal code,
+body.dark-mode #aiConversationModal code {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #c7ddff !important;
+}
+
+body.dark-mode #selfTriggerModal .modal-body {
+    background: linear-gradient(180deg, var(--dm-panel) 0%, var(--dm-panel-2) 100%) !important;
+}
+
+body.dark-mode .modal [style*="background:white"],
+body.dark-mode .modal [style*="background:#fff"],
+body.dark-mode .modal [style*="background:#f5f5f5"],
+body.dark-mode .modal [style*="background:#f9f9f9"],
+body.dark-mode .modal [style*="background:#fafbfc"],
+body.dark-mode .modal-content [style*="background:white"],
+body.dark-mode .modal-content [style*="background:#fff"],
+body.dark-mode .modal-content [style*="background:#f5f5f5"],
+body.dark-mode .modal-content [style*="background:#f9f9f9"],
+body.dark-mode .modal-content [style*="background:#fafbfc"],
+body.dark-mode .modal-box [style*="background:white"],
+body.dark-mode .modal-box [style*="background:#fff"],
+body.dark-mode .modal-box [style*="background:#f5f5f5"],
+body.dark-mode .modal-box [style*="background:#f9f9f9"],
+body.dark-mode .modal-box [style*="background:#fafbfc"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--dm-border) !important;
+    color: var(--dm-text) !important;
+}
+
+body.dark-mode .modal [style*="color:#333"],
+body.dark-mode .modal [style*="color:#666"],
+body.dark-mode .modal [style*="color:#999"],
+body.dark-mode .modal-content [style*="color:#333"],
+body.dark-mode .modal-content [style*="color:#666"],
+body.dark-mode .modal-content [style*="color:#999"],
+body.dark-mode .modal-box [style*="color:#333"],
+body.dark-mode .modal-box [style*="color:#666"],
+body.dark-mode .modal-box [style*="color:#999"] {
+    color: var(--dm-text-muted) !important;
+}
+
+body.dark-mode .modal code,
+body.dark-mode .modal-content code,
+body.dark-mode .modal-box code {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #c7ddff !important;
 }

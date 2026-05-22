@@ -3,6 +3,15 @@
 
 <head>
   <meta charset="UTF-8">
+  <link rel="stylesheet" href="/assets/unified-header.css?v=4">
+  <script>
+    (function () {
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+        document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('dark-mode'); });
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🖼️ Image Manager Test</title>
   <style>
@@ -803,7 +812,163 @@
         max-width: 150px;
       }
     }
+
+    /* ========== DARK MODE SUPPORT ========== */
+    body.dark-mode {
+      background: #0b1220;
+      color: #e8eef8;
+    }
+
+    body.dark-mode .header {
+      background: #111b2d;
+      border-bottom-color: #1e2d4a;
+    }
+
+    body.dark-mode .card {
+      background: #111b2d;
+      border-color: #1e2d4a;
+    }
+
+    body.dark-mode .search-box input {
+      background: #172338;
+      border-color: #22314c;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-overlay {
+      background: rgba(3, 8, 18, 0.78);
+    }
+
+    body.dark-mode .modal {
+      background: #111b2d;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .modal-header {
+      border-bottom-color: #1e2d4a;
+    }
+
+    body.dark-mode .modal-header h2 {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-close {
+      background: #22314c;
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .modal-close:hover {
+      background: #2d3f60;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .modal-footer {
+      border-top-color: #1e2d4a;
+      background: #172338;
+    }
+
+    body.dark-mode .form-group label {
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .form-input {
+      background: #172338;
+      border-color: #22314c;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .form-input:focus {
+      border-color: #5aa2ff;
+      outline: none;
+    }
+
+    body.dark-mode .btn-primary {
+      background: #5aa2ff;
+      color: #0b1220;
+    }
+
+    body.dark-mode .btn-primary:hover {
+      background: #6bb0ff;
+    }
+
+    body.dark-mode .btn-secondary {
+      background: #22314c;
+      color: #cbd5e1;
+    }
+
+    body.dark-mode .btn-secondary:hover {
+      background: #2d3f60;
+      color: #f8fafc;
+    }
+
+    body.dark-mode .btn-danger {
+      background: #ff6b6b;
+      color: white;
+    }
+
+    body.dark-mode .empty-state {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .image-card {
+      background: #172338;
+      border-color: #22314c;
+    }
+
+    body.dark-mode .image-card:hover {
+      background: #1d2d47;
+      border-color: #2d3f60;
+    }
+
+    body.dark-mode .lightbox-overlay {
+      background: rgba(0, 0, 0, 0.9);
+    }
+
+    body.dark-mode .lightbox {
+      background: #0b1220;
+      border-color: #1e2d4a;
+    }
+
+    body.dark-mode .lightbox-header,
+    body.dark-mode .lightbox-info {
+      border-color: #1e2d4a;
+    }
+
+    body.dark-mode .lightbox-info {
+      background: #111b2d;
+    }
+
+    body.dark-mode .lightbox-info .name {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .lightbox-info .date {
+      color: #9eb0ca;
+    }
+
+    body.dark-mode .lightbox-controls {
+      background: #172338;
+    }
+
+    body.dark-mode .lightbox-close,
+    body.dark-mode .lightbox-prev,
+    body.dark-mode .lightbox-next {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .lightbox-close:hover,
+    body.dark-mode .lightbox-prev:hover,
+    body.dark-mode .lightbox-next:hover {
+      background: #22314c;
+    }
+
+    body.dark-mode .toast {
+      background: #111b2d;
+      color: #f8fafc;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
   </style>
+  <script src="/assets/custom-dialog.js"></script>
 </head>
 
 <body>
@@ -1131,8 +1296,8 @@
       document.getElementById('selectedCount').textContent = selectedImages.size;
     }
     function clearSelection() { selectedImages.clear(); renderImages(); updateBulkActions(); }
-    function bulkDelete() {
-      if (!selectedImages.size || !confirm('Xóa ' + selectedImages.size + ' ảnh?')) return;
+    async function bulkDelete() {
+      if (!selectedImages.size || !await showConfirm('Xóa ' + selectedImages.size + ' ảnh?')) return;
       if (ws) ws.send(JSON.stringify({ type: 'delete_images', imageIds: Array.from(selectedImages) }));
     }
 
@@ -1159,8 +1324,8 @@
         description: document.getElementById('editDescription').value.trim()
       }));
     }
-    function deleteImage(id) {
-      if (!confirm('Xóa ảnh này?')) return;
+    async function deleteImage(id) {
+      if (!await showConfirm('Xóa ảnh này?')) return;
       if (ws) ws.send(JSON.stringify({ type: 'delete_image', imageId: id }));
     }
     function copyImageUrl(id) {
@@ -1281,3 +1446,4 @@
 </body>
 
 </html>
+
