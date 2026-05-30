@@ -129,7 +129,7 @@ async function backupFile(filename, force = false) {
                     lastModified: localStat.mtime,
                     lastSync: new Date()
                 },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
             console.log(`☁️ Đã đồng bộ ${filename} lên MongoDB.`);
         }
