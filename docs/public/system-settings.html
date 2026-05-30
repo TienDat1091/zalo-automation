@@ -356,6 +356,16 @@
             color: #1E3A8A;
         }
 
+        .info-box.orange {
+            background: #FFFBEB;
+            color: #9A3412;
+            border-color: #FED7AA;
+        }
+        
+        .info-box.orange strong {
+            color: #7C2D12;
+        }
+
         .form-label {
             display: block;
             color: var(--text-main);
@@ -615,19 +625,25 @@
         }
 
         html.dark-mode body #autoDeleteUsersList,
-        body.dark-mode #autoDeleteUsersList {
-            background: rgba(11, 18, 32, 0.6) !important;
-            border-color: var(--dm-border, #22314c) !important;
+        body.dark-mode #autoDeleteUsersList,
+        html.dark-mode body #autoUnfriendUsersList,
+        body.dark-mode #autoUnfriendUsersList {
+            background: var(--surface-2) !important;
+            border-color: var(--border) !important;
         }
 
         html.dark-mode body #autoDeleteUsersList label,
-        body.dark-mode #autoDeleteUsersList label {
-            color: var(--dm-text, #e8eef8) !important;
+        body.dark-mode #autoDeleteUsersList label,
+        html.dark-mode body #autoUnfriendUsersList label,
+        body.dark-mode #autoUnfriendUsersList label {
+            color: var(--text-main) !important;
         }
         
         html.dark-mode body #autoDeleteUsersList label span,
-        body.dark-mode #autoDeleteUsersList label span {
-            color: var(--dm-text, #e8eef8) !important;
+        body.dark-mode #autoDeleteUsersList label span,
+        html.dark-mode body #autoUnfriendUsersList label span,
+        body.dark-mode #autoUnfriendUsersList label span {
+            color: var(--text-main) !important;
         }
 
         html.dark-mode body [style*="color:#999"],
@@ -882,6 +898,29 @@
                         💡 Mỗi người dùng sẽ chỉ nhận được 1 câu trả lời trong khoảng thời gian cooldown này.
                     </div>
                 </div>
+
+                <!-- Friends Exclusion List (Only for Personal Auto Reply) -->
+                <div class="form-group" id="autoMessageExclusionGroup" style="display:none; margin-top:16px;">
+                    <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--danger);">🚫 Loại trừ bạn bè (Tắt Auto-Reply)</span>
+                        <div class="search-box" style="display:flex; gap:8px; margin:0; width:340px;">
+                            <select id="autoMessageTagFilter" onchange="renderAutoMessageExclusionList()" style="padding:6px; border:1px solid var(--border); border-radius:6px; font-size:12px; outline:none; background:var(--bg-secondary); color:inherit; max-width: 100px;">
+                                <option value="">Tất cả thẻ</option>
+                            </select>
+                            <div style="position:relative; flex:1;">
+                                <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:14px; opacity:0.5;">🔍</span>
+                                <input type="text" id="autoMessageSearchInput" placeholder="Tìm tên Zalo..." oninput="renderAutoMessageExclusionList()" style="width:100%; padding:6px 12px 6px 28px; border:1px solid var(--border); border-radius:6px; font-size:12px; outline:none; background:transparent; color:inherit;">
+                            </div>
+                            <button type="button" onclick="selectAllAutoMessageExclusionUsers()" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid var(--border); background:var(--bg-secondary); color:var(--text); cursor:pointer; flex-shrink:0;">✓ Chọn tất cả</button>
+                        </div>
+                    </label>
+                    <div id="autoMessageExclusionList" style="max-height:200px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:8px; margin-top:8px; background:var(--bg-secondary);">
+                        <div style="text-align: center; color: var(--text-sub); padding: 20px;">Đang tải...</div>
+                    </div>
+                    <div style="font-size:11px; color:var(--text-sub); margin-top:6px;">
+                        💡 Những người được tích chọn sẽ <strong>KHÔNG</strong> nhận được tin nhắn tự động. Tương đương với việc tắt nút Auto-Reply ở khung chat của họ.
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="hideAutoMessageModal()">Hủy</button>
@@ -910,6 +949,45 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="hideAutoFriendModal()">Hủy</button>
                 <button class="btn btn-primary" onclick="saveAutoFriendSetup()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTO UNFRIEND MODAL -->
+    <div class="modal-backdrop" id="autoUnfriendModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2><span>👤❌</span> Cấu hình Hủy bạn bè tương tác</h2>
+                <button class="modal-close" onclick="hideAutoUnfriendModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box orange">
+                    <strong>⚠️ Cảnh báo:</strong> Khi bật chức năng này, hệ thống sẽ tự động quét ngầm và hủy kết bạn với những người <strong>không có tin nhắn nào</strong> sau số ngày quy định. Hành động này không thể hoàn tác.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">📅 Số ngày không tương tác tối đa</label>
+                    <input type="number" class="form-input" id="autoUnfriendDays" min="1" placeholder="Ví dụ: 30">
+                    <small style="color: var(--text-sub); display: block; margin-top: 6px;">
+                        Hệ thống sẽ dựa vào thời gian gửi/nhận tin nhắn cuối cùng để quyết định hủy kết bạn. 
+                    </small>
+                </div>
+                <div class="form-group" style="margin-top: 20px;">
+                    <label class="form-label">🛡️ Ngoại trừ (Không bao giờ hủy)</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <select class="form-input" id="autoUnfriendTagFilter" onchange="renderAutoUnfriendUsersList(window.autoUnfriendContactsList)" style="max-width: 150px; padding: 8px;">
+                            <option value="">Tất cả thẻ</option>
+                        </select>
+                        <input type="text" class="form-input" id="autoUnfriendSearchInput" oninput="renderAutoUnfriendUsersList(window.autoUnfriendContactsList)" placeholder="🔍 Tìm kiếm user..." style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="selectAllAutoUnfriendUsers()">✓ Chọn tất cả</button>
+                    </div>
+                    <div id="autoUnfriendUsersList" style="border: 1px solid var(--border); border-radius: 8px; max-height: 300px; overflow-y: auto; padding: 12px; background: var(--primary-light);">
+                        <!-- Danh sách contact hiển thị ở đây -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAutoUnfriendModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveAutoUnfriendSetup()">💾 Lưu</button>
             </div>
         </div>
     </div>
@@ -970,6 +1048,9 @@
                 <div class="form-group">
                     <label class="form-label">👥 Chọn User để tự động xóa</label>
                     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <select class="form-input" id="autoDeleteTagFilter" style="max-width: 150px; padding: 8px;">
+                            <option value="">Tất cả thẻ</option>
+                        </select>
                         <input type="text" class="form-input" id="autoDeleteSearchInput" placeholder="🔍 Tìm kiếm user..." style="flex: 1;">
                         <button type="button" class="btn btn-secondary" onclick="selectAllAutoDeleteUsers()">✓ Chọn tất cả</button>
                     </div>
@@ -1208,6 +1289,15 @@
                 debounceTime: 15000,
                 section: 'automation'
             },
+            autoUnfriend: {
+                id: 'builtin_auto_unfriend',
+                name: 'Hủy bạn bè tương tác',
+                description: 'Tự động hủy kết bạn nếu không có tin nhắn tương tác sau số ngày',
+                icon: '👤❌',
+                enabled: false,
+                days: 30,
+                section: 'automation'
+            },
             autoUnread: {
                 id: 'builtin_auto_unread',
                 name: 'Đánh dấu chưa đọc',
@@ -1264,6 +1354,8 @@
         };
 
         let ws = null;
+        let exclusionSelectedUids = new Set(), originalExclusionUids = new Set();
+        let friendsList = [];
         let currentUser = null;
 
         // WebSocket connection
@@ -1289,30 +1381,30 @@
                 currentUser = data.user;
             }
             if (data.type === 'builtin_triggers' && data.triggers) {
-                console.log('✅ Received builtin_triggers from server:', Object.keys(data.triggers));
-                console.log('   autoReaction in response?', 'autoReaction' in data.triggers);
-                // Update local state from server
                 for (const [key, value] of Object.entries(data.triggers)) {
                     if (builtInTriggers[key]) {
                         Object.assign(builtInTriggers[key], value);
-                        console.log(`   Updated ${key}:`, value.enabled ? 'ENABLED' : 'disabled');
-                    } else {
-                        console.warn(`   ⚠️ Unknown trigger key: ${key}`);
                     }
                 }
                 renderSettings();
             }
             if (data.type === 'builtin_trigger_updated') {
                 showToast('✅ Đã cập nhật cài đặt!', 'success');
-                // Refresh triggers
                 ws.send(JSON.stringify({ type: 'get_builtin_triggers' }));
             }
-            // Handle contacts response
             if (data.type === 'contacts' || data.type === 'contacts_list') {
                 const contacts = data.contacts || data.data || [];
-                renderAutoDeleteUsersList(contacts);
+                if (document.getElementById('autoDeleteModal').classList.contains('show')) {
+                    renderAutoDeleteUsersList(contacts);
+                }
+                if (document.getElementById('autoMessageModal').classList.contains('show')) {
+                    friendsList = contacts;
+                    renderAutoMessageExclusionList();
+                }
+                if (document.getElementById('autoUnfriendModal').classList.contains('show')) {
+                    renderAutoUnfriendUsersList(contacts);
+                }
             }
-            // Handle flows response for Self-Trigger
             if (data.type === 'flows_list' || data.type === 'flows') {
                 const flows = data.flows || data.data || [];
                 const select = document.getElementById('selfTriggerFlowId');
@@ -1324,30 +1416,14 @@
                         opt.textContent = flow.flowName || flow.name || `Flow ${flow.flowId || flow.id}`;
                         select.appendChild(opt);
                     });
-                    // Select the pending flow if exists
-                    if (window.pendingSelfTriggerFlowId) {
-                        select.value = window.pendingSelfTriggerFlowId;
-                        window.pendingSelfTriggerFlowId = null;
-                    }
                 }
             }
         }
 
         function renderSettings() {
-            // Auto Reply section
-            const autoReplyTriggers = Object.values(builtInTriggers).filter(t => t.section === 'autoReply');
-            console.log('📋 Auto Reply triggers:', autoReplyTriggers.length, autoReplyTriggers.map(t => t.name));
-            document.getElementById('autoReplySettings').innerHTML = autoReplyTriggers.map(renderSettingItem).join('');
-
-            // Automation section
-            const automationTriggers = Object.values(builtInTriggers).filter(t => t.section === 'automation');
-            console.log('🤖 Automation triggers:', automationTriggers.length, automationTriggers.map(t => t.name));
-            document.getElementById('automationSettings').innerHTML = automationTriggers.map(renderSettingItem).join('');
-
-            // Advanced section
-            const advancedTriggers = Object.values(builtInTriggers).filter(t => t.section === 'advanced');
-            console.log('⚡ Advanced triggers:', advancedTriggers.length, advancedTriggers.map(t => t.name));
-            document.getElementById('advancedSettings').innerHTML = advancedTriggers.map(renderSettingItem).join('');
+            document.getElementById('autoReplySettings').innerHTML = Object.values(builtInTriggers).filter(t => t.section === 'autoReply').map(renderSettingItem).join('');
+            document.getElementById('automationSettings').innerHTML = Object.values(builtInTriggers).filter(t => t.section === 'automation').map(renderSettingItem).join('');
+            document.getElementById('advancedSettings').innerHTML = Object.values(builtInTriggers).filter(t => t.section === 'advanced').map(renderSettingItem).join('');
         }
 
         function renderSettingItem(trigger) {
@@ -1377,16 +1453,9 @@
         function toggleSetting(triggerId) {
             const trigger = Object.values(builtInTriggers).find(t => t.id === triggerId);
             if (!trigger) return;
-
             trigger.enabled = !trigger.enabled;
             renderSettings();
-
-            // Save to server
-            ws.send(JSON.stringify({
-                type: 'update_builtin_trigger',
-                triggerId: triggerId,
-                data: trigger
-            }));
+            ws.send(JSON.stringify({ type: 'update_builtin_trigger', triggerId: triggerId, data: trigger }));
         }
 
         function openConfig(triggerId) {
@@ -1397,6 +1466,9 @@
                     break;
                 case 'builtin_auto_friend':
                     showAutoFriendModal();
+                    break;
+                case 'builtin_auto_unfriend':
+                    showAutoUnfriendModal();
                     break;
                 case 'builtin_auto_unread':
                     showAutoUnreadModal();
@@ -1419,43 +1491,221 @@
             }
         }
 
-        // Modal handlers
         function showAutoMessageSetup(triggerId) {
-            const trigger = triggerId === 'builtin_auto_reply_user' ?
-                builtInTriggers.autoReplyUser : builtInTriggers.autoReplyGroup;
+            const trigger = triggerId === 'builtin_auto_reply_user' ? builtInTriggers.autoReplyUser : builtInTriggers.autoReplyGroup;
             const isUser = triggerId === 'builtin_auto_reply_user';
-
-            document.getElementById('autoMessageModalTitle').innerHTML =
-                `<span>${isUser ? '👤' : '👨‍👩‍👧‍👦'}</span> Cài đặt Trả lời tự động (${isUser ? 'Cá nhân' : 'Nhóm'})`;
-            document.getElementById('autoMessageDesc').innerHTML =
-                `<strong>📌 Chức năng:</strong> Tự động trả lời tin nhắn ${isUser ? '1-1' : 'từ nhóm'}.`;
+            document.getElementById('autoMessageModalTitle').innerHTML = `<span>${isUser ? '👤' : '👨‍👩‍👧‍👦'}</span> Cài đặt Trả lời tự động (${isUser ? 'Cá nhân' : 'Nhóm'})`;
             document.getElementById('autoMessageResponse').value = trigger.response || '';
             document.getElementById('autoMessageCooldown').value = Math.floor((trigger.cooldown || 30000) / 1000);
             document.getElementById('autoMessageReplyDelay').value = Math.floor((trigger.replyDelay || 0) / 1000);
             document.getElementById('autoMessageModal').dataset.triggerId = triggerId;
+            if (isUser) {
+                document.getElementById('autoMessageExclusionGroup').style.display = 'block';
+                exclusionSelectedUids.clear(); originalExclusionUids.clear();
+                ws.send(JSON.stringify({ type: 'get_contacts' }));
+            } else {
+                document.getElementById('autoMessageExclusionGroup').style.display = 'none';
+            }
             document.getElementById('autoMessageModal').classList.add('show');
         }
 
-        function hideAutoMessageModal() {
-            document.getElementById('autoMessageModal').classList.remove('show');
-        }
+        function hideAutoMessageModal() { document.getElementById('autoMessageModal').classList.remove('show'); }
 
         function saveAutoMessageSetup() {
             const triggerId = document.getElementById('autoMessageModal').dataset.triggerId;
-            const trigger = triggerId === 'builtin_auto_reply_user' ?
-                builtInTriggers.autoReplyUser : builtInTriggers.autoReplyGroup;
-
+            const trigger = triggerId === 'builtin_auto_reply_user' ? builtInTriggers.autoReplyUser : builtInTriggers.autoReplyGroup;
             trigger.response = document.getElementById('autoMessageResponse').value.trim();
             trigger.cooldown = parseInt(document.getElementById('autoMessageCooldown').value) * 1000;
             trigger.replyDelay = (parseInt(document.getElementById('autoMessageReplyDelay').value) || 0) * 1000;
+            ws.send(JSON.stringify({ type: 'update_builtin_trigger', triggerId: triggerId, data: trigger }));
+            if (triggerId === 'builtin_auto_reply_user') {
+                friendsList.forEach(f => {
+                    const wasExcluded = originalExclusionUids.has(f.userId);
+                    const isNowExcluded = exclusionSelectedUids.has(f.userId);
+                    if (wasExcluded !== isNowExcluded) {
+                        ws.send(JSON.stringify({ type: 'toggle_user_auto_reply', targetId: f.userId, enabled: !isNowExcluded }));
+                    }
+                });
+            }
+            hideAutoMessageModal();
+        }
+
+        function escapeHtml(unsafe) { return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+        function escapeHtmlAttr(unsafe) { return (unsafe || '').replace(/"/g, "&quot;"); }
+
+        function renderAutoMessageExclusionList() {
+            const container = document.getElementById('autoMessageExclusionList');
+            const tagSelect = document.getElementById('autoMessageTagFilter');
+            const searchInput = document.getElementById('autoMessageSearchInput');
+            const currentTag = tagSelect ? tagSelect.value : '';
+            const searchTerm = searchInput ? (searchInput.value || '').toLowerCase() : '';
+            
+            const existingTags = new Set();
+            friendsList.forEach(c => { if (c.tag && c.tag.trim()) existingTags.add(c.tag.trim()); });
+            if (tagSelect) {
+                tagSelect.innerHTML = '<option value="">Tất cả thẻ</option>';
+                existingTags.forEach(tag => {
+                    const opt = document.createElement('option');
+                    opt.value = tag; opt.textContent = tag;
+                    if (tag === currentTag) opt.selected = true;
+                    tagSelect.appendChild(opt);
+                });
+            }
+
+            if (friendsList.length === 0) { 
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">Không có bạn bè</div>'; 
+                return; 
+            }
+
+            const filteredFriends = friendsList.filter(f => {
+                const matchSearch = (f.displayName || f.name || '').toLowerCase().includes(searchTerm) || (f.userId || f.id || '').toLowerCase().includes(searchTerm);
+                const matchTag = currentTag === '' || (f.tag || '').trim() === currentTag;
+                return matchSearch && matchTag;
+            });
+
+            if (filteredFriends.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">Không tìm thấy kết quả</div>';
+                return;
+            }
+
+            container.innerHTML = '<div id="exclusionListContainer" style="display:flex; flex-direction:column; gap:4px;">' + filteredFriends.map(f => {
+                const userId = f.userId || f.id || f.openid;
+                if (f.autoReplyEnabled === false) { exclusionSelectedUids.add(userId); originalExclusionUids.add(userId); }
+                const isChecked = exclusionSelectedUids.has(userId);
+                const tagHtml = f.tag ? `<span style="font-size: 11px; padding: 2px 6px; background: var(--primary); color: white; border-radius: 4px; margin-left: auto; flex-shrink: 0;">${escapeHtml(f.tag)}</span>` : '';
+                return `
+                    <label class="user-select-item friend-checkbox-item" data-tag="${escapeHtmlAttr((f.tag || '').trim())}">
+                        <input type="checkbox" value="${userId}" ${isChecked ? 'checked' : ''} onchange="onExclusionCheck(this)">
+                        <img src="${f.avatar || 'https://via.placeholder.com/32'}" onerror="this.src='https://via.placeholder.com/32'" style="width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+                        <span style="display:flex; align-items:center; flex:1; min-width:0;">
+                            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:6px;">${escapeHtml(f.displayName || f.name)}</span>
+                            ${tagHtml}
+                        </span>
+                    </label>
+                `;
+            }).join('') + '</div>';
+        }
+        
+        function onExclusionCheck(cb) { if (cb.checked) exclusionSelectedUids.add(cb.value); else exclusionSelectedUids.delete(cb.value); }
+
+        function selectAllAutoMessageExclusionUsers() {
+            const checkboxes = document.querySelectorAll('#exclusionListContainer input[type="checkbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => { cb.checked = !allChecked; onExclusionCheck(cb); });
+        }
+
+        function showAutoUnfriendModal() {
+            document.getElementById('autoUnfriendDays').value = builtInTriggers.autoUnfriend.days || 30;
+            document.getElementById('autoUnfriendModal').classList.add('show');
+            ws.send(JSON.stringify({ type: 'get_contacts' }));
+        }
+
+        function renderAutoUnfriendUsersList(contacts) {
+            const trigger = builtInTriggers.autoUnfriend;
+            const selectedUsers = trigger.excludedUsers || [];
+            const searchInput = document.getElementById('autoUnfriendSearchInput');
+            const searchTerm = (searchInput?.value || '').toLowerCase();
+            const tagFilter = document.getElementById('autoUnfriendTagFilter');
+            const selectedTag = tagFilter?.value || '';
+            
+            const existingTags = new Set();
+            contacts.forEach(c => { if (c.tag && c.tag.trim()) existingTags.add(c.tag.trim()); });
+            if (tagFilter) {
+                tagFilter.innerHTML = '<option value="">Tất cả thẻ</option>';
+                existingTags.forEach(tag => {
+                    const opt = document.createElement('option');
+                    opt.value = tag; opt.textContent = tag;
+                    if (tag === selectedTag) opt.selected = true;
+                    tagFilter.appendChild(opt);
+                });
+            }
+            
+            window.autoUnfriendContactsList = contacts;
+            
+            let html = '';
+            
+            if (!contacts || contacts.length === 0) {
+                html = '<div style="text-align: center; color: var(--text-sub); padding: 20px;">Chưa có contact nào</div>';
+            } else {
+                const filtered = contacts.filter(c => {
+                    const matchSearch = (c.displayName || c.name || '').toLowerCase().includes(searchTerm) ||
+                                      (c.userId || c.id || '').toLowerCase().includes(searchTerm);
+                    const matchTag = selectedTag === '' || (c.tag || '').trim() === selectedTag;
+                    return matchSearch && matchTag;
+                });
+                
+                if (filtered.length === 0) {
+                    html = '<div style="text-align: center; color: var(--text-sub); padding: 20px;">Không tìm thấy contact</div>';
+                } else {
+                    html = filtered.map(contact => {
+                        const userId = contact.userId || contact.id || contact.openid;
+                        const isSelected = selectedUsers.includes(userId);
+                        const displayName = contact.displayName || contact.name || 'Unknown';
+                        const avatar = contact.avatar || '';
+                        const tagHtml = contact.tag ? `<span style="font-size: 11px; padding: 2px 6px; background: var(--primary); color: white; border-radius: 4px; margin-left: auto; flex-shrink: 0;">${escapeHtml(contact.tag)}</span>` : '';
+                        
+                        return `
+                            <label class="user-select-item">
+                                <input type="checkbox" value="${userId}" ${isSelected ? 'checked' : ''} 
+                                       onchange="updateAutoUnfriendUserSelection(this)">
+                                ${avatar ? `<img src="${avatar}" alt="${escapeHtmlAttr(displayName)}" style="width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;">` : '<span style="width: 32px; height: 32px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">👤</span>'}
+                                <span style="display: flex; align-items: center; flex: 1; min-width: 0;">
+                                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 6px;">${escapeHtml(displayName)}</span>
+                                    ${tagHtml}
+                                </span>
+                            </label>
+                        `;
+                    }).join('');
+                }
+            }
+            document.getElementById('autoUnfriendUsersList').innerHTML = html;
+        }
+
+        function updateAutoUnfriendUserSelection(checkbox) {
+            const trigger = builtInTriggers.autoUnfriend;
+            trigger.excludedUsers = trigger.excludedUsers || [];
+            
+            if (checkbox.checked) {
+                if (!trigger.excludedUsers.includes(checkbox.value)) {
+                    trigger.excludedUsers.push(checkbox.value);
+                }
+            } else {
+                trigger.excludedUsers = trigger.excludedUsers.filter(id => id !== checkbox.value);
+            }
+        }
+
+        function selectAllAutoUnfriendUsers() {
+            const checkboxes = document.querySelectorAll('#autoUnfriendUsersList input[type="checkbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            checkboxes.forEach(cb => {
+                cb.checked = !allChecked;
+                updateAutoUnfriendUserSelection(cb);
+            });
+        }
+
+        function hideAutoUnfriendModal() {
+            document.getElementById('autoUnfriendModal').classList.remove('show');
+        }
+
+        function saveAutoUnfriendSetup() {
+            const trigger = builtInTriggers.autoUnfriend;
+            const daysInput = parseInt(document.getElementById('autoUnfriendDays').value);
+            
+            if (isNaN(daysInput) || daysInput <= 0) {
+                showToast('❌ Số ngày phải là số lớn hơn 0', 'error');
+                return;
+            }
+            
+            trigger.days = daysInput;
 
             ws.send(JSON.stringify({
                 type: 'update_builtin_trigger',
-                triggerId: triggerId,
+                triggerId: 'builtin_auto_unfriend',
                 data: trigger
             }));
 
-            hideAutoMessageModal();
+            hideAutoUnfriendModal();
             renderSettings();
         }
 
@@ -1532,6 +1782,21 @@
             const selectedUsers = trigger.selectedUsers || [];
             const searchInput = document.getElementById('autoDeleteSearchInput');
             const searchTerm = (searchInput?.value || '').toLowerCase();
+            const tagFilter = document.getElementById('autoDeleteTagFilter');
+            const selectedTag = tagFilter?.value || '';
+            
+            // Populate tags
+            const existingTags = new Set();
+            contacts.forEach(c => { if (c.tag && c.tag.trim()) existingTags.add(c.tag.trim()); });
+            if (tagFilter) {
+                tagFilter.innerHTML = '<option value="">Tất cả thẻ</option>';
+                existingTags.forEach(tag => {
+                    const opt = document.createElement('option');
+                    opt.value = tag; opt.textContent = tag;
+                    if (tag === selectedTag) opt.selected = true;
+                    tagFilter.appendChild(opt);
+                });
+            }
             
             // Store contacts globally for later filtering
             window.autoDeleteContactsList = contacts;
@@ -1541,11 +1806,13 @@
             if (!contacts || contacts.length === 0) {
                 html = '<div style="text-align: center; color: var(--text-sub); padding: 20px;">Chưa có contact nào</div>';
             } else {
-                // Filter contacts based on search
-                const filtered = contacts.filter(c => 
-                    (c.displayName || c.name || '').toLowerCase().includes(searchTerm) ||
-                    (c.userId || c.id || '').toLowerCase().includes(searchTerm)
-                );
+                // Filter contacts based on search and tag
+                const filtered = contacts.filter(c => {
+                    const matchSearch = (c.displayName || c.name || '').toLowerCase().includes(searchTerm) ||
+                                      (c.userId || c.id || '').toLowerCase().includes(searchTerm);
+                    const matchTag = selectedTag === '' || (c.tag || '').trim() === selectedTag;
+                    return matchSearch && matchTag;
+                });
                 
                 if (filtered.length === 0) {
                     html = '<div style="text-align: center; color: var(--text-sub); padding: 20px;">Không tìm thấy contact</div>';
@@ -1555,13 +1822,17 @@
                         const isSelected = selectedUsers.includes(userId);
                         const displayName = contact.displayName || contact.name || 'Unknown';
                         const avatar = contact.avatar || '';
+                        const tagHtml = contact.tag ? `<span style="font-size: 11px; padding: 2px 6px; background: var(--primary); color: white; border-radius: 4px; margin-left: auto; flex-shrink: 0;">${contact.tag}</span>` : '';
                         
                         return `
                             <label class="user-select-item">
                                 <input type="checkbox" value="${userId}" ${isSelected ? 'checked' : ''} 
                                        onchange="updateAutoDeleteUserSelection(this)">
-                                ${avatar ? `<img src="${avatar}" alt="${displayName}" style="width: 32px; height: 32px; border-radius: 50%;">` : '<span style="width: 32px; height: 32px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center;">👤</span>'}
-                                <span>${displayName}</span>
+                                ${avatar ? `<img src="${avatar}" alt="${displayName}" style="width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;">` : '<span style="width: 32px; height: 32px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">👤</span>'}
+                                <span style="display: flex; align-items: center; flex: 1; min-width: 0;">
+                                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 6px;">${displayName}</span>
+                                    ${tagHtml}
+                                </span>
                             </label>
                         `;
                     }).join('');
@@ -1569,6 +1840,7 @@
             }
             
             document.getElementById('autoDeleteUsersList').innerHTML = html;
+            filterAutoDeleteUsers();
         }
 
         function updateAutoDeleteUserSelection(checkbox) {
@@ -1785,14 +2057,20 @@
         // Add search event listener for auto-delete user filter
         setTimeout(() => {
             const searchInput = document.getElementById('autoDeleteSearchInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', () => {
-                    // Re-render the list with filter
-                    if (window.autoDeleteContactsList) {
-                        renderAutoDeleteUsersList(window.autoDeleteContactsList);
-                    }
-                });
-            }
+            const deleteTagFilter = document.getElementById('autoDeleteTagFilter');
+            const handleDeleteFilter = () => {
+                if (window.autoDeleteContactsList) renderAutoDeleteUsersList(window.autoDeleteContactsList);
+            };
+            if (searchInput) searchInput.addEventListener('input', handleDeleteFilter);
+            if (deleteTagFilter) deleteTagFilter.addEventListener('change', handleDeleteFilter);
+
+            const unfriendSearchInput = document.getElementById('autoUnfriendSearchInput');
+            const unfriendTagFilter = document.getElementById('autoUnfriendTagFilter');
+            const handleUnfriendFilter = () => {
+                if (window.autoUnfriendContactsList) renderAutoUnfriendUsersList(window.autoUnfriendContactsList);
+            };
+            if (unfriendSearchInput) unfriendSearchInput.addEventListener('input', handleUnfriendFilter);
+            if (unfriendTagFilter) unfriendTagFilter.addEventListener('change', handleUnfriendFilter);
         }, 100);
     </script>
 

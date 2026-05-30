@@ -44,9 +44,39 @@ function renderFriendsVirtual() {
     return;
   }
 
+  // Calculate Alphabet indices
+  const alphabetOffsets = {};
+  let currentLetter = '';
+  sortedFriends.forEach((f, idx) => {
+    let name = (f.displayName || '').trim();
+    let firstChar = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toUpperCase();
+    if (!/[A-Z]/.test(firstChar)) firstChar = '#';
+    
+    if (firstChar !== currentLetter) {
+      currentLetter = firstChar;
+      if (!(firstChar in alphabetOffsets)) {
+        alphabetOffsets[firstChar] = idx;
+      }
+    }
+  });
+
+  // Render Alphabet Bar
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split('');
+  const alphaHtml = alphabet.map(letter => {
+    if (letter in alphabetOffsets) {
+      return `<div style="font-size: 11px; cursor: pointer; color: var(--primary); font-weight: bold; margin: 1px 0; padding: 2px 4px; border-radius: 4px;" onmouseover="this.style.background='rgba(0,104,255,0.1)'" onmouseout="this.style.background='none'" onclick="document.getElementById('friendsList').scrollTop = ${alphabetOffsets[letter] * ITEM_HEIGHT}">${letter}</div>`;
+    }
+    return `<div style="font-size: 11px; color: #ccc; margin: 1px 0; padding: 2px 4px;">${letter}</div>`;
+  }).join('');
+
   const totalHeight = sortedFriends.length * ITEM_HEIGHT;
   container.innerHTML = `
-    <div class="virtual-scroll-container" style="height:${totalHeight}px;position:relative;">
+    <div style="position: sticky; top: 10px; right: 4px; float: right; height: 0; z-index: 10;">
+      <div style="display: flex; flex-direction: column; text-align: center; background: rgba(255,255,255,0.9); border-radius: 20px; padding: 4px 2px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transform: translateX(-4px);">
+        ${alphaHtml}
+      </div>
+    </div>
+    <div class="virtual-scroll-container" style="height:${totalHeight}px;position:relative;width:calc(100% - 24px);">
       <div class="virtual-scroll-content" id="virtualScrollContent" style="position:absolute;top:0;left:0;width:100%;"></div>
     </div>`;
 

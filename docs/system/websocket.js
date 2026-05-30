@@ -989,7 +989,8 @@ function startWebSocketServer(apiState, httpServer) {
               'builtin_self_trigger',
               'builtin_ai_conversation',
               'builtin_auto_file',
-              'builtin_auto_reaction'
+              'builtin_auto_reaction',
+              'builtin_auto_unfriend'
             ];
 
             builtInIDs.forEach(id => {
@@ -1006,6 +1007,7 @@ function startWebSocketServer(apiState, httpServer) {
               else if (id === 'builtin_ai_conversation') key = 'aiConversation';
               else if (id === 'builtin_auto_file') key = 'autoFile';
               else if (id === 'builtin_auto_reaction') key = 'autoReaction';
+              else if (id === 'builtin_auto_unfriend') key = 'autoUnfriend';
 
               if (state) {
                 console.log(`  ✅ ${id} -> ${key}:`, state.enabled ? 'ENABLED' : 'disabled');
@@ -1089,6 +1091,7 @@ function startWebSocketServer(apiState, httpServer) {
           if (id === 'builtin_ai_conversation') return 'aiConversation';
           if (id === 'builtin_auto_file') return 'autoFile';
           if (id === 'builtin_auto_reaction') return 'autoReaction';
+          if (id === 'builtin_auto_unfriend') return 'autoUnfriend';
           return id;
         }
 
@@ -1144,10 +1147,14 @@ function startWebSocketServer(apiState, httpServer) {
               try {
                 const rawFriends = await apiState.api.getFriendList?.(0, 0) || await apiState.api.getAllFriends?.();
                 if (Array.isArray(rawFriends)) {
+                  if (rawFriends.length > 0) {
+                      require('fs').writeFileSync(require('path').join(__dirname, '..', 'scratch', 'friend_dump.json'), JSON.stringify(rawFriends[0], null, 2));
+                  }
                   contacts = rawFriends.map(user => ({
                     userId: String(user.userId || user.uid || user.id || '').trim(),
                     displayName: (user.displayName || user.name || user.fullName || 'Người dùng Zalo').trim(),
-                    avatar: user.avatar || user.avatarUrl || `https://graph.zalo.me/v2.0/avatar?user_id=${user.userId || user.uid || user.id}&width=120&height=120`
+                    avatar: user.avatar || user.avatarUrl || `https://graph.zalo.me/v2.0/avatar?user_id=${user.userId || user.uid || user.id}&width=120&height=120`,
+                    tags: user.tags || user.labels || user.groupTags || []
                   })).filter(f => f.userId && f.userId.length > 5);
                   apiState.friends = contacts;
                 }
@@ -1155,14 +1162,27 @@ function startWebSocketServer(apiState, httpServer) {
                 console.warn('⚠️ Failed to load friends:', loadErr.message);
               }
             }
-            
+            const enhancedContacts = contacts.map(c => {
+                let isEnabled = true;
+                let customTag = '';
+                if (apiState.currentUser?.uid) {
+                    const uid = apiState.currentUser.uid;
+                    const val = triggerDB.getUserSetting(uid, c.userId, 'auto_reply_enabled');
+                    if (val === 'false') isEnabled = false;
+                    
+                    const dbTag = triggerDB.getUserSetting(uid, c.userId, 'friend_mark');
+                    if (dbTag) customTag = dbTag;
+                }
+                return { ...c, autoReplyEnabled: isEnabled, tag: customTag };
+            });
+
             ws.send(JSON.stringify({
               type: 'contacts_list',
-              contacts: contacts,
-              count: contacts.length
+              contacts: enhancedContacts,
+              count: enhancedContacts.length
             }));
             
-            console.log(`📞 Sent ${contacts.length} contacts to client`);
+            console.log(`📞 Sent ${enhancedContacts.length} contacts to client`);
           } catch (error) {
             console.error('❌ Error fetching contacts:', error.message);
             ws.send(JSON.stringify({
@@ -5110,7 +5130,9 @@ function startWebSocketServer(apiState, httpServer) {
             'builtin_auto_unread',
             'builtin_auto_delete_messages',
             'builtin_self_trigger',
-            'builtin_ai_conversation'
+            'builtin_ai_conversation',
+            'builtin_auto_reaction',
+            'builtin_auto_unfriend'
           ];
 
           const triggers = {};
@@ -5122,7 +5144,9 @@ function startWebSocketServer(apiState, httpServer) {
             'builtin_auto_unread': 'autoUnread',
             'builtin_auto_delete_messages': 'autoDelete',
             'builtin_self_trigger': 'selfTrigger',
-            'builtin_ai_conversation': 'aiConversation'
+            'builtin_ai_conversation': 'aiConversation',
+            'builtin_auto_reaction': 'autoReaction',
+            'builtin_auto_unfriend': 'autoUnfriend'
           };
 
           for (const key of builtinKeys) {

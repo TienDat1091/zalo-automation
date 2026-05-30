@@ -1108,6 +1108,13 @@
     let currentMainTab = 'chats';
     let allFriends = [];
     let friends = [];
+    
+    window.blockedUsersCache = new Set(JSON.parse(localStorage.getItem('blockedUsersCache') || '[]'));
+    function updateBlockedCache(userId, isBlocked) {
+      if (isBlocked) window.blockedUsersCache.add(userId);
+      else window.blockedUsersCache.delete(userId);
+      localStorage.setItem('blockedUsersCache', JSON.stringify([...window.blockedUsersCache]));
+    }
     let filteredFriends = [];
     let allMessages = new Map();
     let selectedFriend = null;
@@ -1409,6 +1416,7 @@
 
         if (data.type === 'block_user_result') {
           if (data.success) {
+            if (data.userId) updateBlockedCache(data.userId, true);
             showToast('🚫 Đã chặn người dùng thành công!', 'success');
             closeFriendDetailsModal();
           } else {
@@ -1418,6 +1426,7 @@
 
         if (data.type === 'unblock_user_result') {
           if (data.success) {
+            if (data.userId) updateBlockedCache(data.userId, false);
             showToast('🔓 Đã bỏ chặn người dùng thành công!', 'success');
             closeFriendDetailsModal();
           } else {
@@ -2349,19 +2358,9 @@
 
 
     function formatTime(timestamp) {
-      const now = Date.now();
-      const diff = now - timestamp;
-      const minutes = Math.floor(diff / 60000);
-      const hours = Math.floor(diff / 3600000);
-      const days = Math.floor(diff / 86400000);
-
-      if (minutes < 1) return 'Vừa xong';
-      if (minutes < 60) return `${minutes} p`;
-      if (hours < 24) return `${hours} h`;
-      if (days < 7) return `${days} d`;
-
+      if (!timestamp) return '';
       const date = new Date(timestamp);
-      return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+      return `${date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ${date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}`;
     }
 
     // Open trigger manager
@@ -2766,11 +2765,13 @@
           break;
 
         case 'BLOCK':
+          updateBlockedCache(data, true);
           showToast(`🚫 Đã chặn người dùng: ${data} `, 'warning');
           addNotificationToPanel('Hệ thống', `🚫 Đã chặn người dùng: ${data} `, data, '', Date.now());
           break;
-
+          
         case 'UNBLOCK':
+          updateBlockedCache(data, false);
           showToast(`✅ Đã bỏ chặn người dùng: ${data} `, 'success');
           addNotificationToPanel('Hệ thống', `✅ Đã bỏ chặn người dùng: ${data} `, data, '', Date.now());
           break;
@@ -3688,6 +3689,18 @@
       const fdReqMsg = document.getElementById('fdFriendRequestMsg');
       const fdAliasGroup = document.getElementById('fdAliasGroup');
       const fdTagGroup = document.getElementById('fdTagGroup');
+
+      const isBlocked = window.blockedUsersCache && window.blockedUsersCache.has(userId);
+
+      const fdStrangerBlockBtn = document.getElementById('fdStrangerBlockBtn');
+      const fdStrangerUnblockBtn = document.getElementById('fdStrangerUnblockBtn');
+      const fdBlockBtn = document.getElementById('fdBlockBtn');
+      const fdUnblockBtn = document.getElementById('fdUnblockBtn');
+
+      if (fdStrangerBlockBtn) fdStrangerBlockBtn.style.display = isBlocked ? 'none' : '';
+      if (fdStrangerUnblockBtn) fdStrangerUnblockBtn.style.display = isBlocked ? '' : 'none';
+      if (fdBlockBtn) fdBlockBtn.style.display = isBlocked ? 'none' : '';
+      if (fdUnblockBtn) fdUnblockBtn.style.display = isBlocked ? '' : 'none';
 
       // Show/hide actions based on isStranger
       if (isTrulyStranger) {

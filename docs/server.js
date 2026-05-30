@@ -684,7 +684,7 @@ app.get('/api/download', async (req, res) => {
 });
 
 // Start listening
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log("");
   console.log("╔═══════════════════════════════════════════════════════════════════╗");
   console.log("║              🚀 ZALO MESSENGER SERVER - RUNNING                    ║");
@@ -706,6 +706,14 @@ server.listen(PORT, () => {
   console.log("");
   console.log("✅ Server is ready to accept connections!");
   console.log("");
+
+  // TÍCH HỢP MONGODB SYNC (Bảo vệ dữ liệu trên Render)
+  try {
+      const { initMongoSync } = require('./system/mongoSync');
+      await initMongoSync();
+  } catch (e) {
+      console.error('Lỗi khi khởi chạy MongoDB Sync:', e.message);
+  }
 
   // Ensure DB is initialized
   triggerDB.init();
@@ -815,6 +823,10 @@ server.listen(PORT, () => {
   // ✅ START WATCHDOG SERVICE
   const { startWatchdog } = require('./system/watchdog');
   startWatchdog(apiState);
+
+  // ✅ START AUTO-UNFRIEND SCHEDULER
+  const { startAutoUnfriendScheduler } = require('./system/autoUnfriend');
+  startAutoUnfriendScheduler(apiState);
 });
 
 // Graceful shutdown

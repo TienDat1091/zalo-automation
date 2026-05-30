@@ -76,7 +76,7 @@ async function loadFriends(apiState, ws, force = false) {
         const uId = String(user.userId || user.uid || user.id || '').trim();
         return {
           userId: uId,
-          displayName: (user.displayName || user.name || user.fullName || 'Người dùng Zalo').trim(),
+          displayName: (user.alias || user.zaloAlias || user.displayName || user.name || user.fullName || 'Người dùng Zalo').trim(),
           avatar: user.avatar ||
             user.avatarUrl ||
             user.picture ||

@@ -1019,6 +1019,29 @@
             Kích hoạt tính năng này
           </label>
         </div>
+
+        <!-- Friends Exclusion List (Only for Personal Auto Reply) -->
+        <div class="form-group" id="autoMessageExclusionGroup" style="display:none; margin-top:16px;">
+          <label class="form-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+            <span style="color:#d32f2f;">🚫 Loại trừ bạn bè (Tắt Auto-Reply)</span>
+            <div class="search-box" style="display:flex; gap:8px; margin:0; width:340px;">
+              <select id="autoMessageTagFilter" onchange="renderAutoMessageExclusionList()" style="padding:6px; border:1px solid #e0e0e0; border-radius:6px; font-size:12px; outline:none; background:#fff; color:inherit; max-width: 100px;">
+                <option value="">Tất cả thẻ</option>
+              </select>
+              <div style="position:relative; flex:1;">
+                <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:14px; opacity:0.5;">🔍</span>
+                <input type="text" id="autoMessageSearchInput" placeholder="Tìm tên Zalo..." oninput="renderAutoMessageExclusionList()" style="width:100%; padding:6px 12px 6px 28px; border:1px solid #e0e0e0; border-radius:6px; font-size:12px; outline:none; background:transparent; color:inherit;">
+              </div>
+              <button type="button" onclick="selectAllAutoMessageExclusionUsers()" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid #ddd; background:#f5f5f5; cursor:pointer; flex-shrink:0; color:#333;">✓ Chọn tất cả</button>
+            </div>
+          </label>
+          <div class="friends-selector" id="autoMessageExclusionList" style="max-height:200px; overflow-y:auto; border:1px solid #e0e0e0; border-radius:8px; padding:8px; background:#fff;">
+            <div class="friends-selector-loading">Đang tải...</div>
+          </div>
+          <div style="font-size:11px; color:#999; margin-top:6px;">
+            💡 Những người được tích chọn sẽ <strong>KHÔNG</strong> nhận được tin nhắn tự động. Tương đương với việc tắt nút Auto-Reply ở khung chat của họ.
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="hideAutoMessageModal()">Hủy</button>
@@ -1203,6 +1226,7 @@
     var ws = null, triggers = [], currentTriggerId = null, editingTriggerId = null;
     var currentUser = null, friendsList = [], selectedFriendUids = [];
     var activityLogs = [], deleteTargetId = null, activityCount = 0;
+    var exclusionSelectedUids = new Set(), originalExclusionUids = new Set();
 
     // Built-in triggers state (will be populated from database)
     const builtInTriggers = {
@@ -1681,6 +1705,7 @@
     function getScopeText(s) { return ['Tất cả', 'Người lạ', 'Bạn bè cụ thể', 'Tất cả trừ'][s] || 'N/A'; }
     function getModeText(m) { return m === 1 ? '🔄 Chạy theo Flow' : '⚡ Gửi trực tiếp'; }
     function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+    function escapeHtmlAttr(t) { return (t || '').toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
     function showToast(msg, type = 'info') { const t = document.createElement('div'); t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:' + (type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3') + ';color:white;padding:12px 20px;border-radius:8px;z-index:10001;'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => { t.remove(); }, 3000); }
 
     // ================================================
@@ -1987,10 +2012,22 @@
         trigger = builtInTriggers.autoReplyUser;
         document.getElementById('autoMessageModalTitle').textContent = '💬 Cài đặt Trả lời tự động (Cá nhân)';
         document.getElementById('autoMessageDesc').textContent = 'Tự động trả lời tin nhắn từ người dùng (1-on-1).';
+        
+        document.getElementById('autoMessageExclusionGroup').style.display = 'block';
+        exclusionSelectedUids.clear();
+        originalExclusionUids.clear();
+        friendsList.forEach(f => {
+           if (f.autoReplyEnabled === false) {
+               exclusionSelectedUids.add(f.userId);
+               originalExclusionUids.add(f.userId);
+           }
+        });
+        renderAutoMessageExclusionList();
       } else {
         trigger = builtInTriggers.autoReplyGroup;
         document.getElementById('autoMessageModalTitle').textContent = '👨‍👩‍👧‍👦 Cài đặt Trả lời tự động (Nhóm)';
         document.getElementById('autoMessageDesc').textContent = 'Tự động trả lời tin nhắn từ nhóm chat.';
+        document.getElementById('autoMessageExclusionGroup').style.display = 'none';
       }
 
       // Populate form với dữ liệu hiện tại
@@ -2031,6 +2068,30 @@
         builtInTriggers.autoReplyUser.enabled = enabled;
         builtInTriggers.autoReplyUser.cooldown = cooldownMs;
         saveBuiltInTriggerState('builtin_auto_reply_user', builtInTriggers.autoReplyUser);
+        
+        // --- XỬ LÝ DANH SÁCH LOẠI TRỪ (AUTO-REPLY BLACKLIST) ---
+        let changedCount = 0;
+        friendsList.forEach(f => {
+            const wasExcluded = originalExclusionUids.has(f.userId);
+            const isNowExcluded = exclusionSelectedUids.has(f.userId);
+            
+            if (wasExcluded !== isNowExcluded) {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'toggle_user_auto_reply',
+                        targetId: f.userId,
+                        enabled: !isNowExcluded
+                    }));
+                }
+                changedCount++;
+                f.autoReplyEnabled = !isNowExcluded; // Cập nhật local cache
+            }
+        });
+        if (changedCount > 0) {
+            console.log(`🔄 Toggled auto-reply for ${changedCount} users via exclusion list.`);
+        }
+        // --------------------------------------------------------
+        
       } else {
         builtInTriggers.autoReplyGroup.response = response;
         builtInTriggers.autoReplyGroup.enabled = enabled;
@@ -2042,6 +2103,74 @@
       hideAutoMessageModal();
       renderTriggerList();
       showToast('✅ Đã lưu cài đặt Tự động gửi tin nhắn!', 'success');
+    }
+
+    // ================================================
+    // AUTO MESSAGE EXCLUSION LIST LOGIC
+    // ================================================
+    function renderAutoMessageExclusionList() {
+      const c = document.getElementById('autoMessageExclusionList');
+      const tagSelect = document.getElementById('autoMessageTagFilter');
+      const searchInput = document.getElementById('autoMessageSearchInput');
+      const currentTag = tagSelect ? tagSelect.value : '';
+      const searchTerm = searchInput ? (searchInput.value || '').toLowerCase() : '';
+      
+      const existingTags = new Set();
+      friendsList.forEach(c => {
+          if (c.tag && c.tag.trim()) existingTags.add(c.tag.trim());
+      });
+      if (tagSelect) {
+          tagSelect.innerHTML = '<option value="">Tất cả thẻ</option>';
+          existingTags.forEach(tag => {
+              const opt = document.createElement('option');
+              opt.value = tag; opt.textContent = tag;
+              if (tag === currentTag) opt.selected = true;
+              tagSelect.appendChild(opt);
+          });
+      }
+
+      if (friendsList.length === 0) { 
+        c.innerHTML = '<div class="friends-selector-loading" style="text-align:center; padding:20px; color:#999;">Không có bạn bè</div>'; 
+        return; 
+      }
+
+      const filteredFriends = friendsList.filter(f => {
+          const matchSearch = (f.displayName || '').toLowerCase().includes(searchTerm) || (f.userId || '').toLowerCase().includes(searchTerm);
+          const matchTag = currentTag === '' || (f.tag || '').trim() === currentTag;
+          return matchSearch && matchTag;
+      });
+
+      if (filteredFriends.length === 0) {
+        c.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">Không tìm thấy kết quả</div>';
+        return;
+      }
+
+      c.innerHTML = '<div id="exclusionListContainer" style="display:flex; flex-direction:column; gap:4px;">' + filteredFriends.map(f => {
+        const isChecked = exclusionSelectedUids.has(f.userId);
+        const tagHtml = f.tag ? `<span style="font-size: 11px; padding: 2px 6px; background: #0068ff; color: white; border-radius: 4px; margin-left: auto; flex-shrink: 0;">${escapeHtml(f.tag)}</span>` : '';
+        return '<label class="friend-checkbox-item" data-tag="' + escapeHtmlAttr((f.tag || '').trim()) + '" style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:8px; border-radius:6px; transition:background 0.2s;"><input type="checkbox" value="' + f.userId + '" ' + (isChecked ? 'checked' : '') + ' onchange="onExclusionCheck(this)" style="width:16px; height:16px; margin:0; flex-shrink:0;"><img src="' + (f.avatar || 'https://via.placeholder.com/36') + '" onerror="this.src=\'https://via.placeholder.com/36\'" style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0;"><div class="friend-checkbox-info" style="flex:1; min-width:0; overflow:hidden; display:flex; align-items:center;"><div style="display:flex; flex-direction:column; flex:1; min-width:0;"><div class="friend-checkbox-name" style="font-weight:600; font-size:13px; color:#333; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">' + escapeHtml(f.displayName) + '</div><div class="friend-checkbox-uid" style="font-size:11px; color:#888;">' + f.userId + '</div></div>' + tagHtml + '</div></label>';
+      }).join('') + '</div>';
+    }
+    
+    function onExclusionCheck(cb) {
+      if (cb.checked) { 
+        exclusionSelectedUids.add(cb.value); 
+      } else { 
+        exclusionSelectedUids.delete(cb.value); 
+      } 
+    }
+
+    function selectAllAutoMessageExclusionUsers() {
+      const items = Array.from(document.querySelectorAll('#exclusionListContainer .friend-checkbox-item'));
+      const checkboxes = items.map(e => e.querySelector('input[type="checkbox"]'));
+      const allChecked = checkboxes.every(cb => cb.checked);
+      
+      checkboxes.forEach(cb => {
+        if (cb.checked !== !allChecked) {
+          cb.checked = !allChecked;
+          onExclusionCheck(cb);
+        }
+      });
     }
 
     function toggleEmojiPickerForAutoMessage(event) {

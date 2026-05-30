@@ -9,3 +9,5 @@ services:
         value: 18
       - key: DATABASE_URL
         sync: false
+      - key: MONGO_URI
+        sync: false
