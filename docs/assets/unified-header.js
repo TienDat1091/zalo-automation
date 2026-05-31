@@ -15,6 +15,70 @@
     if (window.UnifiedHeader) return;
 
     const HEADER_HTML = `
+    <style>
+    .uh-dropdown-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #888;
+        padding: 10px 16px 4px 16px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        border-top: 1px solid rgba(0,0,0,0.05);
+    }
+    .uh-account-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .uh-account-item:hover {
+        background: #f5f7fa;
+    }
+    .uh-account-item.active {
+        background: #eef2ff;
+        font-weight: 600;
+    }
+    .uh-account-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .uh-account-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+    .uh-account-name {
+        font-size: 13px;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 120px;
+    }
+    .uh-account-active-badge {
+        color: #4CAF50;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .uh-account-remove {
+        font-size: 12px;
+        color: #ff5252;
+        cursor: pointer;
+        opacity: 0.5;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        margin-left: 8px;
+    }
+    .uh-account-remove:hover {
+        opacity: 1;
+        background: rgba(255, 82, 82, 0.1);
+    }
+    </style>
     <div class="unified-header">
         <a href="/" class="uh-brand">
             <span class="icon">🤖</span>
@@ -73,9 +137,16 @@
                     <div class="uh-menu-item" onclick="UnifiedHeader.showSettings()">
                         <span class="icon">⚙️</span> Cài đặt hệ thống
                     </div>
+                    <div class="uh-dropdown-section-title">📋 QUẢN LÝ TÀI KHOẢN</div>
+                    <div id="uh-accounts-list-container">
+                        <div style="padding:10px 16px;font-size:12px;color:#999;">Đang tải...</div>
+                    </div>
+                    <div class="uh-menu-item" onclick="UnifiedHeader.addAccount()">
+                        <span class="icon">➕</span> Thêm tài khoản Zalo
+                    </div>
                     <div class="uh-menu-divider"></div>
-                    <div class="uh-menu-item logout" onclick="UnifiedHeader.logout()">
-                        <span class="icon">🚪</span> Đăng xuất
+                    <div class="uh-menu-item logout" onclick="UnifiedHeader.logoutAll()">
+                        <span class="icon">🚪</span> Đăng xuất tất cả
                     </div>
                 </div>
             </div>
@@ -196,6 +267,7 @@
                         existingWS.send(JSON.stringify({ type: 'get_auto_reply_status' }));
                         existingWS.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
                     }
+                    existingWS.send(JSON.stringify({ type: 'get_accounts' }));
                     existingWS.send(JSON.stringify({ type: 'get_activity_logs', limit: 20 }));
                 }
 
@@ -234,6 +306,7 @@
                                     self.ws.send(JSON.stringify({ type: 'get_current_user' }));
                                     self.ws.send(JSON.stringify({ type: 'get_auto_reply_status' }));
                                     self.ws.send(JSON.stringify({ type: 'get_bot_auto_reply_status' }));
+                                    self.ws.send(JSON.stringify({ type: 'get_accounts' }));
                                     self.ws.send(JSON.stringify({ type: 'get_activity_logs', limit: 20 }));
                                     document.getElementById('uh-status-dot').className = 'uh-status-dot online';
                                 };
@@ -259,6 +332,10 @@
             console.log('WS Msg:', data.type);
             if (data.type === 'current_user' && data.user) {
                 this.updateUser(data.user);
+            }
+
+            if (data.type === 'accounts_list' && Array.isArray(data.accounts)) {
+                this.renderAccounts(data.accounts, data.activeAccountUID);
             }
 
             if (data.type === 'activity_logs' && Array.isArray(data.logs)) {
@@ -546,6 +623,145 @@
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(JSON.stringify({ type: 'logout' }));
                 }
+                setTimeout(() => {
+                    window.location.href = '/?logout=true';
+                }, 100);
+            }
+        }
+
+        renderAccounts(accounts, activeAccountUID) {
+            const container = document.getElementById('uh-accounts-list-container');
+            if (!container) return;
+
+            if (!accounts || accounts.length === 0) {
+                container.innerHTML = '<div style="padding:10px 16px;font-size:12px;color:#999;">Không có tài khoản nào</div>';
+                return;
+            }
+
+            container.innerHTML = accounts.map(acc => {
+                const isActive = acc.uid === activeAccountUID;
+                const statusBadge = isActive ? '<span class="uh-account-active-badge">Đang hoạt động</span>' : '';
+                const activeClass = isActive ? 'active' : '';
+                const avatarSrc = acc.avatar || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ccc' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+                
+                return `
+                    <div class="uh-account-item ${activeClass}" onclick="UnifiedHeader.switchAccount('${acc.uid}', event)">
+                        <div class="uh-account-left">
+                            <img src="${avatarSrc}" class="uh-account-avatar">
+                            <div style="display:flex; flex-direction:column;">
+                                <span class="uh-account-name" title="${acc.name}">${acc.name}</span>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        <span class="uh-account-remove" onclick="UnifiedHeader.removeAccount('${acc.uid}', event)" title="Đăng xuất tài khoản này">❌</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async switchAccount(uid, event) {
+            // If the user clicks on the delete button, prevent switching
+            if (event && event.target.closest('.uh-account-remove')) {
+                return;
+            }
+            
+            console.log(`🔌 Switching to account: ${uid}`);
+            
+            // Check if already active
+            if (this.currentUser && this.currentUser.uid === uid) {
+                return;
+            }
+
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({ type: 'switch_account', uid }));
+            } else {
+                // fallback to http
+                try {
+                    await fetch('/api/switch-account', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid })
+                    });
+                } catch (e) {
+                    console.error('Failed to switch account via fetch:', e);
+                }
+            }
+            
+            // Clear session storage cache to fetch new user's details on reload
+            try { sessionStorage.removeItem('zalo_user_cache'); } catch (e) {}
+            
+            // Reload page to update all states
+            setTimeout(() => {
+                location.reload();
+            }, 300);
+        }
+
+        addAccount() {
+            document.getElementById('uh-user-dropdown').classList.remove('show');
+            // Redirect to index page with query param
+            window.location.href = '/?add_account=true';
+        }
+
+        async removeAccount(uid, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
+            document.getElementById('uh-user-dropdown').classList.remove('show');
+            const confirmed = await this.askConfirm(`Bạn có chắc chắn muốn đăng xuất tài khoản Zalo ${uid}?`, '🚪 Đăng xuất tài khoản');
+            if (confirmed) {
+                console.log(`🚪 Removing account: ${uid}`);
+                
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({ type: 'remove_account', uid }));
+                } else {
+                    // fallback to http
+                    try {
+                        await fetch('/api/remove-account', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uid })
+                        });
+                    } catch (e) {
+                        console.error('Failed to remove account via fetch:', e);
+                    }
+                }
+                
+                // If it was the active account, clear session storage cache
+                if (this.currentUser && this.currentUser.uid === uid) {
+                    try { sessionStorage.removeItem('zalo_user_cache'); } catch (e) {}
+                }
+                
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 300);
+            }
+        }
+
+        async logoutAll() {
+            document.getElementById('uh-user-dropdown').classList.remove('show');
+            const confirmed = await this.askConfirm('Bạn có chắc chắn muốn đăng xuất tất cả các tài khoản khỏi hệ thống?', '🚪 Đăng xuất tất cả');
+            if (confirmed) {
+                console.log('🚀 Logging out all accounts...');
+                try { sessionStorage.clear(); } catch (e) { /* ignore */ }
+                
+                try {
+                    // Fetch accounts
+                    const res = await fetch('/api/accounts');
+                    const data = await res.json();
+                    if (data && Array.isArray(data.accounts)) {
+                        for (const acc of data.accounts) {
+                            await fetch('/api/remove-account', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ uid: acc.uid })
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error during logout all:', err);
+                }
+                
                 setTimeout(() => {
                     window.location.href = '/?logout=true';
                 }, 100);

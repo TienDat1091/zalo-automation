@@ -35,29 +35,60 @@ app.use((req, res, next) => {
 
 const sessionManager = null; // SessionManager removed
 
-// API state (Legacy/Global fallback)
-const apiState = {
-  api: null,
-  currentUser: null,
-  isLoggedIn: false,
-  messageStore: new Map(),
-  clients: new Set()
-  // authorizedIP removed - no IP locking for multi-device support
+// Multi-Account State Management
+const multiState = {
+  accounts: new Map(), // UID -> AccountState
+  activeAccountUID: null,
+  clients: new Set(),
+  loginInProgress: false
 };
 
-// Start Global Fallback Login (optional, or remove if fully multi-user)
-// apiState.loginZalo wrapper removed (using direct loginZalo call)
+// API state Proxy for compatibility
+const apiState = new Proxy(multiState, {
+  get(target, prop) {
+    if (prop === 'clients') return target.clients;
+    if (prop === 'accounts') return target.accounts;
+    if (prop === 'activeAccountUID') return target.activeAccountUID;
+    if (prop === 'loginQueue') return target.loginQueue;
+    if (prop === 'isLoggedIn') return target.isLoggedIn;
+    if (prop === 'loginInProgress') return target.loginInProgress;
+    
+    // Resolve active account
+    const activeUid = target.activeAccountUID || Array.from(target.accounts.keys())[0];
+    const activeAccount = activeUid ? target.accounts.get(activeUid) : null;
+    
+    if (activeAccount) {
+      return activeAccount[prop];
+    }
+    return target[prop];
+  },
+  set(target, prop, value) {
+    if (prop === 'clients' || prop === 'accounts' || prop === 'activeAccountUID' || prop === 'loginQueue' || prop === 'loginInProgress') {
+      target[prop] = value;
+      return true;
+    }
+    const activeUid = target.activeAccountUID || Array.from(target.accounts.keys())[0];
+    const activeAccount = activeUid ? target.accounts.get(activeUid) : null;
+    if (activeAccount) {
+      activeAccount[prop] = value;
+      return true;
+    }
+    target[prop] = value;
+    return true;
+  }
+});
 
-// Session & Zalo Session Middleware
-// Session middleware removed for deployment stability
-const isSecure = process.env.RENDER || process.env.NODE_ENV === 'production';
-// app.use(session({...})); removed
-
-// Session attachment middleware removed
-
+// Middleware to isolate DB context per request
+app.use((req, res, next) => {
+  const uid = req.query.userUID || req.headers['x-user-uid'] || multiState.activeAccountUID || Array.from(multiState.accounts.keys())[0];
+  if (uid) {
+    messageDB.dbStorage.run(uid, next);
+  } else {
+    next();
+  }
+});
 
 // Simple login check middleware for dashboard and protected pages
-// Multi-device mode: no IP locking, anyone can access if logged in
 app.use((req, res, next) => {
   // Skip cho login page, static files, QR, API endpoints, force-login
   const skipPaths = [
@@ -72,15 +103,11 @@ app.use((req, res, next) => {
     return next();
   }
 
-  // Use global apiState only (single user mode)
-  const currentState = apiState;
-
   // PROTECTION - Not logged in, redirect to login
-  if (!currentState.isLoggedIn) {
+  if (multiState.accounts.size === 0) {
     return res.redirect('/');
   }
 
-  // ✅ No IP lock - allow access from any device
   next();
 });
 
@@ -125,6 +152,96 @@ app.get('/api/current-user', (req, res) => {
     res.json({ userUID: apiState.currentUser.uid });
   } else {
     res.status(404).json({ error: 'No user logged in' });
+  }
+});
+
+// ============================================
+// MULTI-ACCOUNT MANAGEMENT ENDPOINTS
+// ============================================
+
+// Get all logged in accounts
+app.get('/api/accounts', (req, res) => {
+  const list = Array.from(multiState.accounts.values()).map(acc => ({
+    uid: acc.currentUser.uid,
+    name: acc.currentUser.name,
+    avatar: acc.currentUser.avatar,
+    isLoggedIn: acc.isLoggedIn
+  }));
+  res.json({
+    accounts: list,
+    activeAccountUID: multiState.activeAccountUID
+  });
+});
+
+// Switch active account
+app.post('/api/switch-account', (req, res) => {
+  const { uid } = req.body;
+  if (multiState.accounts.has(uid)) {
+    multiState.activeAccountUID = uid;
+    console.log(`🔌 Switched active account to: ${uid}`);
+    
+    const { broadcastAccountsList } = require('./loginZalo');
+    broadcastAccountsList(multiState);
+    
+    res.json({ success: true, activeAccountUID: uid });
+  } else {
+    res.status(404).json({ error: 'Account not found' });
+  }
+});
+
+// Add a new account (trigger login QR)
+app.post('/api/add-account', async (req, res) => {
+  if (multiState.accounts.size >= 2) {
+    return res.status(400).json({ error: 'Maximum of 2 accounts reached' });
+  }
+  
+  console.log('🔄 Add account requested - preparing new QR login...');
+  const { loginZaloAccount } = require('./loginZalo');
+  
+  try {
+    loginZaloAccount(multiState).catch(err => {
+      console.error('❌ Add account login failed:', err.message);
+    });
+    res.json({ success: true, message: 'QR generation started' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to start login flow' });
+  }
+});
+
+// Remove / Logout an account
+app.post('/api/remove-account', async (req, res) => {
+  const { uid } = req.body;
+  if (multiState.accounts.has(uid)) {
+    console.log(`🚪 Logging out account: ${uid}`);
+    const account = multiState.accounts.get(uid);
+    
+    try {
+      if (account.api && account.api.logout) {
+        await account.api.logout();
+      }
+    } catch (e) {
+      console.warn(`Warning during api logout for ${uid}:`, e.message);
+    }
+    
+    try {
+      const credentialsPath = path.join(__dirname, 'data', `credentials_${uid}.json`);
+      if (fs.existsSync(credentialsPath)) {
+        fs.unlinkSync(credentialsPath);
+      }
+    } catch (e) { }
+    
+    multiState.accounts.delete(uid);
+    
+    if (multiState.activeAccountUID === uid) {
+      multiState.activeAccountUID = Array.from(multiState.accounts.keys())[0] || null;
+    }
+    
+    const { broadcastAccountsList } = require('./loginZalo');
+    broadcastAccountsList(multiState);
+    
+    res.json({ success: true, activeAccountUID: multiState.activeAccountUID });
+  } else {
+    res.status(404).json({ error: 'Account not found' });
   }
 });
 
@@ -740,81 +857,72 @@ server.listen(PORT, async () => {
   // ============================================
   // SCHEDULED TASKS RUNNER (Every 30 seconds)
   // ============================================
+  // ============================================
+  // SCHEDULED TASKS & ROUTINES RUNNER (Every 30 seconds)
+  // ============================================
   setInterval(async () => {
-    if (!apiState.isLoggedIn || !apiState.currentUser) return;
+    for (const [uid, accountState] of multiState.accounts.entries()) {
+      if (!accountState.isLoggedIn || !accountState.currentUser) continue;
 
-    try {
-      // Get pending tasks
-      const now = Date.now();
-      const tasks = triggerDB.getPendingScheduledTasks(apiState.currentUser.uid, now);
+      await messageDB.dbStorage.run(uid, async () => {
+        try {
+          // Get pending tasks
+          const now = Date.now();
+          const tasks = triggerDB.getPendingScheduledTasks(uid, now);
 
-      if (tasks && tasks.length > 0) {
-        console.log(`⏰ Processing ${tasks.length} scheduled tasks...`);
+          if (tasks && tasks.length > 0) {
+            console.log(`[${uid}] ⏰ Processing ${tasks.length} scheduled tasks...`);
 
-        for (const task of tasks) {
-          try {
-            // Update status to processing (or just execute)
-            console.log(`🚀 Executing task #${task.id}: ${task.type} -> ${task.targetId}`);
+            for (const task of tasks) {
+              try {
+                console.log(`[${uid}] 🚀 Executing task #${task.id}: ${task.type} -> ${task.targetId}`);
 
-            if (task.type === 'flow') {
-              // Execute Flow
-              const flow = triggerDB.getFlow(task.content); // content is flowId
-              if (flow) {
-                const flowExecutor = require('./flowExecutor');
-                // Fake message object for context
-                const fakeReq = { type: 'scheduled', threadId: task.targetId, data: { content: 'Triggered by Schedule' } };
-                await flowExecutor.executeFlow(apiState, flow, task.targetId, fakeReq, apiState.currentUser.uid);
+                if (task.type === 'flow') {
+                  const flow = triggerDB.getFlow(task.content);
+                  if (flow) {
+                    const flowExecutor = require('./flowExecutor');
+                    const fakeReq = { type: 'scheduled', threadId: task.targetId, data: { content: 'Triggered by Schedule' } };
+                    await flowExecutor.executeFlow(accountState, flow, task.targetId, fakeReq, uid);
+                  }
+                } else if (task.type === 'forward') {
+                  const threadIds = task.targetId.split(',').map(id => id.trim()).filter(id => id);
+                  if (threadIds.length > 0) {
+                    await accountState.api.forwardMessage({ message: task.content }, threadIds);
+                  }
+                } else {
+                  await accountState.api.sendMessage(task.content, task.targetId);
+                }
+
+                triggerDB.updateScheduledTaskStatus(task.id, 'completed');
+              } catch (taskError) {
+                console.error(`[${uid}] ❌ Task #${task.id} failed:`, taskError.message);
+                triggerDB.updateScheduledTaskStatus(task.id, 'failed');
               }
-            } else if (task.type === 'forward') {
-              // Bulk Forward
-              const threadIds = task.targetId.split(',').map(id => id.trim()).filter(id => id);
-              if (threadIds.length > 0) {
-                // Determine if they are users or groups (for now assume users as targetId usually is)
-                // zca-js forwardMessage handles multiple threadIds in one call
-                // By default we use User type, but we could detect if any ID starts with group pattern if known
-                // Usually group IDs in Zalo are different.
-                await apiState.api.forwardMessage({ message: task.content }, threadIds);
-              }
-            } else {
-              // Send Text
-              await apiState.api.sendMessage(task.content, task.targetId);
             }
-
-            // Mark completed
-            triggerDB.updateScheduledTaskStatus(task.id, 'completed');
-
-          } catch (taskError) {
-            console.error(`❌ Task #${task.id} failed:`, taskError.message);
-            triggerDB.updateScheduledTaskStatus(task.id, 'failed');
           }
+
+          // AUTOMATION ROUTINES RUNNER
+          const routines = triggerDB.getDueAutomationRoutines ? triggerDB.getDueAutomationRoutines() : [];
+          const h = new Date().getHours().toString().padStart(2, '0');
+          const m = new Date().getMinutes().toString().padStart(2, '0');
+          const currentTimeStr = `${h}:${m}`;
+          const today = new Date().setHours(0, 0, 0, 0);
+
+          for (const routine of routines) {
+            if (!routine.enabled || routine.userUID !== uid) continue;
+
+            const timeMatch = routine.atTime === currentTimeStr;
+            const notRunToday = !routine.lastRun || routine.lastRun < today;
+
+            if (timeMatch && notRunToday) {
+              executeRoutine(accountState, routine).catch(e => console.error(`Error running routine ${routine.id}:`, e));
+            }
+          }
+
+        } catch (err) {
+          console.error(`[${uid}] ❌ Scheduler error:`, err.message);
         }
-      }
-
-      // ============================================
-      // AUTOMATION ROUTINES RUNNER
-      // ============================================
-      const routines = triggerDB.getDueAutomationRoutines ? triggerDB.getDueAutomationRoutines() : [];
-      // Manual filter in code for better precision/safety
-      const h = new Date().getHours().toString().padStart(2, '0');
-      const m = new Date().getMinutes().toString().padStart(2, '0');
-      const currentTimeStr = `${h}:${m}`;
-      const today = new Date().setHours(0, 0, 0, 0);
-
-      for (const routine of routines) {
-        if (!routine.enabled) continue;
-
-        // daily frequency logic: check time match and not run today
-        const timeMatch = routine.atTime === currentTimeStr;
-        const notRunToday = !routine.lastRun || routine.lastRun < today;
-
-        if (timeMatch && notRunToday) {
-          // FIRE AND FORGET - Don't await individual routines to avoid blocking the loop
-          executeRoutine(apiState, routine).catch(e => console.error(`Error running routine ${routine.id}:`, e));
-        }
-      }
-
-    } catch (err) {
-      console.error('❌ Scheduler error:', err.message);
+      });
     }
   }, 30 * 1000); // Check every 30 seconds
 

@@ -50,15 +50,48 @@
     const myIpEl = document.querySelector('#myIP');
     let qrRefreshInterval;
 
-    // Fetch Client IP
-    fetch('/api/my-ip')
+    let isAddAccount = new URLSearchParams(window.location.search).get('add_account') === 'true';
+    let initialAccountCount = null;
+
+    // Check existing accounts on load
+    fetch('/api/accounts')
       .then(res => res.json())
       .then(data => {
-        myIpEl.textContent = data.ip;
-        console.log('My IP:', data.ip);
-      })
-      .catch(err => {
-        myIpEl.textContent = 'Không xác định';
+        if (data.accounts && data.accounts.length > 0 && !isAddAccount) {
+          // User already logged in, show options panel
+          clearInterval(qrRefreshInterval);
+          document.body.innerHTML = `
+            <div class="box">
+              <h2>🔐 Trạng thái Đăng nhập</h2>
+              <p class="subtitle">Đã kết nối <strong>${data.accounts.length}</strong> tài khoản Zalo</p>
+              
+              <div style="margin: 20px 0; text-align: left; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05);">
+                ${data.accounts.map(acc => `
+                  <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 10px;">
+                    <img src="${acc.avatar || 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23ccc\' d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'%3E%3C/svg%3E'}" style="width:36px; height:36px; border-radius:50%; border: 1px solid rgba(0,0,0,0.1);" />
+                    <div>
+                      <div style="font-weight:600; font-size:14px; color:#333;">${acc.name}</div>
+                      <div style="font-size:11px; color:#666;">UID: ${acc.uid}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:12px; margin-top:20px;">
+                <button onclick="location.href='./dashboard.html'" style="background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%); color:white; border:none; padding:12px; border-radius:8px; font-weight:600; cursor:pointer; box-shadow: 0 4px 10px rgba(13,33,55,0.2);">
+                  🏠 Vào Trang Quản Trị
+                </button>
+                ${data.accounts.length < 2 ? `
+                  <button onclick="location.href='/?add_account=true'" style="background:white; color:#1e3a5f; border:1px solid #1e3a5f; padding:12px; border-radius:8px; font-weight:600; cursor:pointer;">
+                    ➕ Đăng Nhập Thêm Tài Khoản 2
+                  </button>
+                ` : `
+                  <p style="font-size:12px; color:#ef4444; font-weight:600; text-align:center;">Hệ thống đạt giới hạn tối đa 2 tài khoản.</p>
+                `}
+              </div>
+            </div>
+          `;
+        }
       });
 
     // Xử lý khi WebSocket kết nối
@@ -66,7 +99,6 @@
       console.log('✅ Đã kết nối WebSocket');
       updateStatus('Đang chờ quét mã...', 'waiting');
 
-      // Check if this is a takeover login request
       const urlParams = new URLSearchParams(window.location.search);
       const isTakeover = urlParams.get('takeover') === 'pending';
 
@@ -74,8 +106,11 @@
         console.log('🔄 Takeover mode - requesting new QR...');
         updateStatus('🔄 Đang tạo mã QR mới...', 'waiting');
         ws.send(JSON.stringify({ type: 'request_takeover_login' }));
-        // Clean URL
         window.history.replaceState({}, document.title, '/');
+      } else if (isAddAccount) {
+        console.log('🔌 Add account mode - requesting new login QR...');
+        updateStatus('🔄 Đang tạo mã QR cho tài khoản mới...', 'waiting');
+        ws.send(JSON.stringify({ type: 'add_account' }));
       }
 
       // Auto refresh QR mỗi 3 giây nếu chưa login
@@ -89,8 +124,36 @@
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
 
-      // If already logged in, redirect to dashboard
+      if (data.type === 'qr_generating') {
+        updateStatus('🔄 Đang tạo mã QR mới...', 'waiting');
+      }
+
+      if (data.type === 'login_error') {
+        updateStatus('❌ ' + data.message, 'error');
+      }
+
+      // Track accounts list updates
+      if (data.type === 'accounts_list') {
+        if (initialAccountCount === null) {
+          initialAccountCount = data.accounts.length;
+        } else if (isAddAccount && data.accounts.length > initialAccountCount) {
+          console.log('✅ New account added successfully!');
+          document.body.dataset.logged = 'true';
+          clearInterval(qrRefreshInterval);
+          updateStatus('✅ Đăng nhập tài khoản mới thành công! Đang chuyển hướng...', 'success');
+          setTimeout(() => {
+            location.href = './dashboard.html';
+          }, 1000);
+        }
+      }
+
+      // If already logged in, redirect to dashboard (only if not adding a new account)
       if (data.type === 'current_user' && data.user) {
+        if (isAddAccount) {
+          // Ignore current_user broadcast on startup for add_account
+          return;
+        }
+
         console.log('✅ Đã đăng nhập:', data.user.name);
         document.body.dataset.logged = 'true';
         clearInterval(qrRefreshInterval);

@@ -613,7 +613,7 @@ function migrateOldData(userUID) {
 // ============================================
 // WEBSOCKET SERVER
 // ============================================
-function startWebSocketServer(apiState, httpServer) {
+function startWebSocketServer(multiState, httpServer) {
   // If httpServer is provided, attach to it. Otherwise create on port 8080 (fallback)
   const wss = httpServer
     ? new WebSocket.Server({ server: httpServer, maxPayload: 200 * 1024 * 1024 })
@@ -633,23 +633,75 @@ function startWebSocketServer(apiState, httpServer) {
     ws.clientIP = clientIP; // Store for logging
 
     console.log(`✅ New WebSocket connection from: ${clientIP}`);
-    apiState.clients.add(ws);
+    multiState.clients.add(ws);
 
-    // Send current user info to ALL clients (no IP gating)
-    if (apiState.currentUser) {
+    // Proxy apiState to dynamically resolve properties to active account
+    const apiState = new Proxy(multiState, {
+      get(target, prop) {
+        if (prop === 'clients') return target.clients;
+        if (prop === 'accounts') return target.accounts;
+        if (prop === 'activeAccountUID') return target.activeAccountUID;
+        if (prop === 'loginQueue') return target.loginQueue;
+        if (prop === 'isLoggedIn') return target.isLoggedIn;
+        if (prop === 'loginInProgress') return target.loginInProgress;
+        
+        // Resolve active account
+        const activeUid = ws.activeAccountUID || target.activeAccountUID || Array.from(target.accounts.keys())[0];
+        const activeAccount = activeUid ? target.accounts.get(activeUid) : null;
+        
+        if (activeAccount) {
+          return activeAccount[prop];
+        }
+        return target[prop];
+      },
+      set(target, prop, value) {
+        if (prop === 'clients' || prop === 'accounts' || prop === 'activeAccountUID' || prop === 'loginQueue' || prop === 'loginInProgress') {
+          target[prop] = value;
+          return true;
+        }
+        const activeUid = ws.activeAccountUID || target.activeAccountUID || Array.from(target.accounts.keys())[0];
+        const activeAccount = activeUid ? target.accounts.get(activeUid) : null;
+        if (activeAccount) {
+          activeAccount[prop] = value;
+          return true;
+        }
+        target[prop] = value;
+        return true;
+      }
+    });
+
+    const { broadcastAccountsList } = require('../loginZalo');
+
+    // Send current session status or start login
+    if (multiState.accounts.size > 0) {
+      // Send accounts list immediately to this client
+      const accountsList = Array.from(multiState.accounts.values()).map(acc => ({
+        uid: acc.currentUser.uid,
+        name: acc.currentUser.name,
+        avatar: acc.currentUser.avatar,
+        isLoggedIn: acc.isLoggedIn
+      }));
       ws.send(JSON.stringify({
-        type: 'current_user',
-        user: apiState.currentUser
+        type: 'accounts_list',
+        accounts: accountsList,
+        activeAccountUID: ws.activeAccountUID || multiState.activeAccountUID || accountsList[0].uid
       }));
 
-      // Migrate old data if needed
-      migrateOldData(apiState.currentUser.uid);
+      if (apiState.currentUser) {
+        ws.send(JSON.stringify({
+          type: 'current_user',
+          user: apiState.currentUser
+        }));
+        
+        // Migrate old data if needed
+        migrateOldData(apiState.currentUser.uid);
+      }
     } else {
       // 🔄 No current user - start login process if not already running
-      if (!apiState.isLoggedIn && !apiState.loginInProgress) {
+      if (!multiState.loginInProgress) {
         console.log('📱 No user logged in, starting login process...');
         const { loginZalo } = require('../loginZalo');
-        loginZalo(apiState)
+        loginZalo(multiState)
           .catch(err => {
             console.error('❌ Auto-login failed:', err.message);
           });
@@ -660,9 +712,103 @@ function startWebSocketServer(apiState, httpServer) {
     }
 
     ws.on('message', async (raw) => {
-      try {
-        const msg = JSON.parse(raw);
-        // console.log('📨 WebSocket message:', msg.type); // Optional log
+      const activeUid = ws.activeAccountUID || apiState.currentUser?.uid || multiState.activeAccountUID;
+      await messageDB.dbStorage.run(activeUid, async () => {
+        try {
+          const msg = JSON.parse(raw);
+          // console.log('📨 WebSocket message:', msg.type); // Optional log
+
+          // ============================================
+          // NEW MULTI-ACCOUNT MESSAGES
+          // ============================================
+          if (msg.type === 'get_accounts') {
+            const accountsList = Array.from(multiState.accounts.values()).map(acc => ({
+              uid: acc.currentUser.uid,
+              name: acc.currentUser.name,
+              avatar: acc.currentUser.avatar,
+              isLoggedIn: acc.isLoggedIn
+            }));
+            ws.send(JSON.stringify({
+              type: 'accounts_list',
+              accounts: accountsList,
+              activeAccountUID: ws.activeAccountUID || multiState.activeAccountUID
+            }));
+            return;
+          }
+
+          if (msg.type === 'switch_account') {
+            const { uid } = msg;
+            if (multiState.accounts.has(uid)) {
+              ws.activeAccountUID = uid;
+              console.log(`🔌 Client ${ws.clientIP} switched to account: ${uid}`);
+              
+              const account = multiState.accounts.get(uid);
+              ws.send(JSON.stringify({
+                type: 'current_user',
+                user: account.currentUser
+              }));
+              
+              const accountsList = Array.from(multiState.accounts.values()).map(acc => ({
+                uid: acc.currentUser.uid,
+                name: acc.currentUser.name,
+                avatar: acc.currentUser.avatar,
+                isLoggedIn: acc.isLoggedIn
+              }));
+              ws.send(JSON.stringify({
+                type: 'accounts_list',
+                accounts: accountsList,
+                activeAccountUID: uid
+              }));
+            }
+            return;
+          }
+
+          if (msg.type === 'add_account') {
+            if (multiState.accounts.size >= 2) {
+              ws.send(JSON.stringify({
+                type: 'login_error',
+                message: 'Hệ thống đã đạt giới hạn tối đa 2 tài khoản!'
+              }));
+              return;
+            }
+            console.log('🔌 Client requested to add new Zalo account...');
+            const { loginZaloAccount } = require('../loginZalo');
+            loginZaloAccount(multiState).catch(err => {
+              console.error('❌ Failed to add account:', err.message);
+            });
+            return;
+          }
+
+          if (msg.type === 'remove_account') {
+            const { uid } = msg;
+            if (multiState.accounts.has(uid)) {
+              console.log(`🚪 Client requested logout for account: ${uid}`);
+              const account = multiState.accounts.get(uid);
+              try {
+                if (account.api && account.api.logout) {
+                  await account.api.logout();
+                }
+              } catch (e) { }
+              
+              try {
+                const credentialsPath = path.join(__dirname, '..', 'data', `credentials_${uid}.json`);
+                if (fs.existsSync(credentialsPath)) {
+                  fs.unlinkSync(credentialsPath);
+                }
+              } catch (e) { }
+
+              multiState.accounts.delete(uid);
+              if (multiState.activeAccountUID === uid) {
+                multiState.activeAccountUID = Array.from(multiState.accounts.keys())[0] || null;
+              }
+              if (ws.activeAccountUID === uid) {
+                ws.activeAccountUID = multiState.activeAccountUID;
+              }
+
+              broadcastAccountsList(multiState);
+            }
+            return;
+          }
 
         // ============================================
         // TAKEOVER LOGIN REQUEST - Generate new QR for session takeover
@@ -5202,7 +5348,7 @@ function startWebSocketServer(apiState, httpServer) {
         console.error('❌ WebSocket message error:', err.message);
         console.error(err.stack);
       }
-
+      });
     });
 
     ws.on('close', () => {

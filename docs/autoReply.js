@@ -13,7 +13,26 @@ const http = require('http');
 // FILE BATCHING FOR AUTO-REPLY
 // ========================================
 // Prevents duplicate auto-replies when users send multiple files/images
-const fileBatchMap = new Map(); // senderId -> { files: [], timer: null, replied: false }
+const fileBatchMaps = new Map();
+
+function getActiveFileBatchMap() {
+  const userUID = messageDB.dbStorage.getStore() || 'default';
+  if (!fileBatchMaps.has(userUID)) {
+    fileBatchMaps.set(userUID, new Map());
+  }
+  return fileBatchMaps.get(userUID);
+}
+
+const fileBatchMap = new Proxy({}, {
+  get(target, prop) {
+    const map = getActiveFileBatchMap();
+    if (typeof map[prop] === 'function') {
+      return map[prop].bind(map);
+    }
+    return map[prop];
+  }
+});
+
 
 // ========================================
 // FILE DOWNLOAD UTILITY
@@ -70,17 +89,53 @@ async function downloadFile(url, filename, senderId) {
 }
 
 
-const autoReactionBatchMap = new Map(); // senderId -> { firstMsg: {}, lastMsg: {}, timer: null, cooldownUntil: 0 }
+const autoReactionBatchMaps = new Map();
 
-const autoReplyState = {
-  enabled: false,
-  stats: { received: 0, replied: 0, skipped: 0, flowExecuted: 0 },
-  cooldowns: new Map(),
-  botActiveStates: new Map(),
-  pendingInputs: new Map(),
-  aiConversationModes: new Map(), // senderId -> { active, configId, systemPrompt, timeout, lastMessageTime, conversationHistory }
-  pendingPayments: new Map() // transactionCode -> { resolve, reject, timeout }
-};
+function getActiveAutoReactionBatchMap() {
+  const userUID = messageDB.dbStorage.getStore() || 'default';
+  if (!autoReactionBatchMaps.has(userUID)) {
+    autoReactionBatchMaps.set(userUID, new Map());
+  }
+  return autoReactionBatchMaps.get(userUID);
+}
+
+const autoReactionBatchMap = new Proxy({}, {
+  get(target, prop) {
+    const map = getActiveAutoReactionBatchMap();
+    if (typeof map[prop] === 'function') {
+      return map[prop].bind(map);
+    }
+    return map[prop];
+  }
+});
+
+const autoReplyStates = new Map();
+
+function getActiveAutoReplyState() {
+  const userUID = messageDB.dbStorage.getStore() || 'default';
+  if (!autoReplyStates.has(userUID)) {
+    autoReplyStates.set(userUID, {
+      enabled: false,
+      stats: { received: 0, replied: 0, skipped: 0, flowExecuted: 0 },
+      cooldowns: new Map(),
+      botActiveStates: new Map(),
+      pendingInputs: new Map(),
+      aiConversationModes: new Map(),
+      pendingPayments: new Map()
+    });
+  }
+  return autoReplyStates.get(userUID);
+}
+
+const autoReplyState = new Proxy({}, {
+  get(target, prop) {
+    return getActiveAutoReplyState()[prop];
+  },
+  set(target, prop, value) {
+    getActiveAutoReplyState()[prop] = value;
+    return true;
+  }
+});
 
 const flowProcessLog = [];
 

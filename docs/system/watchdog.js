@@ -9,7 +9,7 @@ let watchdogInterval = null;
  * Start the Watchdog service
  * @param {Object} apiState - Global API state object
  */
-function startWatchdog(apiState) {
+function startWatchdog(multiState) {
     if (watchdogInterval) {
         clearInterval(watchdogInterval);
     }
@@ -18,44 +18,30 @@ function startWatchdog(apiState) {
 
     watchdogInterval = setInterval(async () => {
         try {
-            if (!apiState) return;
+            if (!multiState) return;
 
-            // 1. Check if logged in
-            if (!apiState.currentUser || !apiState.currentUser.uid) {
-                // console.log('🐶 Watchdog: User not logged in, skipping check.');
-                return;
-            }
+            const messageDB = require('../messageDB');
+            const accounts = multiState.accounts 
+                ? Array.from(multiState.accounts.values())
+                : [multiState];
 
-            const uid = apiState.currentUser.uid;
+            for (const account of accounts) {
+                if (!account.currentUser || !account.currentUser.uid) continue;
 
-            // 2. STATE SYNC: Restore Personal Auto-Reply State
-            const savedPersonal = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_personal');
-            if (savedPersonal && savedPersonal.enabled !== undefined) {
-                const currentInMemory = autoReply.autoReplyState.enabled;
+                const uid = account.currentUser.uid;
 
-                if (currentInMemory !== savedPersonal.enabled) {
-                    console.warn(`🐶 Watchdog: State mismatch detected! DB=${savedPersonal.enabled}, Mem=${currentInMemory}. Restoring...`);
-                    autoReply.autoReplyState.enabled = savedPersonal.enabled;
+                await messageDB.dbStorage.run(uid, async () => {
+                    // 2. STATE SYNC: Restore Personal Auto-Reply State
+                    const savedPersonal = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_personal');
+                    if (savedPersonal && savedPersonal.enabled !== undefined) {
+                        const currentInMemory = autoReply.autoReplyState.enabled;
 
-                    // Broadcast update to UI if possible (optional)
-                }
-            }
-
-            // 3. CONNECTION CHECK: Ping Zalo API if logged in
-            if (apiState.api && apiState.isLoggedIn) {
-                try {
-                    // Lightweight call to check connection
-                    // getOwnId is purely local usually, maybe getProfile or just rely on 'error' events?
-                    // Let's try to get own profile or similar if cheap.
-                    // Or just check if apiState.api is still valid object.
-
-                    // If we want to be proactive, we could try:
-                    // await apiState.api.getOwnId();
-                    // console.log('🐶 Watchdog: Connection ALIVE');
-                } catch (e) {
-                    console.warn('🐶 Watchdog: Connection seems broken:', e.message);
-                    // Potential re-connect logic could go here if Zalo supports it
-                }
+                        if (currentInMemory !== savedPersonal.enabled) {
+                            console.warn(`🐶 Watchdog [${uid}]: State mismatch detected! DB=${savedPersonal.enabled}, Mem=${currentInMemory}. Restoring...`);
+                            autoReply.autoReplyState.enabled = savedPersonal.enabled;
+                        }
+                    }
+                });
             }
 
         } catch (error) {

@@ -187,8 +187,10 @@ function setupMessageListener(apiState) {
   console.log('👂 Listener tin nhắn đang chạy...');
 
   apiState.api.listener.on('message', (message) => {
-    try {
-      if (!message || !message.data) {
+    const userUID = apiState.currentUser?.uid;
+    messageDB.dbStorage.run(userUID, () => {
+      try {
+        if (!message || !message.data) {
         console.warn('⚠️ Received invalid message');
         return;
       }
@@ -558,6 +560,7 @@ function setupMessageListener(apiState) {
       console.error('❌ Listener error (recovered):', err.message);
       console.error(err.stack);
     }
+    });
   });
 
   // Error handler cho listener
@@ -623,8 +626,10 @@ async function setupFriendRequestListener(apiState) {
   // ========================================
   try {
     apiState.api.listener.on('friend_event', async (event) => {
-      console.log('👥 Friend event received:', event);
-      const triggerDB = require('./triggerDB');
+      const userUID = apiState.currentUser?.uid;
+      await messageDB.dbStorage.run(userUID, async () => {
+        console.log('👥 Friend event received:', event);
+        const triggerDB = require('./triggerDB');
 
       // Import FriendEventType enum if available
       const FriendEventType = {
@@ -800,6 +805,7 @@ async function setupFriendRequestListener(apiState) {
 
       // ✅ Broadcast AFTER cache update to ensure client gets fresh data
       broadcast(apiState, broadcastData);
+      });
     });
     console.log('✅ friend_event listener registered');
   } catch (e) {
@@ -1091,71 +1097,192 @@ async function handleSmartFriendRequest(apiState, userId) {
 // ========================================
 
 // Main login function
+// Compatibility wrapper
 async function loginZalo(apiState) {
-  const targetState = apiState; // Use global state directly
-
-  console.log('🚀 Starting Zalo Login (Single-User Mode)');
-
-  // Check if already logged in or login in progress
-  if (targetState.api) {
-    console.log('✅ Already logged in!');
-    return targetState.api;
+  if (apiState.accounts) {
+    return restoreAllAccounts(apiState);
   }
-  if (targetState.loginInProgress) {
-    console.log('⏳ Login process is already in progress, ignoring duplicate trigger.');
+  return loginZaloAccount(apiState);
+}
+
+// Broadcast list of accounts to all connected clients
+function broadcastAccountsList(multiState) {
+  const accountsList = Array.from(multiState.accounts.values()).map(acc => ({
+    uid: acc.currentUser.uid,
+    name: acc.currentUser.name,
+    avatar: acc.currentUser.avatar,
+    isLoggedIn: acc.isLoggedIn
+  }));
+
+  broadcast(multiState, {
+    type: 'accounts_list',
+    accounts: accountsList,
+    activeAccountUID: multiState.activeAccountUID
+  });
+}
+
+// Restore all saved accounts from data/credentials_*.json
+async function restoreAllAccounts(multiState) {
+  console.log('🔄 Checking for saved Zalo accounts to restore...');
+  const dataDir = path.join(__dirname, 'data');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
+  // Look for credentials files
+  const files = fs.readdirSync(dataDir);
+  const uids = [];
+  
+  // Also check for legacy credentials.json
+  const hasLegacy = fs.existsSync(path.join(dataDir, 'credentials.json'));
+  
+  files.forEach(file => {
+    const match = file.match(/^credentials_(.+)\.json$/);
+    if (match) {
+      uids.push(match[1]);
+    }
+  });
+
+  if (uids.length > 0) {
+    console.log(`🔑 Found ${uids.length} saved account(s) to restore:`, uids);
+    for (const uid of uids) {
+      try {
+        await loginZaloAccount(multiState, uid);
+      } catch (err) {
+        console.error(`❌ Failed to restore account ${uid}:`, err.message);
+      }
+    }
+  } else if (hasLegacy) {
+    console.log('🔑 Found legacy credentials.json, attempting migration login...');
+    try {
+      await loginZaloAccount(multiState);
+    } catch (err) {
+      console.error('❌ Failed to restore legacy credentials:', err.message);
+    }
+  }
+
+  // If still no accounts loaded, start a new QR login flow
+  if (multiState.accounts.size === 0) {
+    console.log('📱 No saved accounts or restore failed. Starting new QR login flow...');
+    try {
+      await loginZaloAccount(multiState);
+    } catch (err) {
+      console.error('❌ Failed to start QR login flow:', err.message);
+    }
+  }
+}
+
+// Main multi-account login function
+async function loginZaloAccount(multiState, existingUID = null) {
+  console.log(`🚀 Starting Zalo Login (Multi-Account Mode). Target UID: ${existingUID || 'New Account (QR)'}`);
+
+  // Determine if login queue/lock is in progress
+  if (multiState.loginInProgress) {
+    console.log('⏳ Another login process is already in progress, ignoring duplicate trigger.');
     return;
   }
 
-  targetState.loginInProgress = true;
+  // Check if target account already logged in
+  if (existingUID && multiState.accounts.has(existingUID)) {
+    console.log(`✅ Account ${existingUID} already logged in!`);
+    return multiState.accounts.get(existingUID).api;
+  }
+
+  multiState.loginInProgress = true;
 
   try {
-
-    // ✅ Khởi tạo Zalo với imageMetadataGetter để hỗ trợ gửi ảnh
     const zalo = new Zalo({
       imageMetadataGetter: imageMetadataGetter
     });
 
-    const CREDENTIALS_PATH = path.join(__dirname, 'data', 'credentials.json');
     let loggedIn = false;
+    let credentialsPath = null;
 
-    // Thử đăng nhập bằng credentials lưu từ trước
-    if (fs.existsSync(CREDENTIALS_PATH)) {
+    if (existingUID) {
+      credentialsPath = path.join(__dirname, 'data', `credentials_${existingUID}.json`);
+    } else {
+      // Check legacy credentials.json first
+      const legacyPath = path.join(__dirname, 'data', 'credentials.json');
+      if (fs.existsSync(legacyPath)) {
+        credentialsPath = legacyPath;
+      }
+    }
+
+    // Create a new account state object
+    const accountState = {
+      api: null,
+      currentUser: null,
+      isLoggedIn: false,
+      messageStore: new Map(),
+      friends: [],
+      friendsMap: new Map(),
+      groupsMap: new Map(),
+      clients: multiState.clients
+    };
+
+    if (credentialsPath && fs.existsSync(credentialsPath)) {
       try {
-        console.log('🔑 Tìm thấy thông tin đăng nhập đã lưu, đang khôi phục phiên...');
-        const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
-        
-        targetState.api = await zalo.login(credentials);
-        console.log('✅ Đăng nhập bằng phiên đã lưu thành công!');
+        console.log(`🔑 Restoring session from ${path.basename(credentialsPath)}...`);
+        const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+        accountState.api = await zalo.login(credentials);
+        console.log('✅ Login session restored successfully!');
         loggedIn = true;
       } catch (err) {
-        console.warn('⚠️ Phiên đăng nhập đã lưu không hợp lệ hoặc hết hạn:', err.message);
+        console.warn(`⚠️ Failed to restore session from ${path.basename(credentialsPath)}:`, err.message);
         try {
-          fs.unlinkSync(CREDENTIALS_PATH);
-          console.log('🗑️ Đã xóa file credentials cũ.');
+          fs.unlinkSync(credentialsPath);
+          console.log('🗑️ Deleted invalid credentials file.');
         } catch (unlinkErr) {}
       }
     }
 
     if (!loggedIn) {
-      console.log('🔄 Đang tạo mã QR đăng nhập...');
+      if (existingUID) {
+        console.log(`❌ Saved session for UID ${existingUID} is expired or invalid.`);
+        multiState.loginInProgress = false;
+        return;
+      }
       
-      // Login QR không callback để giữ hành vi mặc định (tự lưu QR, tự retry khi hết hạn)
-      targetState.api = await zalo.loginQR();
+      // Limit to max 2 accounts
+      if (multiState.accounts.size >= 2) {
+        console.warn('⚠️ Maximum of 2 accounts reached. Cannot add a new account.');
+        broadcast(multiState, {
+          type: 'login_error',
+          message: 'Hệ thống đã đạt giới hạn tối đa 2 tài khoản!'
+        });
+        multiState.loginInProgress = false;
+        return;
+      }
+
+      console.log('🔄 Generating Zalo login QR code...');
+      broadcast(multiState, { type: 'qr_generating' });
+      
+      accountState.api = await zalo.loginQR();
     }
 
-    // Xóa file QR nếu có
+    // Clean up qr.png
     try {
       fs.unlinkSync('qr.png');
     } catch (e) { }
 
-    // ✅ Patch Zalo API functions for BigInt parameter compatibility
-    if (targetState.api) {
-      patchZaloApi(targetState.api);
+    if (accountState.api) {
+      patchZaloApi(accountState.api);
     }
 
-    // ✅ Lưu credentials sau khi đăng nhập thành công (cả QR và credentials login)
+    const uid = accountState.api.getOwnId().toString();
+    const info = await accountState.api.getUserInfo(uid);
+    const profile = info.changed_profiles?.[uid] || info;
+
+    accountState.currentUser = {
+      uid,
+      name: profile.displayName || profile.zaloName || "Không rõ tên",
+      avatar: profile.avatar || `https://graph.zalo.me/v2.0/avatar/${uid}?size=240`
+    };
+    accountState.isLoggedIn = true;
+
+    // Save/update per-account credentials
     try {
-      const ctx = targetState.api.getContext();
+      const ctx = accountState.api.getContext();
       if (ctx && ctx.imei && ctx.cookie) {
         const credentials = {
           imei: ctx.imei,
@@ -1163,36 +1290,32 @@ async function loginZalo(apiState) {
           userAgent: ctx.userAgent,
           language: ctx.language || 'vi'
         };
-        const dataDir = path.dirname(CREDENTIALS_PATH);
+        const accountCredPath = path.join(__dirname, 'data', `credentials_${uid}.json`);
+        const dataDir = path.dirname(accountCredPath);
         if (!fs.existsSync(dataDir)) {
           fs.mkdirSync(dataDir, { recursive: true });
         }
-        fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2), 'utf8');
-        console.log('✅ Đã lưu thông tin phiên đăng nhập vào data/credentials.json');
+        fs.writeFileSync(accountCredPath, JSON.stringify(credentials, null, 2), 'utf8');
+        console.log(`✅ Saved credentials to data/credentials_${uid}.json`);
+
+        // If we migrated from legacy credentials.json, delete it
+        const legacyPath = path.join(__dirname, 'data', 'credentials.json');
+        if (credentialsPath === legacyPath && fs.existsSync(legacyPath)) {
+          fs.unlinkSync(legacyPath);
+          console.log('🗑️ Deleted legacy credentials.json');
+        }
       }
     } catch (saveErr) {
-      console.warn('⚠️ Không thể lưu credentials:', saveErr.message);
+      console.warn('⚠️ Could not save credentials:', saveErr.message);
     }
 
-    // ✅ Multi-device support enabled - no IP locking or force logout
-    // All connected clients will receive the current_user broadcast
+    // Add to multiState accounts map
+    multiState.accounts.set(uid, accountState);
+    if (!multiState.activeAccountUID) {
+      multiState.activeAccountUID = uid;
+    }
 
-    targetState.isLoggedIn = true;
-
-    console.log('🎉 Đăng nhập thành công! Session ready.');
-    console.log('📷 Image sending:', sharp ? 'ENABLED (sharp loaded)' : 'LIMITED (sharp not installed)');
-
-    const uid = targetState.api.getOwnId().toString();
-    const info = await targetState.api.getUserInfo(uid);
-    const profile = info.changed_profiles?.[uid] || info;
-
-    targetState.currentUser = {
-      uid,
-      name: profile.displayName || profile.zaloName || "Không rõ tên",
-      avatar: profile.avatar || `https://graph.zalo.me/v2.0/avatar/${uid}?size=240`
-    };
-
-    // ✅ Initialize Message Database for this user
+    // Initialize per-user DB and triggers
     try {
       messageDB.init(uid);
       console.log('✅ MessageDB initialized for user:', uid);
@@ -1200,74 +1323,71 @@ async function loginZalo(apiState) {
       console.error('❌ Failed to initialize MessageDB for user:', uid, dbErr.message);
     }
 
-    // ✅ Ensure built-in triggers exist for this user
     try {
       const triggerDB = require('./triggerDB');
       triggerDB.ensureUserTriggers(uid);
       console.log('✅ Checked/Initialized triggers for user:', uid);
-
-      // 🔄 RESTORE AUTO-REPLY STATE FROM DB
+      
+      // Restore auto-reply state
       const autoReplyModule = require('./autoReply');
-
-      // 1. Personal Auto-Reply
       const savedPersonal = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_personal');
       if (savedPersonal && savedPersonal.enabled !== undefined) {
-        autoReplyModule.autoReplyState.enabled = savedPersonal.enabled;
-        console.log(`🔄 Restored Personal Auto-Reply State: ${savedPersonal.enabled ? 'ON' : 'OFF'}`);
+        // Run with storage key
+        messageDB.dbStorage.run(uid, () => {
+          autoReplyModule.autoReplyState.enabled = savedPersonal.enabled;
+          console.log(`[${uid}] Restored Personal Auto-Reply State: ${savedPersonal.enabled ? 'ON' : 'OFF'}`);
+        });
       }
-
-      // 2. Bot OA Auto-Reply
-      const savedBot = triggerDB.getBuiltInTriggerState(uid, 'global_auto_reply_bot');
-      if (savedBot) {
-        targetState.botAutoReplyEnabled = savedBot.enabled;
-        if (savedBot.botToken) targetState.botToken = savedBot.botToken;
-        console.log(`🔄 Restored Bot OA Auto-Reply State: ${savedBot.enabled ? 'ON' : 'OFF'}`);
-
-        // Note: Polling will be started by WebSocket 'get_bot_auto_reply_status' 
-        // or we need to expose startBotPolling here.
-        // For now, trusting the UI to trigger the check.
-      }
-
     } catch (e) {
       console.warn('⚠️ Init triggers/restore state failed:', e.message);
     }
 
-    // Load friends list for Smart Features
+    // Load friends
     try {
-      console.log('👥 Loading friends list...');
-      const friendsFn = targetState.api.getFriends;
+      console.log(`[${uid}] Loading friends list...`);
+      const friendsFn = accountState.api.getFriends;
       if (typeof friendsFn === 'function') {
-        targetState.friends = await friendsFn();
-        console.log(`✅ Loaded ${targetState.friends?.length || 0} friends.`);
+        accountState.friends = await friendsFn();
+        accountState.friendsMap = new Map(accountState.friends.map(f => [String(f.userId), f]));
+        console.log(`[${uid}] Loaded ${accountState.friends.length} friends.`);
       }
-    } catch (e) { console.warn('⚠️ Could not load friends:', e.message); }
-
-    // Setup listeners (Auto reply, etc.)
-    // Note: Single-user mode - listeners attached to global apiState
-
-    // Broadcast user info to all connected clients
-    if (targetState.clients) {
-      const json = JSON.stringify({
-        type: 'current_user',
-        user: targetState.currentUser
-      });
-      targetState.clients.forEach(ws => {
-        if (ws.readyState === 1) ws.send(json);
-      });
+    } catch (e) {
+      console.warn('⚠️ Failed to load friends:', e.message);
     }
 
-    // Setup listeners (Auto reply, etc.)
-    setupMessageListener(targetState);
-    setupFriendRequestListener(targetState);
+    // Load groups
+    try {
+      console.log(`[${uid}] Loading groups list...`);
+      const groupsFn = accountState.api.getGroups;
+      if (typeof groupsFn === 'function') {
+        const groups = await groupsFn();
+        accountState.groupsMap = new Map(groups.map(g => [String(g.groupId), g]));
+        console.log(`[${uid}] Loaded ${groups.length} groups.`);
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to load groups:', e.message);
+    }
 
-    targetState.loginInProgress = false;
+    // Setup listeners
+    setupMessageListener(accountState);
+    setupFriendRequestListener(accountState);
+
+    // Broadcast account list update
+    broadcastAccountsList(multiState);
+
+    console.log(`🎉 Account ${uid} (${accountState.currentUser.name}) logged in and ready.`);
+    multiState.loginInProgress = false;
+    return accountState.api;
 
   } catch (error) {
-    targetState.loginInProgress = false;
-    console.error('❌ Login failed:', error);
+    multiState.loginInProgress = false;
+    console.error('❌ Zalo login account failed:', error);
+    broadcast(multiState, {
+      type: 'login_error',
+      message: 'Đăng nhập thất bại: ' + error.message
+    });
     throw error;
   }
-  // finally block removed - no sessionManager to unlock
 }
 
 // ✅ Helper to patch API functions to format ID parameters without quotes (BigInt compatibility)
@@ -1349,6 +1469,9 @@ function patchZaloApi(api) {
 
 module.exports = {
   loginZalo,
+  loginZaloAccount,
+  restoreAllAccounts,
+  broadcastAccountsList,
   setupMessageListener,
   setupFriendRequestListener,
   handleSmartFriendRequest,

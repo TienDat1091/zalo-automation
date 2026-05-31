@@ -2,7 +2,18 @@
 const path = require('path');
 const fs = require('fs');
 
-let db = null;
+const { AsyncLocalStorage } = require('async_hooks');
+const dbStorage = new AsyncLocalStorage();
+const dbs = new Map();
+let currentUserId = null;
+
+const db = new Proxy({}, {
+    get(target, prop) {
+        const userId = dbStorage.getStore() || currentUserId;
+        const activeDb = dbs.get(userId) || dbs.get(currentUserId) || Array.from(dbs.values())[0];
+        return activeDb ? activeDb[prop] : undefined;
+    }
+});
 
 // ============================================
 // INITIALIZE DATABASE
@@ -10,17 +21,6 @@ let db = null;
 function init(userId = null) {
     try {
         const Database = require('better-sqlite3');
-
-        // Close existing database connection if open
-        if (db) {
-            try {
-                db.close();
-                console.log('🚪 Closed previous MessageDB connection');
-            } catch (closeErr) {
-                console.warn('⚠️ Error closing MessageDB connection:', closeErr.message);
-            }
-            db = null;
-        }
 
         const dbName = userId ? `messages_${userId}.db` : 'messages.db';
         const dbPath = path.join(__dirname, 'data', dbName);
@@ -30,10 +30,15 @@ function init(userId = null) {
             fs.mkdirSync(dataDir, { recursive: true });
         }
 
-        db = new Database(dbPath);
+        const key = userId || 'default';
+        if (dbs.has(key)) {
+            return true;
+        }
+
+        const targetDb = new Database(dbPath);
 
         // MESSAGES TABLE
-        db.exec(`
+        targetDb.exec(`
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         conversationId TEXT NOT NULL,
@@ -55,7 +60,7 @@ function init(userId = null) {
     `);
 
         // INDEXES
-        db.exec(`
+        targetDb.exec(`
       CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversationId);
       CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
       CREATE INDEX IF NOT EXISTS idx_messages_msgId ON messages(msgId);
@@ -64,7 +69,7 @@ function init(userId = null) {
     `);
 
         // FILE ACTIVITY LOGS (NEW)
-        db.exec(`
+        targetDb.exec(`
       CREATE TABLE IF NOT EXISTS file_activity_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp INTEGER NOT NULL,
@@ -78,7 +83,7 @@ function init(userId = null) {
     `);
 
         // RECEIVED FILES (LEGACY/BACKUP)
-        db.exec(`
+        targetDb.exec(`
       CREATE TABLE IF NOT EXISTS received_files (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         conversationId TEXT NOT NULL,
@@ -94,7 +99,7 @@ function init(userId = null) {
     `);
 
         // ✅ MESSAGE REACTIONS TABLE
-        db.exec(`
+        targetDb.exec(`
       CREATE TABLE IF NOT EXISTS message_reactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         msgId TEXT NOT NULL,
@@ -105,7 +110,7 @@ function init(userId = null) {
       )
     `);
 
-        db.exec(`
+        targetDb.exec(`
       CREATE INDEX IF NOT EXISTS idx_reactions_msgId ON message_reactions(msgId);
     `);
 
@@ -113,29 +118,34 @@ function init(userId = null) {
         // AUTO MIGRATION (Fix for Render/Production)
         // ============================================
         try {
-            const tableInfo = db.prepare('PRAGMA table_info(messages)').all();
+            const tableInfo = targetDb.prepare('PRAGMA table_info(messages)').all();
 
             if (!tableInfo.some(c => c.name === 'cliMsgId')) {
                 console.log('🔄 Auto-Migration: Adding cliMsgId column...');
-                db.exec('ALTER TABLE messages ADD COLUMN cliMsgId TEXT');
+                targetDb.exec('ALTER TABLE messages ADD COLUMN cliMsgId TEXT');
             }
 
             if (!tableInfo.some(c => c.name === 'globalMsgId')) {
                 console.log('🔄 Auto-Migration: Adding globalMsgId column...');
-                db.exec('ALTER TABLE messages ADD COLUMN globalMsgId TEXT');
+                targetDb.exec('ALTER TABLE messages ADD COLUMN globalMsgId TEXT');
             }
 
             if (!tableInfo.some(c => c.name === 'metadata')) {
                 console.log('🔄 Auto-Migration: Adding metadata column for image/file data...');
-                db.exec('ALTER TABLE messages ADD COLUMN metadata TEXT');
+                targetDb.exec('ALTER TABLE messages ADD COLUMN metadata TEXT');
             }
 
             if (!tableInfo.some(c => c.name === 'localFilePath')) {
                 console.log('🔄 Auto-Migration: Adding localFilePath column for downloaded files...');
-                db.exec('ALTER TABLE messages ADD COLUMN localFilePath TEXT');
+                targetDb.exec('ALTER TABLE messages ADD COLUMN localFilePath TEXT');
             }
         } catch (migErr) {
             console.error('⚠️ Auto-Migration failed (might be already up to date):', migErr.message);
+        }
+
+        dbs.set(key, targetDb);
+        if (userId) {
+            currentUserId = userId;
         }
 
         console.log('✅ MessageDB initialized:', dbPath);
@@ -664,6 +674,7 @@ function deleteFilesOnly() {
 
 
 module.exports = {
+    dbStorage,
     init,
     saveMessage,
     getMessages,
